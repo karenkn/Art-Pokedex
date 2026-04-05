@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Art Photo Organizer</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #f5f0eb;
+      color: #2c2c2c;
+      min-height: 100vh;
+    }
+
+    header {
+      background: #1a1a2e;
+      color: #fff;
+      padding: 18px 32px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+    }
+    header .logo { font-size: 26px; }
+    header h1 { font-size: 20px; font-weight: 600; letter-spacing: 0.5px; }
+    header p { font-size: 13px; color: #a8a8c0; margin-top: 2px; }
+
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 16px 32px;
+      background: #fff;
+      border-bottom: 1px solid #e0dbd5;
+      flex-wrap: wrap;
+    }
+    .upload-btn {
+      background: #e05c2e;
+      color: #fff;
+      border: none;
+      padding: 9px 20px;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      transition: background 0.2s;
+    }
+    .upload-btn:hover { background: #c44d22; }
+    #fileInput { display: none; }
+
+    .filter-group {
+      display: flex;
+      gap: 8px;
+      margin-left: auto;
+      flex-wrap: wrap;
+    }
+    .filter-btn {
+      padding: 7px 15px;
+      border-radius: 20px;
+      border: 1.5px solid #ccc;
+      background: #fff;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s;
+      color: #555;
+    }
+    .filter-btn:hover, .filter-btn.active {
+      background: #1a1a2e;
+      color: #fff;
+      border-color: #1a1a2e;
+    }
+
+    .stats-bar {
+      display: flex;
+      gap: 24px;
+      padding: 12px 32px;
+      background: #f9f6f2;
+      border-bottom: 1px solid #e8e2da;
+      font-size: 13px;
+      color: #777;
+    }
+    .stats-bar span strong { color: #2c2c2c; }
+
+    .main {
+      padding: 28px 32px;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    /* Drop zone */
+    .drop-zone {
+      border: 2.5px dashed #c4b8ac;
+      border-radius: 14px;
+      padding: 60px 32px;
+      text-align: center;
+      color: #999;
+      background: #fdfaf7;
+      transition: all 0.2s;
+      cursor: pointer;
+      margin-bottom: 32px;
+    }
+    .drop-zone.drag-over {
+      border-color: #e05c2e;
+      background: #fff5f1;
+      color: #e05c2e;
+    }
+    .drop-zone .icon { font-size: 48px; margin-bottom: 12px; }
+    .drop-zone p { font-size: 16px; margin-bottom: 6px; }
+    .drop-zone small { font-size: 13px; }
+
+    /* Section headers */
+    .section-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: #1a1a2e;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .section-title .count {
+      background: #e05c2e;
+      color: #fff;
+      font-size: 12px;
+      padding: 2px 8px;
+      border-radius: 20px;
+    }
+
+    /* Location group */
+    .location-group { margin-bottom: 40px; }
+    .location-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid #e0dbd5;
+    }
+    .location-icon { font-size: 20px; }
+    .location-name { font-size: 18px; font-weight: 700; color: #1a1a2e; }
+    .location-sub { font-size: 13px; color: #888; margin-left: auto; }
+
+    /* Photo grid */
+    .photo-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 18px;
+    }
+
+    .photo-card {
+      background: #fff;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      transition: transform 0.2s, box-shadow 0.2s;
+      cursor: pointer;
+      position: relative;
+    }
+    .photo-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.14);
+    }
+
+    .photo-card img {
+      width: 100%;
+      height: 180px;
+      object-fit: cover;
+      display: block;
+    }
+
+    .analyzing-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(26,26,46,0.7);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      gap: 10px;
+      font-size: 14px;
+    }
+    .spinner {
+      width: 32px; height: 32px;
+      border: 3px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .photo-info {
+      padding: 12px 14px;
+    }
+    .photo-title {
+      font-size: 14px;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-bottom: 6px;
+    }
+    .tag-row {
+      display: flex;
+      gap: 5px;
+      flex-wrap: wrap;
+    }
+    .tag {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-weight: 500;
+    }
+    .tag.location { background: #e8f4fd; color: #1a6fa6; }
+    .tag.style    { background: #fef3e2; color: #b07a0a; }
+    .tag.medium   { background: #f0f7ee; color: #3a7d44; }
+
+    .photo-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 8px;
+      font-size: 11px;
+      color: #aaa;
+    }
+
+    /* Modal */
+    .modal-bg {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.75);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-bg.open { display: flex; }
+    .modal {
+      background: #fff;
+      border-radius: 14px;
+      max-width: 760px;
+      width: 95%;
+      overflow: hidden;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+      display: flex;
+      flex-direction: column;
+      max-height: 90vh;
+    }
+    .modal img {
+      width: 100%;
+      max-height: 420px;
+      object-fit: contain;
+      background: #111;
+    }
+    .modal-body { padding: 24px; overflow-y: auto; }
+    .modal-title { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+    .modal-tags { display: flex; gap: 7px; flex-wrap: wrap; margin-bottom: 16px; }
+    .modal-desc { font-size: 14px; color: #555; line-height: 1.6; margin-bottom: 16px; }
+    .modal-detail-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      font-size: 13px;
+    }
+    .modal-detail { background: #f5f0eb; border-radius: 8px; padding: 12px 14px; }
+    .modal-detail label { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 3px; }
+    .modal-detail span { font-weight: 600; color: #1a1a2e; }
+    .modal-close {
+      position: absolute;
+      top: 14px; right: 18px;
+      font-size: 26px;
+      cursor: pointer;
+      color: #fff;
+      z-index: 101;
+      line-height: 1;
+    }
+
+    /* Empty / no results */
+    .empty-state {
+      text-align: center;
+      padding: 60px 32px;
+      color: #aaa;
+    }
+    .empty-state .icon { font-size: 48px; margin-bottom: 12px; }
+
+    /* Responsive */
+    @media (max-width: 600px) {
+      .toolbar { padding: 12px 16px; }
+      .main { padding: 16px; }
+      .stats-bar { padding: 10px 16px; }
+      header { padding: 14px 16px; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <span class="logo">🖼️</span>
+  <div>
+    <h1>Art Photo Organizer</h1>
+    <p>AI-powered location & style identification</p>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
+    ➕ Add Photos
+  </button>
+  <input type="file" id="fileInput" accept="image/*" multiple onchange="handleFiles(this.files)" />
+  <div class="filter-group" id="filterGroup">
+    <button class="filter-btn active" data-filter="all" onclick="setFilter('all', this)">All</button>
+    <button class="filter-btn" data-filter="location" onclick="setFilter('location', this)">📍 By Location</button>
+    <button class="filter-btn" data-filter="style" onclick="setFilter('style', this)">🎨 By Style</button>
+  </div>
+</div>
+
+<div class="stats-bar" id="statsBar">
+  <span>📸 <strong id="totalCount">0</strong> photos</span>
+  <span>📍 <strong id="locationCount">0</strong> locations</span>
+  <span>🎨 <strong id="styleCount">0</strong> styles</span>
+</div>
+
+<div class="main">
+  <div class="drop-zone" id="dropZone">
+    <div class="icon">🗂️</div>
+    <p>Drop your art photos here</p>
+    <small>or click <strong>Add Photos</strong> above &nbsp;·&nbsp; Supports JPG, PNG, WEBP, GIF</small>
+  </div>
+
+  <div id="content"></div>
+</div>
+
+<!-- Modal -->
+<div class="modal-bg" id="modalBg" onclick="closeModal(event)">
+  <span class="modal-close" onclick="closeModalDirect()">✕</span>
+  <div class="modal" id="modal">
+    <img id="modalImg" src="" alt="" />
+    <div class="modal-body">
+      <div class="modal-title" id="modalTitle"></div>
+      <div class="modal-tags" id="modalTags"></div>
+      <div class="modal-desc" id="modalDesc"></div>
+      <div class="modal-detail-grid" id="modalDetails"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ─── Demo / simulated AI data ────────────────────────────────────────────────
+  // In a real app these would come from a vision AI API (e.g. Claude, GPT-4V, Google Vision)
+  const AI_PROFILES = [
+    {
+      location: "Louvre Museum, Paris",
+      country: "France",
+      style: "Classical Painting",
+      medium: "Oil on Canvas",
+      period: "17th–19th c.",
+      confidence: 94,
+      description: "This work bears the hallmarks of French academic painting — rich chiaroscuro, classical composition, and precise draughtsmanship consistent with the Louvre's collection of Old Master works."
+    },
+    {
+      location: "Uffizi Gallery, Florence",
+      country: "Italy",
+      style: "Renaissance",
+      medium: "Tempera on Panel",
+      period: "15th c.",
+      confidence: 91,
+      description: "The gilded backgrounds, elongated figures, and symbolic iconography are characteristic of the Florentine Renaissance tradition represented in the Uffizi's collection."
+    },
+    {
+      location: "MoMA, New York",
+      country: "USA",
+      style: "Abstract Expressionism",
+      medium: "Acrylic on Canvas",
+      period: "20th c.",
+      confidence: 88,
+      description: "Bold gestural marks, large-scale format, and expressive color fields align this work with Abstract Expressionism — a genre MoMA helped define and preserve."
+    },
+    {
+      location: "Prado Museum, Madrid",
+      country: "Spain",
+      style: "Baroque",
+      medium: "Oil on Canvas",
+      period: "17th c.",
+      confidence: 92,
+      description: "Dramatic lighting, intense realism, and emotional power are hallmarks of the Spanish Baroque, with compositional affinities to works in the Prado's permanent collection."
+    },
+    {
+      location: "Tate Modern, London",
+      country: "UK",
+      style: "Contemporary Art",
+      medium: "Mixed Media",
+      period: "21st c.",
+      confidence: 85,
+      description: "Conceptual framing, non-traditional materials, and provocative subject matter are consistent with the kind of contemporary practice celebrated at Tate Modern."
+    },
+    {
+      location: "Rijksmuseum, Amsterdam",
+      country: "Netherlands",
+      style: "Dutch Golden Age",
+      medium: "Oil on Panel",
+      period: "17th c.",
+      confidence: 96,
+      description: "The meticulous attention to light, texture, and everyday domestic scenes places this firmly in the Dutch Golden Age tradition — the specialty of the Rijksmuseum."
+    },
+    {
+      location: "Van Gogh Museum, Amsterdam",
+      country: "Netherlands",
+      style: "Post-Impressionism",
+      medium: "Oil on Canvas",
+      period: "Late 19th c.",
+      confidence: 93,
+      description: "Thick impasto brushwork, swirling rhythmic lines, and vibrant complementary colors are unmistakably associated with the Post-Impressionist style championed by Van Gogh."
+    },
+    {
+      location: "Street Art, Berlin",
+      country: "Germany",
+      style: "Street Art / Graffiti",
+      medium: "Spray Paint",
+      period: "Contemporary",
+      confidence: 87,
+      description: "Bold outlines, stencil techniques, and urban commentary are characteristic of Berlin's world-renowned street art scene, visible across neighborhoods like Kreuzberg."
+    },
+  ];
+
+  // ─── State ───────────────────────────────────────────────────────────────────
+  let photos = [];
+  let currentFilter = 'all';
+
+  // ─── File handling ───────────────────────────────────────────────────────────
+  function handleFiles(files) {
+    Array.from(files).forEach(file => {
+      if (!file.type.startsWith('image/')) return;
+      const id = Date.now() + Math.random();
+      const url = URL.createObjectURL(file);
+      const photo = { id, file, url, name: file.name, status: 'analyzing', aiData: null };
+      photos.push(photo);
+      render();
+      simulateAI(photo);
+    });
+  }
+
+  function simulateAI(photo) {
+    const delay = 1200 + Math.random() * 1400;
+    setTimeout(() => {
+      const profile = AI_PROFILES[Math.floor(Math.random() * AI_PROFILES.length)];
+      photo.aiData = profile;
+      photo.status = 'done';
+      render();
+    }, delay);
+  }
+
+  // ─── Rendering ───────────────────────────────────────────────────────────────
+  function render() {
+    updateStats();
+    const content = document.getElementById('content');
+
+    const drop = document.getElementById('dropZone');
+    drop.style.display = photos.length ? 'none' : 'block';
+
+    if (!photos.length) { content.innerHTML = ''; return; }
+
+    if (currentFilter === 'all' || currentFilter === 'location') {
+      renderByLocation(content);
+    } else {
+      renderByStyle(content);
+    }
+  }
+
+  function renderByLocation(container) {
+    // Group by location
+    const groups = {};
+    const analyzing = [];
+    photos.forEach(p => {
+      if (p.status === 'analyzing') { analyzing.push(p); return; }
+      const key = p.aiData.location;
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(p);
+    });
+
+    let html = '';
+
+    if (analyzing.length) {
+      html += `<div class="location-group">
+        <div class="section-title">⏳ Analyzing <span class="count">${analyzing.length}</span></div>
+        <div class="photo-grid">${analyzing.map(photoCard).join('')}</div>
+      </div>`;
+    }
+
+    Object.entries(groups).forEach(([loc, items]) => {
+      const country = items[0].aiData.country;
+      html += `<div class="location-group">
+        <div class="location-header">
+          <span class="location-icon">📍</span>
+          <span class="location-name">${loc}</span>
+          <span class="location-sub">${country} &nbsp;·&nbsp; ${items.length} photo${items.length>1?'s':''}</span>
+        </div>
+        <div class="photo-grid">${items.map(photoCard).join('')}</div>
+      </div>`;
+    });
+
+    container.innerHTML = html || '<div class="empty-state"><div class="icon">🔍</div><p>No results</p></div>';
+  }
+
+  function renderByStyle(container) {
+    const groups = {};
+    const analyzing = [];
+    photos.forEach(p => {
+      if (p.status === 'analyzing') { analyzing.push(p); return; }
+      const key = p.aiData.style;
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(p);
+    });
+
+    let html = '';
+
+    if (analyzing.length) {
+      html += `<div class="location-group">
+        <div class="section-title">⏳ Analyzing <span class="count">${analyzing.length}</span></div>
+        <div class="photo-grid">${analyzing.map(photoCard).join('')}</div>
+      </div>`;
+    }
+
+    Object.entries(groups).forEach(([style, items]) => {
+      html += `<div class="location-group">
+        <div class="location-header">
+          <span class="location-icon">🎨</span>
+          <span class="location-name">${style}</span>
+          <span class="location-sub">${items.length} photo${items.length>1?'s':''}</span>
+        </div>
+        <div class="photo-grid">${items.map(photoCard).join('')}</div>
+      </div>`;
+    });
+
+    container.innerHTML = html || '<div class="empty-state"><div class="icon">🔍</div><p>No results</p></div>';
+  }
+
+  function photoCard(p) {
+    const overlay = p.status === 'analyzing'
+      ? `<div class="analyzing-overlay"><div class="spinner"></div><span>Analyzing…</span></div>`
+      : '';
+    const tags = p.aiData
+      ? `<div class="tag-row">
+          <span class="tag location">📍 ${p.aiData.location.split(',')[0]}</span>
+          <span class="tag style">${p.aiData.style}</span>
+          <span class="tag medium">${p.aiData.medium}</span>
+        </div>`
+      : '';
+    const meta = p.aiData
+      ? `<div class="photo-meta">
+          <span>${p.aiData.period}</span>
+          <span>✓ ${p.aiData.confidence}% match</span>
+        </div>`
+      : '';
+
+    return `
+      <div class="photo-card" onclick="openModal('${p.id}')">
+        <img src="${p.url}" alt="${p.name}" loading="lazy" />
+        ${overlay}
+        <div class="photo-info">
+          <div class="photo-title">${p.name}</div>
+          ${tags}
+          ${meta}
+        </div>
+      </div>`;
+  }
+
+  function updateStats() {
+    const done = photos.filter(p => p.status === 'done');
+    const locations = new Set(done.map(p => p.aiData.location)).size;
+    const styles = new Set(done.map(p => p.aiData.style)).size;
+    document.getElementById('totalCount').textContent = photos.length;
+    document.getElementById('locationCount').textContent = locations;
+    document.getElementById('styleCount').textContent = styles;
+  }
+
+  // ─── Filters ─────────────────────────────────────────────────────────────────
+  function setFilter(filter, btn) {
+    currentFilter = filter;
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    render();
+  }
+
+  // ─── Modal ───────────────────────────────────────────────────────────────────
+  function openModal(id) {
+    const p = photos.find(x => String(x.id) === id);
+    if (!p || p.status === 'analyzing') return;
+    const d = p.aiData;
+
+    document.getElementById('modalImg').src = p.url;
+    document.getElementById('modalTitle').textContent = p.name;
+    document.getElementById('modalDesc').textContent = d.description;
+    document.getElementById('modalTags').innerHTML = `
+      <span class="tag location" style="font-size:13px">📍 ${d.location}</span>
+      <span class="tag style" style="font-size:13px">🎨 ${d.style}</span>
+      <span class="tag medium" style="font-size:13px">🖌️ ${d.medium}</span>
+    `;
+    document.getElementById('modalDetails').innerHTML = `
+      <div class="modal-detail"><label>Location</label><span>${d.location}</span></div>
+      <div class="modal-detail"><label>Country</label><span>${d.country}</span></div>
+      <div class="modal-detail"><label>Art Style</label><span>${d.style}</span></div>
+      <div class="modal-detail"><label>Medium</label><span>${d.medium}</span></div>
+      <div class="modal-detail"><label>Period</label><span>${d.period}</span></div>
+      <div class="modal-detail"><label>AI Confidence</label><span>${d.confidence}%</span></div>
+    `;
+    document.getElementById('modalBg').classList.add('open');
+  }
+
+  function closeModal(e) {
+    if (e.target === document.getElementById('modalBg')) closeModalDirect();
+  }
+  function closeModalDirect() {
+    document.getElementById('modalBg').classList.remove('open');
+  }
+
+  // ─── Drag & drop ─────────────────────────────────────────────────────────────
+  const dz = document.getElementById('dropZone');
+  ['dragenter','dragover'].forEach(ev => dz.addEventListener(ev, e => {
+    e.preventDefault(); dz.classList.add('drag-over');
+  }));
+  ['dragleave','drop'].forEach(ev => dz.addEventListener(ev, e => {
+    e.preventDefault(); dz.classList.remove('drag-over');
+    if (ev === 'drop') handleFiles(e.dataTransfer.files);
+  }));
+
+  // Also make the whole window a drop target
+  window.addEventListener('dragover', e => e.preventDefault());
+  window.addEventListener('drop', e => {
+    e.preventDefault();
+    if (e.target !== dz) handleFiles(e.dataTransfer.files);
+  });
+</script>
+</body>
+</html>
