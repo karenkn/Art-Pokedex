@@ -71,6 +71,52 @@ app.get('/', (_req, res) => {
   res.json({ status: 'ok', service: 'Art Photo Organizer Proxy' });
 });
 
+// ── GET /api/config — returns public client config (Maps key is domain-restricted) ──
+app.get('/api/config', (_req, res) => {
+  res.json({ mapsApiKey: process.env.GOOGLE_MAPS_API_KEY || '' });
+});
+
+// ── GET /api/places?input=<query>&sessiontoken=<token> — Places Autocomplete ──
+app.get('/api/places', async (req, res) => {
+  const { input, sessiontoken } = req.query;
+  if (!input || input.length < 2) return res.json({ suggestions: [] });
+  const key = process.env.GOOGLE_MAPS_API_KEY;
+  if (!key) return res.status(500).json({ error: 'GOOGLE_MAPS_API_KEY not set on server.' });
+  try {
+    const response = await fetch('https://places.googleapis.com/v1/places:autocomplete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Goog-Api-Key': key },
+      body: JSON.stringify({ input, sessionToken: sessiontoken || undefined })
+    });
+    const data = await response.json();
+    res.json(data);
+  } catch (err) {
+    console.error('Places autocomplete error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── GET /api/place-details?place_id=<id>&sessiontoken=<token> — Place Details ──
+app.get('/api/place-details', async (req, res) => {
+  const { place_id, sessiontoken } = req.query;
+  if (!place_id) return res.status(400).json({ error: 'place_id required' });
+  const key = process.env.GOOGLE_MAPS_API_KEY;
+  if (!key) return res.status(500).json({ error: 'GOOGLE_MAPS_API_KEY not set on server.' });
+  try {
+    const url = `https://places.googleapis.com/v1/places/${encodeURIComponent(place_id)}` +
+                `?fields=location,addressComponents,displayName` +
+                (sessiontoken ? `&sessionToken=${encodeURIComponent(sessiontoken)}` : '');
+    const response = await fetch(url, {
+      headers: { 'X-Goog-Api-Key': key, 'Content-Type': 'application/json' }
+    });
+    const data = await response.json();
+    res.json(data);
+  } catch (err) {
+    console.error('Place details error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ── POST /api/login ───────────────────────────────────────────────────────────
 // Body: { password: "..." }
 // Returns: { token: "<jwt>" }  (valid 12 hours)

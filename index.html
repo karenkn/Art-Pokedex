@@ -4,8 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Art Photo Organizer — AI Powered</title>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+  <!-- Google Maps loaded dynamically after fetching API key from server -->
   <script src="https://cdn.jsdelivr.net/npm/exifr/dist/lite.umd.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -540,8 +539,8 @@
       font-size: 13px;
       padding: 40px 0;
     }
-    /* Custom Leaflet marker */
-    .map-marker-pin {
+    /* Google Maps custom marker */
+    .gmap-marker {
       background: #e05c2e;
       color: #fff;
       border-radius: 50% 50% 50% 0;
@@ -553,23 +552,35 @@
       box-shadow: 0 2px 6px rgba(0,0,0,0.3);
       cursor: pointer;
     }
-    .map-marker-pin.selected {
-      background: #1a1a2e;
-      transform: rotate(-45deg) scale(1.2);
-    }
-    .map-marker-inner { transform: rotate(45deg); }
-    .leaflet-popup-content-wrapper {
-      border-radius: 10px;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.15);
-      padding: 0;
-    }
-    .leaflet-popup-content { margin: 0; }
+    .gmap-marker.selected { background: #1a1a2e; transform: rotate(-45deg) scale(1.2); }
+    .gmap-marker-inner { transform: rotate(45deg); }
+    #map { width: 100%; height: 100%; }
     .map-popup {
-      padding: 12px 14px;
-      min-width: 160px;
+      padding: 10px 12px;
+      min-width: 140px;
+      font-family: inherit;
     }
     .map-popup strong { font-size: 13px; display: block; margin-bottom: 3px; color: #1a1a2e; }
     .map-popup span   { font-size: 12px; color: #888; }
+
+    /* Places autocomplete dropdown */
+    .places-wrap { position: relative; }
+    .places-dropdown {
+      position: absolute; top: 100%; left: 0; right: 0;
+      background: #fff; border: 1px solid #ddd; border-top: none;
+      border-radius: 0 0 6px 6px; z-index: 1000;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      max-height: 220px; overflow-y: auto; display: none;
+    }
+    .places-dropdown.open { display: block; }
+    .places-option {
+      padding: 9px 12px; cursor: pointer; font-size: 13px;
+      border-bottom: 1px solid #f0f0f0; line-height: 1.4;
+    }
+    .places-option:last-child { border-bottom: none; }
+    .places-option:hover, .places-option.active { background: #fff5f2; color: #e05c2e; }
+    .places-option .places-main { font-weight: 600; }
+    .places-option .places-sub  { font-size: 11px; color: #999; }
 
     /* ── Admin login button in header ── */
     .admin-btn {
@@ -950,11 +961,15 @@
           </div>
           <div class="edit-field">
             <label>Location</label>
-            <input type="text" id="editLocation" placeholder="e.g. Louvre Museum, Paris" list="dl-location" autocomplete="off" />
+            <div class="places-wrap">
+              <input type="text" id="editLocation" placeholder="Search museum, gallery, or place…"
+                     autocomplete="off" oninput="onPlacesInput()" onkeydown="onPlacesKeydown(event)" />
+              <div class="places-dropdown" id="placesDropdown"></div>
+            </div>
           </div>
           <div class="edit-field">
             <label>Country</label>
-            <input type="text" id="editCountry" placeholder="e.g. France" list="dl-country" autocomplete="off" />
+            <input type="text" id="editCountry" placeholder="e.g. France" autocomplete="off" />
           </div>
           <div class="edit-field">
             <label>Art Style</label>
@@ -1070,6 +1085,109 @@ function updateAdminUI() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Places autocomplete (location edit field)
+// ─────────────────────────────────────────────────────────────────────────────
+let placesDebounce = null;
+let placesActiveIdx = -1;
+let placesSuggestions = [];
+let placesSessionToken = crypto.randomUUID ? crypto.randomUUID() : String(Math.random());
+
+function onPlacesInput() {
+  const val = document.getElementById('editLocation').value.trim();
+  clearTimeout(placesDebounce);
+  if (val.length < 2) { closePlacesDropdown(); return; }
+  placesDebounce = setTimeout(() => fetchPlacesSuggestions(val), 300);
+}
+
+async function fetchPlacesSuggestions(input) {
+  if (!serverUrl) return;
+  try {
+    const res  = await fetch(`${serverUrl}/api/places?input=${encodeURIComponent(input)}&sessiontoken=${encodeURIComponent(placesSessionToken)}`);
+    const data = await res.json();
+    placesSuggestions = data.suggestions || [];
+    renderPlacesDropdown();
+  } catch { closePlacesDropdown(); }
+}
+
+function renderPlacesDropdown() {
+  const dropdown = document.getElementById('placesDropdown');
+  if (!placesSuggestions.length) { closePlacesDropdown(); return; }
+  dropdown.innerHTML = placesSuggestions.map((s, i) => {
+    const pred  = s.placePrediction || {};
+    const text  = pred.text?.text || '';
+    const parts = text.split(',');
+    const main  = parts[0] || text;
+    const sub   = parts.slice(1).join(',').trim();
+    return `<div class="places-option" data-idx="${i}" onmousedown="selectPlace(${i})">
+      <div class="places-main">${escHtml(main)}</div>
+      ${sub ? `<div class="places-sub">${escHtml(sub)}</div>` : ''}
+    </div>`;
+  }).join('');
+  placesActiveIdx = -1;
+  dropdown.classList.add('open');
+}
+
+async function selectPlace(idx) {
+  const s    = placesSuggestions[idx];
+  const pred = s?.placePrediction;
+  if (!pred) return;
+
+  const fullText = pred.text?.text || '';
+  document.getElementById('editLocation').value = fullText;
+  closePlacesDropdown();
+
+  // Fetch place details to get country and store coords in geocache
+  if (!pred.placeId) return;
+  try {
+    const res  = await fetch(`${serverUrl}/api/place-details?place_id=${encodeURIComponent(pred.placeId)}&sessiontoken=${encodeURIComponent(placesSessionToken)}`);
+    const data = await res.json();
+
+    // Auto-fill country from address components
+    const countryComp = (data.addressComponents || []).find(c => c.types?.includes('country'));
+    if (countryComp) document.getElementById('editCountry').value = countryComp.longText || '';
+
+    // Cache coords so the map can use them without a second geocode call
+    if (data.location) {
+      geocodeCache[fullText] = [data.location.latitude, data.location.longitude];
+    }
+  } catch { /* non-critical */ }
+
+  // Rotate session token after a complete autocomplete session
+  placesSessionToken = crypto.randomUUID ? crypto.randomUUID() : String(Math.random());
+}
+
+function onPlacesKeydown(e) {
+  const dropdown = document.getElementById('placesDropdown');
+  const options  = dropdown.querySelectorAll('.places-option');
+  if (!options.length) return;
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    placesActiveIdx = Math.min(placesActiveIdx + 1, options.length - 1);
+    options.forEach((o, i) => o.classList.toggle('active', i === placesActiveIdx));
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    placesActiveIdx = Math.max(placesActiveIdx - 1, 0);
+    options.forEach((o, i) => o.classList.toggle('active', i === placesActiveIdx));
+  } else if (e.key === 'Enter' && placesActiveIdx >= 0) {
+    e.preventDefault();
+    selectPlace(placesActiveIdx);
+  } else if (e.key === 'Escape') {
+    closePlacesDropdown();
+  }
+}
+
+function closePlacesDropdown() {
+  document.getElementById('placesDropdown')?.classList.remove('open');
+  placesSuggestions = [];
+  placesActiveIdx   = -1;
+}
+
+// Close dropdown when clicking outside
+document.addEventListener('click', e => {
+  if (!e.target.closest('.places-wrap')) closePlacesDropdown();
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Server URL management
 // ─────────────────────────────────────────────────────────────────────────────
 function onServerUrlInput() {
@@ -1120,7 +1238,7 @@ function clearAll() {
   fetch(`${serverUrl}/api/photos`, { method: 'DELETE', headers: authHeaders() }).catch(() => {});
   photos = [];
   selectedLocation = null;
-  Object.values(mapMarkers).forEach(({ marker }) => { if (leafletMap) leafletMap.removeLayer(marker); });
+  Object.values(mapMarkers).forEach(({ marker, infoWindow }) => { marker.setMap(null); infoWindow?.close(); });
   mapMarkers = {};
   renderSidebar(null, []);
   render();
@@ -1134,7 +1252,8 @@ function deletePhoto(id) {
   fetch(`${serverUrl}/api/photos/${id}`, { method: 'DELETE', headers: authHeaders() }).catch(() => {});
   // Remove map marker if present
   if (mapMarkers[id]) {
-    if (leafletMap) leafletMap.removeLayer(mapMarkers[id].marker);
+    mapMarkers[id].marker.setMap(null);
+    mapMarkers[id].infoWindow?.close();
     delete mapMarkers[id];
   }
   // If the deleted photo was selected in the sidebar, clear it
@@ -1608,8 +1727,8 @@ function setFilter(filter, btn) {
   document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   render();
-  if (filter === 'location' && leafletMap) {
-    setTimeout(() => leafletMap.invalidateSize(), 50);
+  if (filter === 'location' && googleMap) {
+    setTimeout(() => google.maps.event.trigger(googleMap, 'resize'), 50);
   }
 }
 
@@ -1798,8 +1917,8 @@ function bgClick(e) { if (e.target === document.getElementById('modalBg')) close
 // ─────────────────────────────────────────────────────────────────────────────
 // Map
 // ─────────────────────────────────────────────────────────────────────────────
-let leafletMap = null;
-let mapMarkers = {};
+let googleMap = null;
+let mapMarkers = {};       // loc → { marker (OverlayView), coords, infoWindow }
 let selectedLocation = null;
 const geocodeCache = {};
 
@@ -1900,34 +2019,65 @@ async function geocodeLocation(locationStr) {
   if (geocodeCache[locationStr]) return geocodeCache[locationStr];
   const known = coordsForLocation(locationStr);
   if (known) { geocodeCache[locationStr] = known; return known; }
-  // Fallback: Nominatim (free, no key needed)
+  // Fallback: Google Geocoding via the Places API (text search)
+  if (!serverUrl) return null;
   try {
-    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(locationStr)}&format=json&limit=1`;
-    const res  = await fetch(url, { headers: { 'Accept-Language': 'en' } });
+    const res  = await fetch(`${serverUrl}/api/places?input=${encodeURIComponent(locationStr)}&sessiontoken=geocode`);
     const data = await res.json();
-    if (data.length) {
-      const coords = [parseFloat(data[0].lat), parseFloat(data[0].lon)];
-      geocodeCache[locationStr] = coords;
-      return coords;
+    const first = data.suggestions?.[0];
+    if (first?.placePrediction?.placeId) {
+      const det = await fetch(`${serverUrl}/api/place-details?place_id=${encodeURIComponent(first.placePrediction.placeId)}&sessiontoken=geocode`);
+      const d   = await det.json();
+      if (d.location) {
+        const coords = [d.location.latitude, d.location.longitude];
+        geocodeCache[locationStr] = coords;
+        return coords;
+      }
     }
   } catch (_) { /* ignore */ }
   return null;
 }
 
+// ── Google Maps bootstrap ─────────────────────────────────────────────────────
+let mapsReady = false;
+window.onGoogleMapsReady = function() { mapsReady = true; };
+
+async function loadGoogleMaps() {
+  if (mapsReady || window.google?.maps) { mapsReady = true; return; }
+  if (!serverUrl) return;
+  try {
+    const cfg = await fetch(`${serverUrl}/api/config`).then(r => r.json());
+    if (!cfg.mapsApiKey) return;
+    await new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = `https://maps.googleapis.com/maps/api/js?key=${cfg.mapsApiKey}&callback=onGoogleMapsReady`;
+      s.async = true;
+      s.onerror = reject;
+      const orig = window.onGoogleMapsReady;
+      window.onGoogleMapsReady = () => { orig(); resolve(); };
+      document.head.appendChild(s);
+    });
+  } catch (e) { console.warn('Google Maps failed to load:', e.message); }
+}
+
 function initMap() {
-  if (leafletMap) return;
-  leafletMap = L.map('map', { zoomControl: true }).setView([30, 10], 2);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-    maxZoom: 18
-  }).addTo(leafletMap);
+  if (googleMap) return;
+  if (!window.google?.maps) return;
+  googleMap = new google.maps.Map(document.getElementById('map'), {
+    center: { lat: 30, lng: 10 },
+    zoom: 2,
+    mapTypeControl: false,
+    streetViewControl: false,
+    fullscreenControl: false,
+  });
 }
 
 async function updateMap() {
+  await loadGoogleMaps();
   initMap();
+  if (!googleMap) return;
 
   const done = photos.filter(p => p.status === 'done');
-  // Group by location
   const groups = {};
   done.forEach(p => {
     const loc = p.aiData.location;
@@ -1939,74 +2089,90 @@ async function updateMap() {
   const currentLocations = new Set(Object.keys(groups));
   Object.keys(mapMarkers).forEach(loc => {
     if (!currentLocations.has(loc)) {
-      leafletMap.removeLayer(mapMarkers[loc].marker);
+      mapMarkers[loc].marker.setMap(null);
+      mapMarkers[loc].infoWindow?.close();
       delete mapMarkers[loc];
     }
   });
 
-  // Add/update markers
-  const bounds = [];
+  const bounds = new google.maps.LatLngBounds();
+  let hasCoords = false;
+
   for (const [loc, items] of Object.entries(groups)) {
-    // Prefer exact GPS coords from a photo in this group, fall back to geocoding
     let coords = mapMarkers[loc]?.coords;
     if (!coords) {
       const photoWithGPS = items.find(p => p.gpsCoords);
       coords = photoWithGPS ? photoWithGPS.gpsCoords : await geocodeLocation(loc);
     }
     if (!coords) continue;
-    bounds.push(coords);
+
+    const latLng = { lat: coords[0], lng: coords[1] };
+    bounds.extend(latLng);
+    hasCoords = true;
 
     if (mapMarkers[loc]) {
-      // Update count on existing marker
-      mapMarkers[loc].marker.getElement()?.querySelector('.map-marker-inner')
-        && (mapMarkers[loc].marker.getElement().querySelector('.map-marker-inner').textContent = items.length);
+      // Update count label on existing marker
+      const el = mapMarkers[loc].el;
+      if (el) el.querySelector('.gmap-marker-inner').textContent = items.length;
     } else {
       const isSelected = selectedLocation === loc;
-      const icon = L.divIcon({
-        className: '',
-        html: `<div class="map-marker-pin${isSelected?' selected':''}"><span class="map-marker-inner">${items.length}</span></div>`,
-        iconSize: [34, 34],
-        iconAnchor: [17, 34],
-        popupAnchor: [0, -36]
+      const el = document.createElement('div');
+      el.innerHTML = `<div class="gmap-marker${isSelected ? ' selected' : ''}"><span class="gmap-marker-inner">${items.length}</span></div>`;
+      const markerEl = el.firstChild;
+
+      const marker = new google.maps.marker.AdvancedMarkerElement
+        ? new google.maps.marker.AdvancedMarkerElement({ position: latLng, map: googleMap, content: markerEl })
+        : new google.maps.Marker({
+            position: latLng, map: googleMap,
+            label: { text: String(items.length), color: '#fff', fontWeight: '700' },
+            icon: { path: google.maps.SymbolPath.CIRCLE, scale: 16,
+                    fillColor: isSelected ? '#1a1a2e' : '#e05c2e',
+                    fillOpacity: 1, strokeColor: '#fff', strokeWeight: 2 }
+          });
+
+      const infoWindow = new google.maps.InfoWindow({
+        content: `<div class="map-popup"><strong>${escHtml(loc)}</strong><span>${items.length} photo${items.length > 1 ? 's' : ''}</span></div>`
       });
-      const marker = L.marker(coords, { icon })
-        .addTo(leafletMap)
-        .bindPopup(`<div class="map-popup"><strong>${escHtml(loc)}</strong><span>${items.length} photo${items.length>1?'s':''}</span></div>`);
-      marker.on('click', () => selectLocation(loc, marker));
-      mapMarkers[loc] = { marker, coords };
+
+      marker.addListener('click', () => selectLocation(loc, marker, markerEl, infoWindow));
+      mapMarkers[loc] = { marker, coords, el: markerEl, infoWindow };
     }
   }
 
-  if (bounds.length && !selectedLocation) {
-    if (bounds.length === 1) {
-      leafletMap.setView(bounds[0], 10);
+  if (hasCoords && !selectedLocation) {
+    if (Object.keys(groups).length === 1) {
+      googleMap.setCenter({ lat: Object.values(mapMarkers)[0].coords[0], lng: Object.values(mapMarkers)[0].coords[1] });
+      googleMap.setZoom(10);
     } else {
-      leafletMap.fitBounds(bounds, { padding: [40, 40] });
+      googleMap.fitBounds(bounds, 40);
     }
   }
-  // Re-apply selection highlight
+
   if (selectedLocation && !groups[selectedLocation]) {
     selectedLocation = null;
     renderSidebar(null, []);
   }
 }
 
-function selectLocation(loc, marker) {
-  // Deselect previous
-  Object.values(mapMarkers).forEach(({ marker: m }) => {
-    const el = m.getElement()?.querySelector('.map-marker-pin');
-    if (el) el.classList.remove('selected');
+function selectLocation(loc, marker, markerEl, infoWindow) {
+  // Deselect all markers
+  Object.values(mapMarkers).forEach(({ el, infoWindow: iw }) => {
+    el?.classList.remove('selected');
+    iw?.close();
   });
 
   selectedLocation = loc;
-  const el = marker.getElement()?.querySelector('.map-marker-pin');
-  if (el) el.classList.add('selected');
+  markerEl?.classList.add('selected');
+  infoWindow?.open({ map: googleMap, anchor: marker });
 
   const items = photos.filter(p => p.status === 'done' && p.aiData.location === loc);
   renderSidebar(loc, items);
 
   const coords = mapMarkers[loc]?.coords;
-  if (coords) leafletMap.setView(coords, Math.max(leafletMap.getZoom(), 12), { animate: true });
+  if (coords) {
+    googleMap.panTo({ lat: coords[0], lng: coords[1] });
+    if (googleMap.getZoom() < 12) googleMap.setZoom(12);
+  }
 }
 
 function renderSidebar(loc, items) {
