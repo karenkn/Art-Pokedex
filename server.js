@@ -1,5 +1,7 @@
 const express = require('express');
 const cors    = require('cors');
+const bcrypt  = require('bcryptjs');
+const jwt     = require('jsonwebtoken');
 const { Pool } = require('pg');
 
 const app = express();
@@ -14,7 +16,6 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
-// Create the photos table if it doesn't exist yet
 pool.query(`
   CREATE TABLE IF NOT EXISTS photos (
     id             TEXT PRIMARY KEY,
@@ -40,13 +41,54 @@ pool.query(`
 `).then(() => console.log('Database ready'))
   .catch(err => console.error('Database init error:', err.message));
 
+// ── Auth helpers ──────────────────────────────────────────────────────────────
+const JWT_SECRET = process.env.JWT_SECRET;
+
+// Middleware: verify JWT on write requests
+function authenticate(req, res, next) {
+  if (!JWT_SECRET) {
+    return res.status(500).json({ error: 'JWT_SECRET is not configured on the server.' });
+  }
+  const header = req.headers['authorization'] || '';
+  const token  = header.startsWith('Bearer ') ? header.slice(7) : null;
+  if (!token) {
+    return res.status(401).json({ error: 'Not authenticated. Please log in as admin.' });
+  }
+  try {
+    jwt.verify(token, JWT_SECRET);
+    next();
+  } catch {
+    res.status(401).json({ error: 'Session expired or invalid. Please log in again.' });
+  }
+}
+
 // ── Health check ──────────────────────────────────────────────────────────────
 app.get('/', (_req, res) => {
   res.json({ status: 'ok', service: 'Art Photo Organizer Proxy' });
 });
 
-// ── Claude proxy ──────────────────────────────────────────────────────────────
-app.post('/api/analyze', async (req, res) => {
+// ── POST /api/login ───────────────────────────────────────────────────────────
+// Body: { password: "..." }
+// Returns: { token: "<jwt>" }  (valid 12 hours)
+app.post('/api/login', async (req, res) => {
+  if (!JWT_SECRET) {
+    return res.status(500).json({ error: 'JWT_SECRET is not configured on the server.' });
+  }
+  const { password } = req.body;
+  const hash = process.env.ADMIN_PASSWORD_HASH;
+  if (!hash) {
+    return res.status(500).json({ error: 'ADMIN_PASSWORD_HASH is not configured on the server.' });
+  }
+  const valid = await bcrypt.compare(password || '', hash);
+  if (!valid) {
+    return res.status(401).json({ error: 'Incorrect password.' });
+  }
+  const token = jwt.sign({ role: 'admin' }, JWT_SECRET, { expiresIn: '12h' });
+  res.json({ token });
+});
+
+// ── Claude proxy (admin only) ─────────────────────────────────────────────────
+app.post('/api/analyze', authenticate, async (req, res) => {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     return res.status(500).json({
@@ -71,7 +113,7 @@ app.post('/api/analyze', async (req, res) => {
   }
 });
 
-// ── GET /api/photos — load all saved photos ───────────────────────────────────
+// ── GET /api/photos — public: anyone can view ─────────────────────────────────
 app.get('/api/photos', async (_req, res) => {
   try {
     const result = await pool.query(
@@ -84,8 +126,8 @@ app.get('/api/photos', async (_req, res) => {
   }
 });
 
-// ── POST /api/photos — save a photo after analysis ───────────────────────────
-app.post('/api/photos', async (req, res) => {
+// ── POST /api/photos — admin only ────────────────────────────────────────────
+app.post('/api/photos', authenticate, async (req, res) => {
   const { id, name, thumbnail, aiData, locationSource, gpsCoords } = req.body;
   const d = aiData || {};
   try {
@@ -131,8 +173,8 @@ app.post('/api/photos', async (req, res) => {
   }
 });
 
-// ── PUT /api/photos/:id — update metadata after manual edit ──────────────────
-app.put('/api/photos/:id', async (req, res) => {
+// ── PUT /api/photos/:id — admin only ─────────────────────────────────────────
+app.put('/api/photos/:id', authenticate, async (req, res) => {
   const { aiData } = req.body;
   const d = aiData || {};
   try {
@@ -158,8 +200,8 @@ app.put('/api/photos/:id', async (req, res) => {
   }
 });
 
-// ── DELETE /api/photos/:id — remove a single photo ───────────────────────────
-app.delete('/api/photos/:id', async (req, res) => {
+// ── DELETE /api/photos/:id — admin only ──────────────────────────────────────
+app.delete('/api/photos/:id', authenticate, async (req, res) => {
   try {
     await pool.query('DELETE FROM photos WHERE id = $1', [req.params.id]);
     res.json({ ok: true });
@@ -169,8 +211,8 @@ app.delete('/api/photos/:id', async (req, res) => {
   }
 });
 
-// ── DELETE /api/photos — clear all photos ────────────────────────────────────
-app.delete('/api/photos', async (_req, res) => {
+// ── DELETE /api/photos — admin only ──────────────────────────────────────────
+app.delete('/api/photos', authenticate, async (_req, res) => {
   try {
     await pool.query('DELETE FROM photos');
     res.json({ ok: true });
