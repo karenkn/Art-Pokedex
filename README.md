@@ -1,4 +1,5 @@
 Art Pokédex
+
 Inspired by my travels and love for visiting museums, I decided to combine my interests in Art with my learning journey in AI. 
 This app will take a photo of a work of art, which can be uploaded or taken directly using a mobile phone, and use AI to identify the artwork.
 The app uses Claude's Opus 4.6 model, which I found to yield the most accurate results and natural art descriptions.
