@@ -230,6 +230,31 @@
     }
     .delete-btn:hover { background: #e53e3e; }
     .photo-card:hover .delete-btn { display: block; }
+    .like-btn {
+      display: flex; align-items: center; gap: 5px;
+      background: none; border: 1.5px solid #ddd;
+      border-radius: 20px; padding: 4px 10px;
+      font-size: 12px; font-weight: 600; color: #888;
+      cursor: pointer; transition: all 0.2s;
+    }
+    .like-btn:hover { border-color: #e05c2e; color: #e05c2e; }
+    .like-btn.liked  { border-color: #e05c2e; color: #e05c2e; background: #fff5f2; }
+    .like-btn .heart { font-size: 14px; }
+    .modal-like-btn {
+      margin-top: 16px;
+      margin-left: 8px;
+      padding: 8px 18px;
+      border-radius: 6px;
+      border: 1.5px solid #ddd;
+      background: #fff;
+      color: #888;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .modal-like-btn:hover { border-color: #e05c2e; color: #e05c2e; }
+    .modal-like-btn.liked { border-color: #e05c2e; color: #e05c2e; background: #fff5f2; }
     .photo-card img {
       width: 100%; height: 180px; object-fit: cover; display: block;
     }
@@ -976,6 +1001,7 @@ let currentFilter = 'all';
 let serverUrl = '';
 let analysisQueue = Promise.resolve();  // serialise API calls
 let adminToken = null;  // set on successful login; null = view-only mode
+const likedIds = new Set(); // track photos liked this session to prevent duplicates
 
 function authHeaders(extra) {
   const h = Object.assign({ 'content-type': 'application/json' }, extra || {});
@@ -1147,6 +1173,7 @@ async function loadSavedPhotos() {
         locationSource: row.location_source || 'ai',
         gpsCoords:      (row.gps_lat && row.gps_lng) ? [row.gps_lat, row.gps_lng] : null,
         fromDB:         true,
+        likes:          row.likes || 0,
         aiData: {
           paintingName:   row.painting_name  || '',
           artist:         row.artist         || '',
@@ -1539,6 +1566,13 @@ function photoCard(p) {
           ${p.locationSource === 'gps' ? '<span class="gps-badge">🛰 GPS</span>' : '<span class="ai-loc-badge">✦ AI</span>'}
           <span class="${confClass}">✓ ${d.confidence}%</span>
         </span>
+      </div>
+      <div style="margin-top:8px">
+        <button class="like-btn${likedIds.has(p.id) ? ' liked' : ''}"
+                onclick="event.stopPropagation(); likePhoto('${p.id}', event)">
+          <span class="heart">${likedIds.has(p.id) ? '👍' : '👍🏻'}</span>
+          ${p.likes || 0}
+        </button>
       </div>`;
   } else if (p.status === 'error') {
     infoHtml += `<p class="error-msg">Error: ${escHtml(p.error || 'Unknown error')}</p>`;
@@ -1632,11 +1666,17 @@ function refreshModalView(p) {
     : `Analyzed by ${d.model || 'Claude'} · ${locSource}`;
   document.getElementById('modalNote').textContent = noteText;
 
-  // Show edit/delete buttons only when logged in as admin
-  document.getElementById('modalAdminActions').innerHTML = adminToken
-    ? `<button class="modal-edit-btn" onclick="startEdit()">✏️ Edit Details</button>
-       <button class="modal-delete-btn" onclick="deleteFromModal()">🗑 Delete</button>`
-    : '';
+  // Like button — visible to everyone
+  const liked = likedIds.has(p.id);
+  document.getElementById('modalAdminActions').innerHTML =
+    `<button class="modal-like-btn${liked ? ' liked' : ''}" id="modalLikeBtn"
+             onclick="likePhoto('${p.id}', event)">
+       ${liked ? '👍' : '👍🏻'} ${p.likes || 0} Like${(p.likes || 0) !== 1 ? 's' : ''}
+     </button>`
+    + (adminToken
+      ? `<button class="modal-edit-btn" onclick="startEdit()">✏️ Edit Details</button>
+         <button class="modal-delete-btn" onclick="deleteFromModal()">🗑 Delete</button>`
+      : '');
 }
 
 function startEdit() {
@@ -1715,6 +1755,44 @@ function deleteFromModal() {
   closeModal();
   deletePhoto(id);
 }
+async function likePhoto(id, event) {
+  if (event) event.stopPropagation();
+  const photo   = photos.find(p => p.id === id);
+  const isLiked = likedIds.has(id);
+
+  // Optimistic update
+  if (isLiked) {
+    likedIds.delete(id);
+    if (photo) photo.likes = Math.max((photo.likes || 1) - 1, 0);
+  } else {
+    likedIds.add(id);
+    if (photo) photo.likes = (photo.likes || 0) + 1;
+  }
+  render();
+  if (activeModalId === id) refreshModalLikeBtn(photo);
+
+  // Sync with server
+  try {
+    const res  = await fetch(`${serverUrl}/api/photos/${id}/like`, {
+      method: isLiked ? 'DELETE' : 'POST'
+    });
+    const data = await res.json();
+    if (photo && data.likes !== undefined) {
+      photo.likes = data.likes;
+      render();
+      if (activeModalId === id) refreshModalLikeBtn(photo);
+    }
+  } catch { /* optimistic update already applied */ }
+}
+
+function refreshModalLikeBtn(photo) {
+  const btn = document.getElementById('modalLikeBtn');
+  if (!btn || !photo) return;
+  const liked = likedIds.has(photo.id);
+  btn.className = 'modal-like-btn' + (liked ? ' liked' : '');
+  btn.innerHTML = `${liked ? '👍' : '👍🏻'} ${photo.likes || 0} Like${(photo.likes || 0) !== 1 ? 's' : ''}`;
+}
+
 function bgClick(e) { if (e.target === document.getElementById('modalBg')) closeModal(); }
 
 // ─────────────────────────────────────────────────────────────────────────────

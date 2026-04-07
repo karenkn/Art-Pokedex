@@ -36,10 +36,14 @@ pool.query(`
     gps_lat        FLOAT,
     gps_lng        FLOAT,
     ai_model       TEXT,
+    likes          INTEGER DEFAULT 0,
     created_at     TIMESTAMPTZ DEFAULT NOW()
   )
-`).then(() => console.log('Database ready'))
-  .catch(err => console.error('Database init error:', err.message));
+`).then(() => {
+  console.log('Database ready');
+  // Add likes column if it doesn't exist yet (for existing databases)
+  return pool.query(`ALTER TABLE photos ADD COLUMN IF NOT EXISTS likes INTEGER DEFAULT 0`);
+}).catch(err => console.error('Database init error:', err.message));
 
 // ── Auth helpers ──────────────────────────────────────────────────────────────
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -85,6 +89,36 @@ app.post('/api/login', async (req, res) => {
   }
   const token = jwt.sign({ role: 'admin' }, JWT_SECRET, { expiresIn: '12h' });
   res.json({ token });
+});
+
+// ── POST /api/photos/:id/like — public: add a like ───────────────────────────
+app.post('/api/photos/:id/like', async (req, res) => {
+  try {
+    const result = await pool.query(
+      'UPDATE photos SET likes = likes + 1 WHERE id = $1 RETURNING likes',
+      [req.params.id]
+    );
+    if (result.rowCount === 0) return res.status(404).json({ error: 'Photo not found.' });
+    res.json({ likes: result.rows[0].likes });
+  } catch (err) {
+    console.error('Like error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── DELETE /api/photos/:id/like — public: remove a like ──────────────────────
+app.delete('/api/photos/:id/like', async (req, res) => {
+  try {
+    const result = await pool.query(
+      'UPDATE photos SET likes = GREATEST(likes - 1, 0) WHERE id = $1 RETURNING likes',
+      [req.params.id]
+    );
+    if (result.rowCount === 0) return res.status(404).json({ error: 'Photo not found.' });
+    res.json({ likes: result.rows[0].likes });
+  } catch (err) {
+    console.error('Unlike error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // ── Claude proxy (admin only) ─────────────────────────────────────────────────
