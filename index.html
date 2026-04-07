@@ -1854,7 +1854,7 @@ function saveEdit() {
     selectedLocation = p.aiData.location;
     updateMap().then(() => {
       const entry = mapMarkers[p.aiData.location];
-      if (entry) selectLocation(p.aiData.location, entry.marker);
+      if (entry) selectLocation(p.aiData.location, entry.marker, entry.infoWindow);
     });
   }
 }
@@ -2040,29 +2040,33 @@ async function geocodeLocation(locationStr) {
 
 // ── Google Maps bootstrap ─────────────────────────────────────────────────────
 let mapsReady = false;
-window.onGoogleMapsReady = function() { mapsReady = true; };
+let mapsLoadPromise = null;
 
-async function loadGoogleMaps() {
-  if (mapsReady || window.google?.maps) { mapsReady = true; return; }
-  if (!serverUrl) return;
-  try {
-    const cfg = await fetch(`${serverUrl}/api/config`).then(r => r.json());
-    if (!cfg.mapsApiKey) return;
-    await new Promise((resolve, reject) => {
-      const s = document.createElement('script');
-      s.src = `https://maps.googleapis.com/maps/api/js?key=${cfg.mapsApiKey}&callback=onGoogleMapsReady`;
-      s.async = true;
-      s.onerror = reject;
-      const orig = window.onGoogleMapsReady;
-      window.onGoogleMapsReady = () => { orig(); resolve(); };
-      document.head.appendChild(s);
-    });
-  } catch (e) { console.warn('Google Maps failed to load:', e.message); }
+function loadGoogleMaps() {
+  if (mapsReady) return Promise.resolve();
+  if (mapsLoadPromise) return mapsLoadPromise;
+  if (!serverUrl) return Promise.resolve();
+
+  mapsLoadPromise = fetch(`${serverUrl}/api/config`)
+    .then(r => r.json())
+    .then(cfg => {
+      if (!cfg.mapsApiKey) throw new Error('No Maps API key');
+      return new Promise((resolve, reject) => {
+        window._gmapsReady = () => { mapsReady = true; resolve(); };
+        const s = document.createElement('script');
+        s.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(cfg.mapsApiKey)}&callback=_gmapsReady`;
+        s.async = true;
+        s.onerror = reject;
+        document.head.appendChild(s);
+      });
+    })
+    .catch(e => { console.warn('Google Maps failed to load:', e.message); mapsLoadPromise = null; });
+
+  return mapsLoadPromise;
 }
 
 function initMap() {
-  if (googleMap) return;
-  if (!window.google?.maps) return;
+  if (googleMap || !window.google?.maps) return;
   googleMap = new google.maps.Map(document.getElementById('map'), {
     center: { lat: 30, lng: 10 },
     zoom: 2,
@@ -2077,7 +2081,8 @@ async function updateMap() {
   initMap();
   if (!googleMap) return;
 
-  const done = photos.filter(p => p.status === 'done');
+  // Group completed photos by their AI-identified location
+  const done = photos.filter(p => p.status === 'done' && p.aiData?.location);
   const groups = {};
   done.forEach(p => {
     const loc = p.aiData.location;
@@ -2085,7 +2090,7 @@ async function updateMap() {
     groups[loc].push(p);
   });
 
-  // Remove stale markers
+  // Remove markers for locations no longer present
   const currentLocations = new Set(Object.keys(groups));
   Object.keys(mapMarkers).forEach(loc => {
     if (!currentLocations.has(loc)) {
@@ -2099,10 +2104,14 @@ async function updateMap() {
   let hasCoords = false;
 
   for (const [loc, items] of Object.entries(groups)) {
+    // Re-use cached coords if marker already exists for this location
     let coords = mapMarkers[loc]?.coords;
     if (!coords) {
+      // Prefer exact GPS coords from any photo in this group
       const photoWithGPS = items.find(p => p.gpsCoords);
-      coords = photoWithGPS ? photoWithGPS.gpsCoords : await geocodeLocation(loc);
+      coords = photoWithGPS
+        ? photoWithGPS.gpsCoords
+        : await geocodeLocation(loc);   // KNOWN_COORDS → Places API fallback
     }
     if (!coords) continue;
 
@@ -2111,59 +2120,74 @@ async function updateMap() {
     hasCoords = true;
 
     if (mapMarkers[loc]) {
-      // Update count label on existing marker
-      const el = mapMarkers[loc].el;
-      if (el) el.querySelector('.gmap-marker-inner').textContent = items.length;
+      // Just refresh the photo count on the existing marker
+      const pin = mapMarkers[loc].el;
+      if (pin) pin.textContent = items.length;
+      // Refresh infoWindow content
+      mapMarkers[loc].infoWindow.setContent(
+        `<div class="map-popup"><strong>${escHtml(loc)}</strong><span>${items.length} photo${items.length > 1 ? 's' : ''}</span></div>`
+      );
     } else {
       const isSelected = selectedLocation === loc;
-      const el = document.createElement('div');
-      el.innerHTML = `<div class="gmap-marker${isSelected ? ' selected' : ''}"><span class="gmap-marker-inner">${items.length}</span></div>`;
-      const markerEl = el.firstChild;
 
-      const marker = new google.maps.marker.AdvancedMarkerElement
-        ? new google.maps.marker.AdvancedMarkerElement({ position: latLng, map: googleMap, content: markerEl })
-        : new google.maps.Marker({
-            position: latLng, map: googleMap,
-            label: { text: String(items.length), color: '#fff', fontWeight: '700' },
-            icon: { path: google.maps.SymbolPath.CIRCLE, scale: 16,
-                    fillColor: isSelected ? '#1a1a2e' : '#e05c2e',
-                    fillOpacity: 1, strokeColor: '#fff', strokeWeight: 2 }
-          });
+      // Build a custom styled marker using a circle + label
+      const marker = new google.maps.Marker({
+        position: latLng,
+        map: googleMap,
+        title: loc,
+        label: { text: String(items.length), color: '#ffffff', fontWeight: '700', fontSize: '12px' },
+        icon: {
+          path: google.maps.SymbolPath.CIRCLE,
+          scale: 18,
+          fillColor:   isSelected ? '#1a1a2e' : '#e05c2e',
+          fillOpacity: 1,
+          strokeColor: '#ffffff',
+          strokeWeight: 2,
+        },
+        zIndex: isSelected ? 10 : 1,
+      });
 
       const infoWindow = new google.maps.InfoWindow({
         content: `<div class="map-popup"><strong>${escHtml(loc)}</strong><span>${items.length} photo${items.length > 1 ? 's' : ''}</span></div>`
       });
 
-      marker.addListener('click', () => selectLocation(loc, marker, markerEl, infoWindow));
-      mapMarkers[loc] = { marker, coords, el: markerEl, infoWindow };
+      marker.addListener('click', () => selectLocation(loc, marker, infoWindow));
+      mapMarkers[loc] = { marker, coords, el: marker.label, infoWindow };
     }
   }
 
+  // Fit the map to all markers (only on first load, not when a location is already selected)
   if (hasCoords && !selectedLocation) {
     if (Object.keys(groups).length === 1) {
-      googleMap.setCenter({ lat: Object.values(mapMarkers)[0].coords[0], lng: Object.values(mapMarkers)[0].coords[1] });
+      const only = Object.values(mapMarkers)[0];
+      googleMap.setCenter({ lat: only.coords[0], lng: only.coords[1] });
       googleMap.setZoom(10);
     } else {
-      googleMap.fitBounds(bounds, 40);
+      googleMap.fitBounds(bounds, { top: 40, right: 40, bottom: 40, left: 40 });
     }
   }
 
+  // Clear selected location if it was deleted
   if (selectedLocation && !groups[selectedLocation]) {
     selectedLocation = null;
     renderSidebar(null, []);
   }
 }
 
-function selectLocation(loc, marker, markerEl, infoWindow) {
-  // Deselect all markers
-  Object.values(mapMarkers).forEach(({ el, infoWindow: iw }) => {
-    el?.classList.remove('selected');
+function selectLocation(loc, marker, infoWindow) {
+  // Deselect all markers (reset to orange)
+  Object.values(mapMarkers).forEach(({ marker: m, infoWindow: iw }) => {
+    m.setIcon({ ...m.getIcon(), fillColor: '#e05c2e', scale: 18 });
+    m.setZIndex(1);
     iw?.close();
   });
 
   selectedLocation = loc;
-  markerEl?.classList.add('selected');
-  infoWindow?.open({ map: googleMap, anchor: marker });
+
+  // Highlight selected marker (navy)
+  marker.setIcon({ ...marker.getIcon(), fillColor: '#1a1a2e', scale: 21 });
+  marker.setZIndex(10);
+  infoWindow.open({ map: googleMap, anchor: marker });
 
   const items = photos.filter(p => p.status === 'done' && p.aiData.location === loc);
   renderSidebar(loc, items);
