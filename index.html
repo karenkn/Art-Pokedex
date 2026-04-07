@@ -677,6 +677,7 @@
   </button>
   <input type="file" id="fileInput" accept="image/*" multiple onchange="handleFiles(this.files)" />
   <button class="clear-btn admin-only" onclick="clearAll()" style="display:none">🗑 Clear All</button>
+  <button class="clear-btn admin-only" id="normalizeBtn" onclick="normalizeAllLocations()" style="display:none">🔧 Normalize Locations</button>
 
   <div class="filter-group">
     <button class="filter-btn active" onclick="setFilter('all', this)">All</button>
@@ -1244,9 +1245,92 @@ function clearAll() {
   render();
 }
 
+async function normalizeAllLocations() {
+  if (!adminToken) return;
+  const btn = document.getElementById('normalizeBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Normalizing…';
+
+  const done = photos.filter(p => p.status === 'done' && p.aiData?.location && p.aiData.location !== 'Unknown Location');
+  const uniqueLocations = [...new Set(done.map(p => p.aiData.location))];
+
+  // Step 1: Resolve every unique location string to a placeId.
+  // Two different strings that share a placeId are the same venue and must be merged.
+  const locToPlaceId = {}; // loc → placeId
+  for (const loc of uniqueLocations) {
+    try {
+      const sessionToken = crypto.randomUUID ? crypto.randomUUID() : String(Math.random());
+      const res  = await fetch(`${serverUrl}/api/places?input=${encodeURIComponent(loc)}&sessiontoken=${encodeURIComponent(sessionToken)}`);
+      const data = await res.json();
+      const placeId = data.suggestions?.[0]?.placePrediction?.placeId;
+      if (placeId) locToPlaceId[loc] = placeId;
+    } catch { /* skip unresolvable locations */ }
+  }
+
+  // Step 2: Group location strings by placeId.
+  const placeGroups = {}; // placeId → [loc, ...]
+  for (const [loc, placeId] of Object.entries(locToPlaceId)) {
+    if (!placeGroups[placeId]) placeGroups[placeId] = [];
+    placeGroups[placeId].push(loc);
+  }
+
+  // Step 3: For each placeId group, elect the most-used location string as canonical
+  // and build a replacement map for all the others.
+  const replacements = {}; // old loc → { location, country, coords }
+  for (const [placeId, locs] of Object.entries(placeGroups)) {
+    if (locs.length < 2) continue; // nothing to merge for this place
+
+    // Pick whichever string the most photos already use; break ties by string length (shorter wins)
+    const photoCount = loc => done.filter(p => p.aiData.location === loc).length;
+    const canonical  = locs.reduce((a, b) => {
+      const diff = photoCount(b) - photoCount(a);
+      return diff !== 0 ? (diff > 0 ? b : a) : (a.length <= b.length ? a : b);
+    });
+
+    // Fetch coords and country for the canonical name if not already cached
+    let coords  = geocodeCache[canonical] || null;
+    let country = null;
+    if (!coords) {
+      try {
+        const sessionToken = crypto.randomUUID ? crypto.randomUUID() : String(Math.random());
+        const res = await fetch(`${serverUrl}/api/place-details?place_id=${encodeURIComponent(placeId)}&sessiontoken=${encodeURIComponent(sessionToken)}`);
+        const det = await res.json();
+        const countryComp = (det.addressComponents || []).find(c => c.types?.includes('country'));
+        if (countryComp) country = countryComp.longText;
+        if (det.location)  coords = [det.location.latitude, det.location.longitude];
+      } catch { /* non-critical */ }
+    }
+
+    for (const loc of locs) {
+      if (loc !== canonical) replacements[loc] = { location: canonical, country, coords };
+    }
+  }
+
+  // Step 4: Apply replacements and persist to DB
+  let updateCount = 0;
+  for (const photo of done) {
+    const norm = replacements[photo.aiData.location];
+    if (norm) {
+      photo.aiData.location = norm.location;
+      if (norm.country) photo.aiData.country = norm.country;
+      if (norm.coords)  geocodeCache[norm.location] = norm.coords;
+      updatePhotoDB(photo);
+      updateCount++;
+    }
+  }
+
+  render();
+  btn.disabled = false;
+  btn.textContent = updateCount ? `✓ ${updateCount} updated` : '✓ Already normalized';
+  setTimeout(() => { btn.textContent = '🔧 Normalize Locations'; }, 3000);
+}
+
 function deletePhoto(id) {
   const idx = photos.findIndex(p => p.id === id);
   if (idx === -1) return;
+  const photo = photos[idx];
+  // Revoke object URL for locally uploaded photos to free browser memory
+  if (photo.file && photo.url) URL.revokeObjectURL(photo.url);
   photos.splice(idx, 1);
   // Remove from server if backend is available
   fetch(`${serverUrl}/api/photos/${id}`, { method: 'DELETE', headers: authHeaders() }).catch(() => {});
@@ -1388,8 +1472,7 @@ async function reverseGeocode(lat, lng) {
   const key = `${lat.toFixed(5)},${lng.toFixed(5)}`;
   if (reverseGeocodeCache[key]) return reverseGeocodeCache[key];
   try {
-    const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=en`;
-    const res  = await fetch(url);
+    const res  = await fetch(`${serverUrl}/api/reverse-geocode?lat=${encodeURIComponent(lat)}&lng=${encodeURIComponent(lng)}`);
     const data = await res.json();
     if (data && data.address) {
       const a = data.address;
@@ -1412,7 +1495,9 @@ async function reverseGeocode(lat, lng) {
 // Claude API Analysis
 // ─────────────────────────────────────────────────────────────────────────────
 function enqueueAnalysis(photo) {
-  analysisQueue = analysisQueue.then(() => analysePhoto(photo));
+  analysisQueue = analysisQueue
+    .then(() => analysePhoto(photo))
+    .catch(err => console.error('Queue error:', err));
 }
 
 async function analysePhoto(photo) {
@@ -1493,10 +1578,19 @@ Return a JSON object with EXACTLY these fields (no markdown, raw JSON only):
     if (!jsonMatch) throw new Error('Could not parse AI response as JSON.');
     const parsed = JSON.parse(jsonMatch[0]);
 
+    // Normalize Claude's location string to a canonical Google Places name so it
+    // matches what the manual-edit Places autocomplete produces.
+    const normalized = await normalizeLocation(parsed.location);
+    if (normalized) {
+      parsed.location = normalized.location;
+      if (normalized.country) parsed.country = normalized.country;
+      if (normalized.coords)  geocodeCache[normalized.location] = normalized.coords;
+    }
+
     photo.aiData = {
       paintingName: parsed.paintingName || '',
       artist:       parsed.artist       || '',
-      // Claude derives the location from GPS coords (when available) or visual clues
+      // Location is now canonicalized via Google Places (falls back to Claude's value)
       location:     parsed.location  || 'Unknown Location',
       country:      parsed.country   || 'Unknown',
       style:        parsed.style        || 'Unknown Style',
@@ -1514,17 +1608,40 @@ Return a JSON object with EXACTLY these fields (no markdown, raw JSON only):
   } catch (err) {
     photo.status = 'error';
     photo.error  = err.message;
-    // Surface server/network errors in the status bar
-    if (err.message.includes('401')) {
-      document.getElementById('apiStatus').textContent = '✗ Server rejected request — check ANTHROPIC_API_KEY in Railway';
-      document.getElementById('apiStatus').className = 'api-status err';
-    } else if (err.message.includes('Failed to fetch') || err.message.includes('NetworkError')) {
-      document.getElementById('apiStatus').textContent = '✗ Cannot reach server — check the URL above';
-      document.getElementById('apiStatus').className = 'api-status err';
-    }
+    console.error('Analysis error for', photo.name, ':', err.message);
   }
 
   render();
+}
+
+// Resolve a free-text location string to a canonical Google Places name.
+// Returns { location, country, coords } or null if no confident match found.
+async function normalizeLocation(locationStr) {
+  if (!serverUrl || !locationStr || locationStr === 'Unknown Location') return null;
+  try {
+    const sessionToken = crypto.randomUUID ? crypto.randomUUID() : String(Math.random());
+    const res  = await fetch(`${serverUrl}/api/places?input=${encodeURIComponent(locationStr)}&sessiontoken=${encodeURIComponent(sessionToken)}`);
+    const data = await res.json();
+    const first = data.suggestions?.[0];
+    if (!first?.placePrediction) return null;
+
+    const pred          = first.placePrediction;
+    const canonicalName = pred.text?.text || locationStr;
+    let country = null;
+    let coords  = null;
+
+    if (pred.placeId) {
+      const detRes = await fetch(`${serverUrl}/api/place-details?place_id=${encodeURIComponent(pred.placeId)}&sessiontoken=${encodeURIComponent(sessionToken)}`);
+      const det    = await detRes.json();
+      const countryComp = (det.addressComponents || []).find(c => c.types?.includes('country'));
+      if (countryComp) country = countryComp.longText || null;
+      if (det.location) coords = [det.location.latitude, det.location.longitude];
+    }
+
+    return { location: canonicalName, country, coords };
+  } catch {
+    return null;
+  }
 }
 
 function fileToBase64(file) {
@@ -1535,6 +1652,7 @@ function fileToBase64(file) {
     reader.readAsDataURL(file);
   });
 }
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Rendering
@@ -1636,15 +1754,15 @@ function renderGrouped(container, _key, icon, keyFn) {
 
   Object.entries(groups).sort(([a],[b]) => a.localeCompare(b)).forEach(([groupName, items]) => {
     const sub = _key === 'location'
-      ? `${items[0].aiData.country} · ${items.length} photo${items.length > 1 ? 's' : ''}`
+      ? `${escHtml(items[0].aiData.country)} · ${items.length} photo${items.length > 1 ? 's' : ''}`
       : _key === 'artist'
-      ? `${items[0].aiData.period || ''} · ${items.length} photo${items.length > 1 ? 's' : ''}`
+      ? `${escHtml(items[0].aiData.period || '')} · ${items.length} photo${items.length > 1 ? 's' : ''}`
       : `${items.length} photo${items.length > 1 ? 's' : ''}`;
 
     html += `<div class="location-group">
       <div class="location-header">
         <span class="location-icon">${icon}</span>
-        <span class="location-name">${groupName}</span>
+        <span class="location-name">${escHtml(groupName)}</span>
         <span class="location-sub">${sub}</span>
       </div>
       <div class="photo-grid">${items.map(photoCard).join('')}</div>
@@ -2234,14 +2352,14 @@ const dz = document.getElementById('dropZone');
 }));
 ['dragleave','drop'].forEach(ev => dz.addEventListener(ev, e => {
   e.preventDefault(); dz.classList.remove('drag-over');
-  if (ev === 'drop') handleFiles(e.dataTransfer.files);
+  if (ev === 'drop' && adminToken) handleFiles(e.dataTransfer.files);
 }));
 
 window.addEventListener('dragover', e => e.preventDefault());
 window.addEventListener('drop', e => {
   e.preventDefault();
   if (e.target.closest('#dropZone')) return;
-  handleFiles(e.dataTransfer.files);
+  if (adminToken) handleFiles(e.dataTransfer.files);
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

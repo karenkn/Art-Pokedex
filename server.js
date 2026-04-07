@@ -117,6 +117,23 @@ app.get('/api/place-details', async (req, res) => {
   }
 });
 
+// ── GET /api/reverse-geocode?lat=<lat>&lng=<lng> — Nominatim proxy ───────────
+app.get('/api/reverse-geocode', async (req, res) => {
+  const { lat, lng } = req.query;
+  if (!lat || !lng) return res.status(400).json({ error: 'lat and lng required' });
+  try {
+    const url = `https://nominatim.openstreetmap.org/reverse?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lng)}&format=json&accept-language=en`;
+    const response = await fetch(url, {
+      headers: { 'User-Agent': 'ArtPhotoOrganizer/1.0' }
+    });
+    const data = await response.json();
+    res.json(data);
+  } catch (err) {
+    console.error('Reverse geocode error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ── POST /api/login ───────────────────────────────────────────────────────────
 // Body: { password: "..." }
 // Returns: { token: "<jwt>" }  (valid 12 hours)
