@@ -674,6 +674,7 @@
   <input type="file" id="fileInput" accept="image/*" multiple onchange="handleFiles(this.files)" />
   <button class="clear-btn admin-only" onclick="clearAll()" style="display:none">🗑 Clear All</button>
   <button class="clear-btn admin-only" id="normalizeBtn" onclick="normalizeAllLocations()" style="display:none">🔧 Normalize Locations</button>
+  <button class="clear-btn admin-only" id="consolidateStylesBtn" onclick="consolidateStyles()" style="display:none">🎨 Consolidate Styles</button>
 
   <div class="filter-group">
     <button class="filter-btn active" onclick="setFilter('all', this)">All</button>
@@ -1320,6 +1321,78 @@ async function normalizeAllLocations() {
   btn.disabled = false;
   btn.textContent = updateCount ? `✓ ${updateCount} updated` : '✓ Already normalized';
   setTimeout(() => { btn.textContent = '🔧 Normalize Locations'; }, 3000);
+}
+
+async function consolidateStyles() {
+  if (!adminToken) return;
+  const btn = document.getElementById('consolidateStylesBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Consolidating…';
+
+  const done = photos.filter(p => p.status === 'done' && p.aiData?.style);
+  const uniqueStyles = [...new Set(done.map(p => p.aiData.style).filter(s => s && s !== 'Unknown Style'))];
+
+  if (uniqueStyles.length < 2) {
+    btn.disabled = false;
+    btn.textContent = '🎨 Consolidate Styles';
+    return;
+  }
+
+  try {
+    // Ask Claude to map every compound/specific style tag to a canonical art movement
+    const res = await fetch(`${serverUrl}/api/analyze`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({
+        model: 'claude-opus-4-6',
+        max_tokens: 2000,
+        temperature: 0,
+        messages: [{
+          role: 'user',
+          content: `You are an art historian. The following style tags were auto-generated and are far too specific — many use a compound "Primary / Secondary" format. Your job is to map every tag to one concise, well-known canonical art movement name, reducing the full list down to roughly 15–20 core movements.
+
+Rules:
+1. For compound "X / Y" tags, pick the most historically significant primary movement (e.g. "Mexican Muralism / Social Realism" → "Mexican Muralism").
+2. Collapse overly specific sub-variants into their parent movement (e.g. "Abstract Expressionism / Gestural Abstraction" → "Abstract Expressionism").
+3. Group regional or era qualifiers under the core movement (e.g. "Contemporary Figurative / Afrofuturism" → "Afrofuturism", "Fauvism / Post-Impressionism" → "Fauvism").
+4. Keep genuinely distinct movements separate (Impressionism vs Post-Impressionism, Surrealism vs Cubism).
+5. Use short, museum-standard names (e.g. "Cubism", "Surrealism", "Abstract Expressionism", "Pop Art", "Minimalism", "Contemporary Art").
+
+Return ONLY a valid JSON object mapping every input tag to its canonical name. Raw JSON only — no markdown fences, no explanation, no extra keys.
+
+Tags: ${JSON.stringify(uniqueStyles)}`
+        }]
+      })
+    });
+
+    const data = await res.json();
+    const text = data.content?.[0]?.text || '';
+    if (!text) throw new Error(JSON.stringify(data.error) || 'Empty response from API');
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('No JSON found in response');
+    const mapping = JSON.parse(jsonMatch[0]);
+
+    // Apply only entries where the canonical name differs from the current one
+    let updateCount = 0;
+    for (const photo of done) {
+      const canonical = mapping[photo.aiData.style];
+      if (canonical && canonical !== photo.aiData.style) {
+        photo.aiData.style = canonical;
+        updatePhotoDB(photo);
+        updateCount++;
+      }
+    }
+
+    render();
+    btn.disabled = false;
+    btn.textContent = updateCount ? `✓ ${updateCount} updated` : '✓ Already consolidated';
+    setTimeout(() => { btn.textContent = '🎨 Consolidate Styles'; }, 3000);
+  } catch (err) {
+    console.error('Style consolidation error:', err);
+    btn.disabled = false;
+    btn.textContent = `⚠ Error: ${err.message.slice(0, 40)}`;
+    setTimeout(() => { btn.textContent = '🎨 Consolidate Styles'; }, 4000);
+  }
 }
 
 function deletePhoto(id) {
