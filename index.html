@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Art Photo Organizer — AI Powered</title>
+  <title>Art Pokédex, Powered by AI</title>
   <!-- Google Maps loaded dynamically after fetching API key from server -->
   <script src="https://cdn.jsdelivr.net/npm/exifr/dist/lite.umd.js"></script>
   <style>
@@ -18,7 +18,7 @@
 
     /* ── Header ── */
     header {
-      background: #1a1a2e;
+      background: #8f0101;
       color: #fff;
       padding: 18px 32px;
       display: flex;
@@ -27,7 +27,7 @@
       box-shadow: 0 2px 12px rgba(0,0,0,0.3);
     }
     header .logo { font-size: 26px; }
-    header h1 { font-size: 20px; font-weight: 600; letter-spacing: 0.5px; }
+    header h1 { font-size: 20px; font-weight: 600; letter-spacing: 0.5px; display: inline-block; vertical-align: middle}
     header p  { font-size: 13px; color: #a8a8c0; margin-top: 2px; }
     .ai-badge {
       margin-left: auto;
@@ -140,9 +140,9 @@
       color: #555;
     }
     .filter-btn:hover, .filter-btn.active {
-      background: #1a1a2e;
+      background: #8f0101;
       color: #fff;
-      border-color: #1a1a2e;
+      border-color: #8f0101;
     }
 
     /* ── Stats Bar ── */
@@ -166,23 +166,27 @@
       margin: 0 auto;
     }
 
-    /* Drop zone */
-    .drop-zone {
-      border: 2.5px dashed #c4b8ac;
+    /* Loading screen */
+    .loading-screen {
       border-radius: 14px;
       padding: 60px 32px;
       text-align: center;
       color: #999;
       background: #fdfaf7;
-      transition: all 0.2s;
-      cursor: pointer;
       margin-bottom: 32px;
     }
-    .drop-zone.drag-over { border-color: #e05c2e; background: #fff5f1; color: #e05c2e; }
-    .drop-zone.hidden { display: none; }
-    .drop-zone .icon { font-size: 48px; margin-bottom: 12px; }
-    .drop-zone p { font-size: 16px; margin-bottom: 6px; }
-    .drop-zone small { font-size: 13px; }
+    .loading-screen.hidden { display: none; }
+    .loading-screen .load-spinner {
+      width: 40px; height: 40px;
+      border: 3px solid #e0dbd5;
+      border-top-color: #e05c2e;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 16px;
+    }
+    .loading-screen p { font-size: 16px; margin-bottom: 6px; }
+    .loading-screen small { font-size: 13px; }
+
 
     /* Location / Style groups */
     .location-group { margin-bottom: 40px; }
@@ -196,7 +200,7 @@
       flex-wrap: wrap;
     }
     .location-icon { font-size: 20px; }
-    .location-name { font-size: 18px; font-weight: 700; color: #1a1a2e; }
+    .location-name { font-size: 18px; font-weight: 700; color: #000; }
     .location-sub { font-size: 13px; color: #888; margin-left: auto; }
 
     /* Photo grid */
@@ -330,7 +334,7 @@
     .modal-detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     .modal-detail { background: #f5f0eb; border-radius: 8px; padding: 11px 14px; }
     .modal-detail label { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 3px; }
-    .modal-detail span  { font-weight: 600; color: #1a1a2e; font-size: 14px; }
+    .modal-detail span  { font-weight: 600; color: #000; font-size: 14px; }
     .model-note { margin-top: 16px; font-size: 12px; color: #bbb; text-align: right; }
 
     /* ── Edit mode ── */
@@ -338,15 +342,15 @@
       margin-top: 16px;
       padding: 8px 18px;
       border-radius: 6px;
-      border: 1.5px solid #1a1a2e;
+      border: 1.5px solid #8f0101;
       background: #fff;
-      color: #1a1a2e;
+      color: #8f0101;
       font-size: 13px;
       font-weight: 600;
       cursor: pointer;
       transition: all 0.2s;
     }
-    .modal-edit-btn:hover { background: #1a1a2e; color: #fff; }
+    .modal-edit-btn:hover { background: #8f0101; color: #fff; }
     .modal-delete-btn {
       margin-top: 16px;
       margin-left: 8px;
@@ -405,6 +409,7 @@
       outline: none;
       transition: border-color 0.2s;
       background: #fff;
+      width: stretch;
     }
     .edit-field input:focus,
     .edit-field textarea:focus { border-color: #e05c2e; }
@@ -485,7 +490,7 @@
     #sidebarTitle {
       font-size: 15px;
       font-weight: 700;
-      color: #1a1a2e;
+      color: #8f0101;
       margin-bottom: 3px;
       white-space: nowrap;
       overflow: hidden;
@@ -552,7 +557,7 @@
       box-shadow: 0 2px 6px rgba(0,0,0,0.3);
       cursor: pointer;
     }
-    .gmap-marker.selected { background: #1a1a2e; transform: rotate(-45deg) scale(1.2); }
+    .gmap-marker.selected { background: #8f0101; transform: rotate(-45deg) scale(1.2); }
     .gmap-marker-inner { transform: rotate(45deg); }
     #map { width: 100%; height: 100%; }
     .map-popup {
@@ -560,7 +565,7 @@
       min-width: 140px;
       font-family: inherit;
     }
-    .map-popup strong { font-size: 13px; display: block; margin-bottom: 3px; color: #1a1a2e; }
+    .map-popup strong { font-size: 13px; display: block; margin-bottom: 3px; color: #8f0101; }
     .map-popup span   { font-size: 12px; color: #888; }
 
     /* Places autocomplete dropdown */
@@ -610,7 +615,7 @@
       padding: 32px 28px; width: 340px; max-width: 94vw;
       box-shadow: 0 8px 32px rgba(0,0,0,0.2);
     }
-    .login-modal h2 { font-size: 18px; margin: 0 0 6px; color: #1a1a2e; }
+    .login-modal h2 { font-size: 18px; margin: 0 0 6px; color: #000; }
     .login-modal p  { font-size: 13px; color: #777; margin: 0 0 18px; }
     .login-modal input[type=password] {
       width: 100%; box-sizing: border-box;
@@ -644,12 +649,12 @@
 <body>
 
 <header>
-  <span class="logo">🖼️</span>
   <div>
-    <h1>Art Photo Organizer</h1>
-    <p>Powered by Claude AI vision analysis</p>
+    <img src="pokedex_pixel_art_palette_repositioned.svg" style="width: 30px; vertical-align:middle">
+    <h1>Art Pokédex</h1>
+    <span class="ai-badge">✦ Powered by Claude AI</span>
   </div>
-  <span class="ai-badge">✦ Claude AI</span>
+  
   <button class="admin-btn" id="adminBtn" onclick="toggleAdminLogin()">🔒 Admin Login</button>
 </header>
 
@@ -698,13 +703,13 @@
 
 <!-- Main Content -->
 <div class="main">
-  <div class="drop-zone" id="dropZone">
-    <div class="icon">🗂️</div>
-    <p>Drop your art photos here</p>
-    <small>or click <strong>Add Photos</strong> above &nbsp;·&nbsp; JPG, PNG, WEBP, GIF</small>
+  <div class="loading-screen" id="loadingScreen">
+    <div class="load-spinner"></div>
+    <p>Loading your collection…</p>
+    <small>Fetching photos from the database</small>
   </div>
 
-  <!-- Map view (shown when Location filter is active) -->
+<!-- Map view (shown when Location filter is active) -->
   <div id="mapView">
     <div id="mapPane"><div id="map"></div></div>
     <div id="mapSidebar">
@@ -1018,6 +1023,7 @@ let serverUrl = '';
 let analysisQueue = Promise.resolve();  // serialise API calls
 let adminToken = null;  // set on successful login; null = view-only mode
 const likedIds = new Set(); // track photos liked this session to prevent duplicates
+let isLoading = true;  // true while initial DB fetch is in flight
 
 function authHeaders(extra) {
   const h = Object.assign({ 'content-type': 'application/json' }, extra || {});
@@ -1395,9 +1401,12 @@ async function loadSavedPhotos() {
       photos.push(photo);
     });
 
+    isLoading = false;
     render();
   } catch (err) {
     console.warn('Could not load saved photos:', err.message);
+    isLoading = false;
+    render();
   }
 }
 
@@ -1660,11 +1669,11 @@ function fileToBase64(file) {
 function render() {
   updateStats();
 
-  const dz      = document.getElementById('dropZone');
   const mapView = document.getElementById('mapView');
   const content = document.getElementById('content');
+  const loading = document.getElementById('loadingScreen');
 
-  dz.classList.toggle('hidden', photos.length > 0);
+  loading.classList.toggle('hidden', !isLoading);
 
   if (!photos.length) {
     content.innerHTML = '';
@@ -2257,7 +2266,7 @@ async function updateMap() {
         icon: {
           path: google.maps.SymbolPath.CIRCLE,
           scale: 18,
-          fillColor:   isSelected ? '#1a1a2e' : '#e05c2e',
+          fillColor:   isSelected ? '#8f0101' : '#e05c2e',
           fillOpacity: 1,
           strokeColor: '#ffffff',
           strokeWeight: 2,
@@ -2303,7 +2312,7 @@ function selectLocation(loc, marker, infoWindow) {
   selectedLocation = loc;
 
   // Highlight selected marker (navy)
-  marker.setIcon({ ...marker.getIcon(), fillColor: '#1a1a2e', scale: 21 });
+  marker.setIcon({ ...marker.getIcon(), fillColor: '#8f0101', scale: 21 });
   marker.setZIndex(10);
   infoWindow.open({ map: googleMap, anchor: marker });
 
@@ -2343,22 +2352,9 @@ function renderSidebar(loc, items) {
   `).join('') || '<div class="sidebar-empty">No photos here</div>';
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Drag & drop
-// ─────────────────────────────────────────────────────────────────────────────
-const dz = document.getElementById('dropZone');
-['dragenter','dragover'].forEach(ev => dz.addEventListener(ev, e => {
-  e.preventDefault(); dz.classList.add('drag-over');
-}));
-['dragleave','drop'].forEach(ev => dz.addEventListener(ev, e => {
-  e.preventDefault(); dz.classList.remove('drag-over');
-  if (ev === 'drop' && adminToken) handleFiles(e.dataTransfer.files);
-}));
-
 window.addEventListener('dragover', e => e.preventDefault());
 window.addEventListener('drop', e => {
   e.preventDefault();
-  if (e.target.closest('#dropZone')) return;
   if (adminToken) handleFiles(e.dataTransfer.files);
 });
 
