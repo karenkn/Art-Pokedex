@@ -389,6 +389,32 @@
       font-size: 13px;
       cursor: pointer;
     }
+    .modal-reanalyze-btn {
+      margin-top: 16px;
+      margin-left: 8px;
+      padding: 8px 16px;
+      border-radius: 6px;
+      border: 1.5px solid #1a6fa6;
+      background: #fff;
+      color: #1a6fa6;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .modal-reanalyze-btn:hover:not(:disabled) { background: #1a6fa6; color: #fff; }
+    .modal-reanalyze-btn:disabled { border-color: #ccc; color: #aaa; cursor: not-allowed; }
+    .reanalyze-spinner {
+      width: 13px; height: 13px;
+      border: 2px solid currentColor;
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      display: inline-block;
+    }
     .edit-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -1000,6 +1026,10 @@
         </div>
         <button class="modal-save-btn" onclick="saveEdit()">💾 Save Changes</button>
         <button class="modal-cancel-btn" onclick="cancelEdit()">Cancel</button>
+        <button class="modal-reanalyze-btn" id="reanalyzeBtn" onclick="reanalyzeFromEdit()" title="Ask Claude to regenerate the description using the details you've filled in above">
+          🔄 Re-analyze with AI
+        </button>
+        <div id="reanalyzeStatus" style="margin-top:8px;font-size:12px;color:#888;display:none"></div>
       </div>
     </div>
   </div>
@@ -1726,6 +1756,140 @@ function fileToBase64(file) {
   });
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Re-analyze from edit mode — regenerates description/confidence/artistHint
+// using whatever the curator has already filled in as confirmed facts
+// ─────────────────────────────────────────────────────────────────────────────
+async function reanalyzeFromEdit() {
+  const p = photos.find(x => x.id === activeModalId);
+  if (!p || !adminToken) return;
+
+  const btn    = document.getElementById('reanalyzeBtn');
+  const status = document.getElementById('reanalyzeStatus');
+
+  // Read current values from the edit form
+  const paintingName = document.getElementById('editPaintingName').value.trim();
+  const artist       = document.getElementById('editArtistName').value.trim();
+  const location     = document.getElementById('editLocation').value.trim();
+  const style        = document.getElementById('editStyle').value.trim();
+  const medium       = document.getElementById('editMedium').value.trim();
+  const period       = document.getElementById('editPeriod').value.trim();
+
+  // Get image as base64 — prefer original file, fall back to stored thumbnail
+  let base64    = null;
+  let mediaType = 'image/jpeg';
+  if (p.file) {
+    base64 = await fileToBase64(p.file);
+    mediaType = p.file.type || 'image/jpeg';
+  } else if (p.url && p.url.startsWith('data:')) {
+    // Stored thumbnail: data:image/jpeg;base64,<data>
+    const parts = p.url.split(',');
+    base64 = parts[1] || null;
+    const mimeMatch = parts[0].match(/data:([^;]+);/);
+    if (mimeMatch) mediaType = mimeMatch[1];
+  }
+
+  if (!base64) {
+    status.style.display = '';
+    status.textContent   = '⚠ Could not retrieve image data for re-analysis.';
+    return;
+  }
+
+  // Show loading state
+  btn.disabled  = true;
+  btn.innerHTML = `<span class="reanalyze-spinner"></span> Analyzing…`;
+  status.style.display = '';
+  status.textContent   = 'Sending to Claude — this takes a few seconds…';
+
+  // Build confirmed-facts section for the prompt
+  const knownFacts = [
+    paintingName && `Painting Name: ${paintingName}`,
+    artist       && `Artist: ${artist}`,
+    location     && `Location: ${location}`,
+    style        && `Art Style: ${style}`,
+    medium       && `Medium: ${medium}`,
+    period       && `Period: ${period}`,
+  ].filter(Boolean).join('\n');
+
+  const userPrompt = `You are an expert museum curator. The following details about this artwork have been confirmed:
+
+${knownFacts || '(no fields confirmed yet — use what you can observe)'}
+
+Using these confirmed facts together with what you can observe in the image, provide:
+1. A rich, expert 3–4 sentence description covering: key visual observations, why the style/artist attribution fits, and any notable art-historical significance.
+2. A revised confidence score (0–100) for the artist/painting identification — given the confirmed details, this should typically be high.
+3. Expanded artist context: nationality, active period, signature techniques, and where this work fits in their oeuvre.
+4. Fill in any of the fields below that are currently blank, based on the image and confirmed facts. Do NOT change fields that are already confirmed above.
+
+Return ONLY a valid JSON object with exactly these keys (raw JSON, no markdown fences):
+{
+  "description": "...",
+  "confidence": <integer 0–100>,
+  "artistHint": "...",
+  "style": "${style   || ''}",
+  "medium": "${medium || ''}",
+  "period": "${period || ''}"
+}`;
+
+  try {
+    const res = await fetch(`${serverUrl}/api/analyze`, {
+      method:  'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({
+        model:      'claude-opus-4-6',
+        max_tokens: 900,
+        temperature: 0,
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } },
+            { type: 'text',  text: userPrompt }
+          ]
+        }]
+      })
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err?.error?.message || `HTTP ${res.status}`);
+    }
+
+    const data = await res.json();
+    const text = data.content?.[0]?.text || '';
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('Could not parse AI response as JSON.');
+    const parsed = JSON.parse(jsonMatch[0]);
+
+    // Update only the regeneratable fields in the edit form
+    // (never overwrite paintingName, artist, location, country — those are confirmed by the curator)
+    if (parsed.description) document.getElementById('editDesc').value        = parsed.description;
+    if (parsed.artistHint)  document.getElementById('editArtist').value      = parsed.artistHint;
+
+    // Only fill style/medium/period if the form field was blank
+    if (!style  && parsed.style)  document.getElementById('editStyle').value  = parsed.style;
+    if (!medium && parsed.medium) document.getElementById('editMedium').value = parsed.medium;
+    if (!period && parsed.period) document.getElementById('editPeriod').value = parsed.period;
+
+    // Update confidence slider
+    if (typeof parsed.confidence === 'number') {
+      const conf = Math.max(0, Math.min(100, parsed.confidence));
+      document.getElementById('editConfidence').value      = conf;
+      document.getElementById('editConfidenceVal').textContent = conf + '%';
+    }
+
+    status.style.color   = '#3a7d44';
+    status.textContent   = '✓ Description and context updated — review and save when ready.';
+
+  } catch (err) {
+    status.style.color = '#c0392b';
+    status.textContent = `⚠ Re-analysis failed: ${err.message}`;
+    console.error('Re-analyze error:', err);
+  }
+
+  btn.disabled  = false;
+  btn.innerHTML = '🔄 Re-analyze with AI';
+}
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Rendering
@@ -2011,6 +2175,11 @@ function startEdit() {
 
   document.getElementById('viewMode').style.display = 'none';
   document.getElementById('editMode').style.display = '';
+  // Reset re-analyze status from any previous run
+  const reanalyzeStatus = document.getElementById('reanalyzeStatus');
+  if (reanalyzeStatus) { reanalyzeStatus.style.display = 'none'; reanalyzeStatus.textContent = ''; }
+  const reanalyzeBtn = document.getElementById('reanalyzeBtn');
+  if (reanalyzeBtn) { reanalyzeBtn.disabled = false; reanalyzeBtn.innerHTML = '🔄 Re-analyze with AI'; }
   document.getElementById('editLocation').focus();
 }
 
