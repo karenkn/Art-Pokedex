@@ -409,7 +409,7 @@
     /* GPS overlay badge on card image */
     .card-gps-badge {
       position: absolute; top: 8px; right: 8px;
-      background: rgba(0,0,0,0.60); color: #5ae09a;
+      background: rgba(0,0,0,0.60); color: #fff;
       font-size: 9px; font-weight: 600; letter-spacing: 0.4px;
       padding: 3px 7px; border-radius: 3px;
       display: flex; align-items: center; gap: 3px;
@@ -902,7 +902,6 @@
   </div>
   <nav class="header-nav">
     <a href="index.html" class="active">Collection</a>
-    <a href="index.html#map">Locations</a>
     <a href="blog.html">Blog</a>
     <button class="admin-btn" id="adminBtn" onclick="toggleAdminLogin()">🔒 Admin</button>
   </nav>
@@ -910,7 +909,6 @@
 </header>
 <div class="header-mobile-menu" id="headerMobileMenu">
   <a href="index.html" class="active">Collection</a>
-  <a href="index.html#map">Locations</a>
   <a href="blog.html">Blog</a>
   <button onclick="toggleAdminLogin(); document.getElementById('headerMobileMenu').classList.remove('open')">🔒 Admin Login</button>
 </div>
@@ -1293,7 +1291,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 let photos = [];
 let currentFilter = 'all';
-let currentSort   = 'newest';
+let currentSort   = 'title';
 let serverUrl = '';
 let analysisQueue = Promise.resolve();  // serialise API calls
 let adminToken = null;  // set on successful login; null = view-only mode
