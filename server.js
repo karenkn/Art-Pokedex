@@ -45,6 +45,19 @@ pool.query(`
   return pool.query(`ALTER TABLE photos ADD COLUMN IF NOT EXISTS likes INTEGER DEFAULT 0`);
 }).catch(err => console.error('Database init error:', err.message));
 
+pool.query(`
+  CREATE TABLE IF NOT EXISTS posts (
+    id           TEXT PRIMARY KEY,
+    title        TEXT NOT NULL DEFAULT '',
+    slug         TEXT NOT NULL DEFAULT '',
+    content      TEXT NOT NULL DEFAULT '',
+    excerpt      TEXT NOT NULL DEFAULT '',
+    published    BOOLEAN DEFAULT TRUE,
+    created_at   TIMESTAMPTZ DEFAULT NOW(),
+    updated_at   TIMESTAMPTZ DEFAULT NOW()
+  )
+`).catch(err => console.error('Posts table init error:', err.message));
+
 // ── Auth helpers ──────────────────────────────────────────────────────────────
 const JWT_SECRET = process.env.JWT_SECRET;
 
@@ -315,6 +328,105 @@ app.delete('/api/photos', authenticate, async (_req, res) => {
     res.json({ ok: true });
   } catch (err) {
     console.error('Clear photos error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── GET /api/posts — public: list all published posts ────────────────────────
+app.get('/api/posts', async (_req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT id, title, slug, excerpt, published, created_at, updated_at FROM posts WHERE published = TRUE ORDER BY created_at DESC'
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Load posts error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── GET /api/posts/all — admin only: list all posts including drafts ──────────
+app.get('/api/posts/all', authenticate, async (_req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT id, title, slug, excerpt, published, created_at, updated_at FROM posts ORDER BY created_at DESC'
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Load all posts error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── GET /api/posts/:id — public: single post with full content ────────────────
+app.get('/api/posts/:id', async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT * FROM posts WHERE id = $1',
+      [req.params.id]
+    );
+    if (result.rowCount === 0) return res.status(404).json({ error: 'Post not found.' });
+    const post = result.rows[0];
+    // Only return unpublished posts to admins
+    if (!post.published) {
+      const header = req.headers['authorization'] || '';
+      const token  = header.startsWith('Bearer ') ? header.slice(7) : null;
+      if (!token) return res.status(404).json({ error: 'Post not found.' });
+      try { jwt.verify(token, JWT_SECRET); } catch { return res.status(404).json({ error: 'Post not found.' }); }
+    }
+    res.json(post);
+  } catch (err) {
+    console.error('Get post error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── POST /api/posts — admin only: create post ────────────────────────────────
+app.post('/api/posts', authenticate, async (req, res) => {
+  const { id, title, slug, content, excerpt, published } = req.body;
+  try {
+    await pool.query(
+      `INSERT INTO posts (id, title, slug, content, excerpt, published)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       ON CONFLICT (id) DO UPDATE SET
+         title = EXCLUDED.title, slug = EXCLUDED.slug,
+         content = EXCLUDED.content, excerpt = EXCLUDED.excerpt,
+         published = EXCLUDED.published, updated_at = NOW()`,
+      [id, title || '', slug || '', content || '', excerpt || '', published !== false]
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Create post error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── PUT /api/posts/:id — admin only: update post ─────────────────────────────
+app.put('/api/posts/:id', authenticate, async (req, res) => {
+  const { title, slug, content, excerpt, published } = req.body;
+  try {
+    const result = await pool.query(
+      `UPDATE posts SET
+         title = $1, slug = $2, content = $3, excerpt = $4,
+         published = $5, updated_at = NOW()
+       WHERE id = $6`,
+      [title || '', slug || '', content || '', excerpt || '', published !== false, req.params.id]
+    );
+    if (result.rowCount === 0) return res.status(404).json({ error: 'Post not found.' });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Update post error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── DELETE /api/posts/:id — admin only ───────────────────────────────────────
+app.delete('/api/posts/:id', authenticate, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM posts WHERE id = $1', [req.params.id]);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Delete post error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });

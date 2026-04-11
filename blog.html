@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Blog — Art Pokédex</title>
+
+  <!-- Quill rich-text editor -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.snow.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.min.js"></script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: #fdfaf7;
+      color: #2c2c2c;
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    header {
+      background: linear-gradient(135deg, #8f0101 0%, #c0392b 100%);
+      color: #fff;
+      padding: 14px 32px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.18);
+    }
+    header h1 { font-size: 20px; font-weight: 800; letter-spacing: -0.3px; }
+    .ai-badge {
+      font-size: 11px; font-weight: 600; letter-spacing: 0.5px;
+      background: rgba(255,255,255,0.18); padding: 3px 9px; border-radius: 20px;
+    }
+    .header-nav { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+    .nav-link {
+      color: rgba(255,255,255,0.85); text-decoration: none;
+      font-size: 13px; font-weight: 600; padding: 6px 14px;
+      border-radius: 6px; border: 1.5px solid rgba(255,255,255,0.4);
+      transition: background 0.2s;
+    }
+    .nav-link:hover { background: rgba(255,255,255,0.15); }
+    .admin-btn {
+      padding: 7px 16px; border-radius: 6px;
+      border: 1.5px solid rgba(255,255,255,0.5);
+      background: transparent; color: #fff;
+      font-size: 13px; font-weight: 600; cursor: pointer; transition: background 0.2s;
+    }
+    .admin-btn:hover { background: rgba(255,255,255,0.15); }
+    .admin-btn.logged-in { border-color: #a8e6a3; color: #a8e6a3; }
+
+    /* ── Login modal ── */
+    .login-modal-bg {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.55); z-index: 2000;
+      align-items: center; justify-content: center;
+    }
+    .login-modal-bg.open { display: flex; }
+    .login-modal {
+      background: #fff; border-radius: 12px;
+      padding: 32px 28px; width: 340px; max-width: 94vw;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+    }
+    .login-modal h2 { font-size: 18px; margin: 0 0 6px; }
+    .login-modal p  { font-size: 13px; color: #777; margin: 0 0 18px; }
+    .login-modal input[type=password] {
+      width: 100%; box-sizing: border-box; padding: 9px 12px;
+      border: 1.5px solid #ccc; border-radius: 6px;
+      font-size: 14px; margin-bottom: 12px;
+    }
+    .login-modal input[type=password]:focus { outline: none; border-color: #e05c2e; }
+    .login-modal-actions { display: flex; gap: 8px; }
+    .login-submit-btn {
+      flex: 1; padding: 9px; border: none; border-radius: 6px;
+      background: #e05c2e; color: #fff; font-size: 14px;
+      font-weight: 600; cursor: pointer;
+    }
+    .login-cancel-btn {
+      padding: 9px 16px; border: 1.5px solid #ccc; border-radius: 6px;
+      background: #fff; color: #666; font-size: 14px; cursor: pointer;
+    }
+    .login-error { color: #e53e3e; font-size: 13px; margin-bottom: 10px; display: none; }
+
+    /* ── Layout ── */
+    .page-wrap { max-width: 820px; margin: 0 auto; padding: 48px 24px; }
+
+    /* ── List view ── */
+    .blog-header { margin-bottom: 36px; }
+    .blog-header h2 { font-size: 28px; font-weight: 800; margin-bottom: 6px; }
+    .blog-header p  { font-size: 15px; color: #888; }
+
+    .admin-toolbar { display: none; margin-bottom: 24px; }
+    .admin-toolbar.visible { display: flex; gap: 10px; }
+    .new-post-btn {
+      padding: 9px 20px; border-radius: 6px; border: none;
+      background: #e05c2e; color: #fff; font-size: 14px;
+      font-weight: 600; cursor: pointer; transition: background 0.2s;
+    }
+    .new-post-btn:hover { background: #c44d22; }
+
+    .post-card {
+      background: #fff; border-radius: 12px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.07);
+      padding: 26px 28px; margin-bottom: 20px;
+      cursor: pointer; transition: transform 0.15s, box-shadow 0.15s;
+      border: 1.5px solid transparent; position: relative;
+    }
+    .post-card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.1); border-color: #e05c2e; }
+    .post-card.draft { border-left: 4px solid #f0c040; }
+    .post-card-date  { font-size: 12px; color: #bbb; margin-bottom: 8px; }
+    .post-card-title { font-size: 20px; font-weight: 700; margin-bottom: 10px; color: #000; }
+    .post-card-excerpt { font-size: 14px; color: #666; line-height: 1.65; }
+    .post-card-read  { margin-top: 14px; font-size: 13px; color: #e05c2e; font-weight: 600; }
+    .draft-badge {
+      display: inline-block; font-size: 11px; background: #fff8e1;
+      color: #b07a0a; padding: 2px 8px; border-radius: 12px;
+      font-weight: 600; margin-left: 8px; vertical-align: middle;
+    }
+    .post-admin-actions {
+      position: absolute; top: 18px; right: 20px;
+      display: none; gap: 6px;
+    }
+    .post-admin-actions.visible { display: flex; }
+    .post-edit-btn, .post-delete-btn {
+      padding: 4px 12px; border-radius: 6px; font-size: 12px;
+      font-weight: 600; cursor: pointer; border: 1.5px solid;
+    }
+    .post-edit-btn   { border-color: #8f0101; color: #8f0101; background: #fff; }
+    .post-edit-btn:hover { background: #8f0101; color: #fff; }
+    .post-delete-btn { border-color: #e53e3e; color: #e53e3e; background: #fff; }
+    .post-delete-btn:hover { background: #e53e3e; color: #fff; }
+
+    /* ── Single post view ── */
+    #postView { display: none; }
+    .back-btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      color: #e05c2e; font-weight: 600; font-size: 14px;
+      background: none; border: none; cursor: pointer; padding: 0;
+      margin-bottom: 32px;
+    }
+    .back-btn:hover { text-decoration: underline; }
+    .post-full-date  { font-size: 13px; color: #bbb; margin-bottom: 10px; }
+    .post-full-title { font-size: 32px; font-weight: 800; line-height: 1.2; margin-bottom: 28px; }
+
+    /* Styles for rendered post content */
+    .post-content { font-size: 16px; line-height: 1.75; color: #333; }
+    .post-content h1 { font-size: 26px; font-weight: 800; margin: 32px 0 14px; }
+    .post-content h2 { font-size: 21px; font-weight: 700; margin: 28px 0 12px; }
+    .post-content h3 { font-size: 17px; font-weight: 700; margin: 22px 0 10px; }
+    .post-content p  { margin-bottom: 16px; }
+    .post-content ul, .post-content ol { margin: 0 0 16px 22px; }
+    .post-content li { margin-bottom: 5px; }
+    .post-content blockquote {
+      border-left: 4px solid #e0dbd5; margin: 0 0 16px;
+      padding: 10px 18px; color: #888; background: #faf7f4; border-radius: 0 6px 6px 0;
+    }
+    .post-content pre {
+      background: #1a1a2e; color: #e0e0e0; border-radius: 8px;
+      padding: 16px 20px; overflow-x: auto; margin-bottom: 16px;
+      font-family: 'Fira Mono', 'Consolas', monospace; font-size: 14px;
+    }
+    .post-content img {
+      max-width: 100%; border-radius: 8px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.12); margin: 10px 0 18px; display: block;
+    }
+    .post-content a { color: #e05c2e; }
+    .post-content hr { border: none; border-top: 2px solid #e0dbd5; margin: 28px 0; }
+
+    /* ── Editor view ── */
+    #editorView { display: none; }
+    .editor-header {
+      display: flex; align-items: center; gap: 14px;
+      margin-bottom: 20px; flex-wrap: wrap;
+    }
+    .editor-header h2 { font-size: 22px; font-weight: 800; }
+    .editor-actions   { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; }
+
+    .save-btn {
+      padding: 9px 20px; border-radius: 6px; border: none;
+      background: #e05c2e; color: #fff; font-size: 14px;
+      font-weight: 600; cursor: pointer; transition: background 0.2s;
+    }
+    .save-btn:hover:not(:disabled) { background: #c44d22; }
+    .save-btn:disabled { background: #ccc; cursor: not-allowed; }
+
+    .draft-toggle-btn {
+      padding: 9px 16px; border-radius: 6px; font-size: 14px;
+      font-weight: 600; cursor: pointer; transition: all 0.2s;
+    }
+    .draft-toggle-btn.published { border: 1.5px solid #3a7d44; color: #3a7d44; background: #fff; }
+    .draft-toggle-btn.draft     { border: 1.5px solid #b07a0a; color: #b07a0a; background: #fff; }
+
+    .cancel-btn {
+      padding: 9px 14px; border-radius: 6px; border: 1.5px solid #ccc;
+      background: #fff; color: #666; font-size: 14px; cursor: pointer;
+    }
+
+    .editor-title-input {
+      width: 100%; padding: 12px 14px; font-size: 22px; font-weight: 700;
+      border: 1.5px solid #ddd; border-radius: 8px; outline: none;
+      font-family: inherit; margin-bottom: 16px; color: #000;
+    }
+    .editor-title-input:focus { border-color: #e05c2e; }
+
+    /* Quill overrides to match app style */
+    .ql-toolbar.ql-snow {
+      border: 1.5px solid #ddd;
+      border-radius: 8px 8px 0 0;
+      background: #faf7f4;
+      padding: 10px 12px;
+    }
+    .ql-container.ql-snow {
+      border: 1.5px solid #ddd;
+      border-top: none;
+      border-radius: 0 0 8px 8px;
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      font-size: 15px;
+    }
+    .ql-editor {
+      min-height: 480px;
+      line-height: 1.7;
+      color: #2c2c2c;
+      padding: 18px 20px;
+    }
+    .ql-editor.ql-blank::before {
+      color: #bbb; font-style: normal;
+    }
+    .ql-editor img {
+      max-width: 100%; border-radius: 8px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.12); margin: 6px 0;
+    }
+    .ql-editor p { margin-bottom: 6px; }
+    .ql-snow .ql-stroke { stroke: #555; }
+    .ql-snow .ql-fill  { fill: #555; }
+    .ql-snow .ql-picker  { color: #555; }
+    .ql-snow .ql-picker-options { border-radius: 6px; }
+    .ql-snow .ql-toolbar button:hover .ql-stroke,
+    .ql-snow .ql-toolbar button.ql-active .ql-stroke { stroke: #e05c2e; }
+    .ql-snow .ql-toolbar button:hover .ql-fill,
+    .ql-snow .ql-toolbar button.ql-active .ql-fill { fill: #e05c2e; }
+    .ql-snow .ql-toolbar button:hover,
+    .ql-snow .ql-toolbar button.ql-active { color: #e05c2e; }
+
+    .paste-hint {
+      font-size: 12px; color: #bbb; margin-top: 8px;
+      display: flex; align-items: center; gap: 5px;
+    }
+    .paste-hint kbd {
+      background: #f0ebe5; border: 1px solid #ddd; border-radius: 4px;
+      padding: 1px 5px; font-size: 11px; font-family: inherit;
+    }
+
+    .save-status { font-size: 13px; color: #3a7d44; margin-top: 12px; min-height: 18px; }
+    .save-status.error { color: #c0392b; }
+
+    /* ── Empty state / loading ── */
+    .empty-state {
+      text-align: center; padding: 80px 24px; color: #bbb;
+    }
+    .empty-state .icon { font-size: 52px; margin-bottom: 14px; }
+    .empty-state p { font-size: 16px; }
+    .loading-msg { text-align: center; padding: 60px; color: #bbb; font-size: 15px; }
+
+    @media (max-width: 600px) {
+      header { padding: 12px 16px; }
+      .page-wrap { padding: 28px 16px; }
+      .post-full-title { font-size: 24px; }
+      .editor-header { gap: 8px; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div style="display:flex;align-items:center;gap:10px">
+    <img src="pokedex_pixel_art_palette_repositioned.svg" style="width:30px;vertical-align:middle" onerror="this.style.display='none'">
+    <h1>Art Pokédex</h1>
+    <span class="ai-badge">✦ Powered by Claude AI</span>
+  </div>
+  <div class="header-nav">
+    <a class="nav-link" href="index.html">← Gallery</a>
+    <button class="admin-btn" id="adminBtn" onclick="toggleAdminLogin()">🔒 Admin Login</button>
+  </div>
+</header>
+
+<!-- Login Modal -->
+<div class="login-modal-bg" id="loginModalBg">
+  <div class="login-modal">
+    <h2>Admin Login</h2>
+    <p>Enter your admin password to write and edit posts.</p>
+    <div class="login-error" id="loginError"></div>
+    <input type="password" id="adminPasswordInput" placeholder="Admin password"
+           onkeydown="if(event.key==='Enter') submitLogin()" />
+    <div class="login-modal-actions">
+      <button class="login-submit-btn" onclick="submitLogin()">Log In</button>
+      <button class="login-cancel-btn" onclick="closeLoginModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="page-wrap">
+
+  <!-- ── Post list ── -->
+  <div id="listView">
+    <div class="blog-header">
+      <h2>📝 Design &amp; Process Blog</h2>
+      <p>Behind the scenes of building the Art Pokédex — thinking, decisions, and discoveries.</p>
+    </div>
+    <div class="admin-toolbar" id="adminToolbar">
+      <button class="new-post-btn" onclick="openNewPost()">✏️ Write New Post</button>
+    </div>
+    <div id="postList">
+      <div class="loading-msg">Loading posts…</div>
+    </div>
+  </div>
+
+  <!-- ── Single post view ── -->
+  <div id="postView">
+    <button class="back-btn" onclick="showList()">← Back to all posts</button>
+    <div class="post-full-date"  id="postFullDate"></div>
+    <h1 class="post-full-title" id="postFullTitle"></h1>
+    <div class="post-content"   id="postFullContent"></div>
+    <div id="postViewAdminBar" style="margin-top:32px;display:none;gap:8px">
+      <button class="post-edit-btn" style="padding:8px 18px;font-size:13px" onclick="editCurrentPost()">✏️ Edit Post</button>
+    </div>
+  </div>
+
+  <!-- ── Editor ── -->
+  <div id="editorView">
+    <div class="editor-header">
+      <h2 id="editorHeading">New Post</h2>
+      <div class="editor-actions">
+        <button class="draft-toggle-btn published" id="publishToggle" onclick="togglePublished()">✓ Published</button>
+        <button class="save-btn" id="saveBtn" onclick="savePost()">💾 Save</button>
+        <button class="cancel-btn" onclick="cancelEdit()">Cancel</button>
+      </div>
+    </div>
+
+    <input type="text" class="editor-title-input" id="postTitleInput" placeholder="Post title…" />
+
+    <!-- Quill editor mounts here -->
+    <div id="quillEditor"></div>
+
+    <p class="paste-hint">
+      📋 Paste screenshots anywhere with <kbd>Cmd+V</kbd> / <kbd>Ctrl+V</kbd> — images embed automatically &nbsp;·&nbsp;
+      Use the toolbar above to format text, add headings, lists, and links
+    </p>
+    <div class="save-status" id="saveStatus"></div>
+  </div>
+
+</div>
+
+<script>
+// ─────────────────────────────────────────────────────────────────────────────
+// Config
+// ─────────────────────────────────────────────────────────────────────────────
+const serverUrl = 'https://art-pokedex-production.up.railway.app';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// State
+// ─────────────────────────────────────────────────────────────────────────────
+let adminToken    = null;
+let posts         = [];
+let editingPostId = null;
+let currentPostId = null;
+let isPublished   = true;
+let quill         = null;
+
+function authHeaders(extra) {
+  const h = Object.assign({ 'content-type': 'application/json' }, extra || {});
+  if (adminToken) h['Authorization'] = `Bearer ${adminToken}`;
+  return h;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Quill — initialise once, lazily
+// ─────────────────────────────────────────────────────────────────────────────
+function initQuill() {
+  if (quill) return;
+
+  quill = new Quill('#quillEditor', {
+    theme: 'snow',
+    placeholder: 'Start writing your post here…',
+    modules: {
+      toolbar: [
+        [{ header: [1, 2, 3, false] }],
+        ['bold', 'italic', 'underline', 'strike'],
+        [{ color: [] }, { background: [] }],
+        [{ list: 'ordered' }, { list: 'bullet' }],
+        ['blockquote', 'code-block'],
+        ['link', 'image'],
+        [{ align: [] }],
+        ['clean']
+      ],
+      // Allow pasting images (Quill's clipboard module handles this natively)
+      clipboard: { matchVisual: false }
+    }
+  });
+
+  // Quill's built-in image button opens a URL dialog by default.
+  // Override it to also accept pasted / local files via a hidden file input.
+  const toolbar = quill.getModule('toolbar');
+  toolbar.addHandler('image', () => {
+    const input = document.createElement('input');
+    input.setAttribute('type', 'file');
+    input.setAttribute('accept', 'image/*');
+    input.click();
+    input.onchange = () => {
+      const file = input.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = e => insertImageBase64(e.target.result);
+      reader.readAsDataURL(file);
+    };
+  });
+}
+
+function insertImageBase64(dataUrl) {
+  const range = quill.getSelection(true);
+  quill.insertEmbed(range.index, 'image', dataUrl, Quill.sources.USER);
+  quill.setSelection(range.index + 1, Quill.sources.SILENT);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Admin login
+// ─────────────────────────────────────────────────────────────────────────────
+function toggleAdminLogin() {
+  if (adminToken) {
+    adminToken = null;
+    updateAdminUI();
+  } else {
+    document.getElementById('loginModalBg').classList.add('open');
+    document.getElementById('adminPasswordInput').value = '';
+    document.getElementById('loginError').style.display = 'none';
+    setTimeout(() => document.getElementById('adminPasswordInput').focus(), 50);
+  }
+}
+
+function closeLoginModal() {
+  document.getElementById('loginModalBg').classList.remove('open');
+}
+
+async function submitLogin() {
+  const password = document.getElementById('adminPasswordInput').value;
+  const errEl    = document.getElementById('loginError');
+  errEl.style.display = 'none';
+  try {
+    const res  = await fetch(`${serverUrl}/api/login`, {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ password })
+    });
+    const data = await res.json();
+    if (!res.ok) { errEl.textContent = data.error || 'Login failed.'; errEl.style.display = 'block'; return; }
+    adminToken = data.token;
+    closeLoginModal();
+    updateAdminUI();
+    loadPosts();
+  } catch {
+    errEl.textContent = 'Could not reach server.'; errEl.style.display = 'block';
+  }
+}
+
+function updateAdminUI() {
+  const isAdmin = !!adminToken;
+  const btn = document.getElementById('adminBtn');
+  btn.textContent = isAdmin ? '🔓 Logged In (Logout)' : '🔒 Admin Login';
+  btn.classList.toggle('logged-in', isAdmin);
+  document.getElementById('adminToolbar').classList.toggle('visible', isAdmin);
+  renderPostList();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Load & render posts
+// ─────────────────────────────────────────────────────────────────────────────
+async function loadPosts() {
+  try {
+    const url = adminToken ? `${serverUrl}/api/posts/all` : `${serverUrl}/api/posts`;
+    const res  = await fetch(url, { headers: authHeaders() });
+    posts = await res.json();
+    if (!Array.isArray(posts)) posts = [];
+  } catch {
+    posts = [];
+  }
+  renderPostList();
+}
+
+function renderPostList() {
+  const container = document.getElementById('postList');
+  if (!posts.length) {
+    container.innerHTML = `<div class="empty-state">
+      <div class="icon">📝</div>
+      <p>${adminToken ? 'No posts yet — click "Write New Post" to get started.' : 'No posts yet. Check back soon!'}</p>
+    </div>`;
+    return;
+  }
+  container.innerHTML = posts.map(post => {
+    const date    = formatDate(post.created_at);
+    const isDraft = !post.published;
+    return `<div class="post-card${isDraft ? ' draft' : ''}" onclick="openPost('${post.id}')">
+      ${adminToken ? `<div class="post-admin-actions visible">
+        <button class="post-edit-btn"   onclick="event.stopPropagation();openEditor('${post.id}')">✏️ Edit</button>
+        <button class="post-delete-btn" onclick="event.stopPropagation();deletePost('${post.id}')">🗑 Delete</button>
+      </div>` : ''}
+      <div class="post-card-date">${date}</div>
+      <div class="post-card-title">${escHtml(post.title) || 'Untitled'}${isDraft ? '<span class="draft-badge">Draft</span>' : ''}</div>
+      <div class="post-card-excerpt">${escHtml(post.excerpt) || ''}</div>
+      <div class="post-card-read">Read more →</div>
+    </div>`;
+  }).join('');
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// View a post
+// ─────────────────────────────────────────────────────────────────────────────
+async function openPost(id) {
+  try {
+    const res  = await fetch(`${serverUrl}/api/posts/${id}`, { headers: authHeaders() });
+    if (!res.ok) return;
+    const post = await res.json();
+    currentPostId = id;
+
+    document.getElementById('postFullDate').textContent  = formatDate(post.created_at);
+    document.getElementById('postFullTitle').textContent = post.title || 'Untitled';
+    // Content is stored as HTML from Quill — render directly
+    document.getElementById('postFullContent').innerHTML = post.content || '<p style="color:#bbb">No content yet.</p>';
+
+    const adminBar = document.getElementById('postViewAdminBar');
+    adminBar.style.display = adminToken ? 'flex' : 'none';
+
+    showView('post');
+  } catch (err) {
+    console.error('Load post error:', err);
+  }
+}
+
+function editCurrentPost() {
+  if (currentPostId) openEditor(currentPostId);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Editor
+// ─────────────────────────────────────────────────────────────────────────────
+async function openNewPost() {
+  editingPostId = null;
+  isPublished   = true;
+  showView('editor');
+  initQuill();
+
+  document.getElementById('postTitleInput').value   = '';
+  document.getElementById('saveStatus').textContent = '';
+  document.getElementById('editorHeading').textContent = 'New Post';
+  updatePublishToggle();
+  quill.setContents([]);  // clear editor
+  quill.focus();
+  document.getElementById('postTitleInput').focus();
+}
+
+async function openEditor(id) {
+  try {
+    const res  = await fetch(`${serverUrl}/api/posts/${id}`, { headers: authHeaders() });
+    if (!res.ok) return;
+    const post = await res.json();
+
+    editingPostId = id;
+    isPublished   = post.published !== false;
+
+    showView('editor');
+    initQuill();
+
+    document.getElementById('postTitleInput').value   = post.title || '';
+    document.getElementById('saveStatus').textContent = '';
+    document.getElementById('editorHeading').textContent = 'Edit Post';
+    updatePublishToggle();
+
+    // Load HTML content into Quill
+    quill.root.innerHTML = post.content || '';
+    quill.focus();
+  } catch (err) {
+    console.error('Open editor error:', err);
+  }
+}
+
+function togglePublished() {
+  isPublished = !isPublished;
+  updatePublishToggle();
+}
+
+function updatePublishToggle() {
+  const btn = document.getElementById('publishToggle');
+  if (isPublished) {
+    btn.textContent = '✓ Published';
+    btn.className   = 'draft-toggle-btn published';
+  } else {
+    btn.textContent = '◌ Draft';
+    btn.className   = 'draft-toggle-btn draft';
+  }
+}
+
+async function savePost() {
+  const title   = document.getElementById('postTitleInput').value.trim();
+  const content = quill ? quill.root.innerHTML : '';
+  const status  = document.getElementById('saveStatus');
+  const btn     = document.getElementById('saveBtn');
+
+  if (!title) {
+    status.className  = 'save-status error';
+    status.textContent = '⚠ Please add a title before saving.';
+    document.getElementById('postTitleInput').focus();
+    return;
+  }
+
+  // Derive a plain-text excerpt from Quill's text (strip HTML)
+  const plainText = quill ? quill.getText().replace(/\s+/g, ' ').trim() : '';
+  const excerpt   = plainText.slice(0, 200);
+  const slug      = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
+  btn.disabled       = true;
+  status.className   = 'save-status';
+  status.textContent = 'Saving…';
+
+  try {
+    let res;
+    if (editingPostId) {
+      res = await fetch(`${serverUrl}/api/posts/${editingPostId}`, {
+        method: 'PUT', headers: authHeaders(),
+        body: JSON.stringify({ title, slug, content, excerpt, published: isPublished })
+      });
+    } else {
+      const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      res = await fetch(`${serverUrl}/api/posts`, {
+        method: 'POST', headers: authHeaders(),
+        body: JSON.stringify({ id, title, slug, content, excerpt, published: isPublished })
+      });
+      editingPostId = id;
+    }
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `HTTP ${res.status}`);
+    }
+    status.className   = 'save-status';
+    status.textContent = `✓ Saved${isPublished ? '' : ' as draft'} — ${new Date().toLocaleTimeString()}`;
+    await loadPosts();
+  } catch (err) {
+    status.className   = 'save-status error';
+    status.textContent = `⚠ Save failed: ${err.message}`;
+  }
+
+  btn.disabled = false;
+}
+
+function cancelEdit() {
+  editingPostId = null;
+  if (currentPostId) {
+    openPost(currentPostId);
+  } else {
+    showList();
+  }
+}
+
+async function deletePost(id) {
+  if (!confirm('Delete this post permanently?')) return;
+  try {
+    await fetch(`${serverUrl}/api/posts/${id}`, { method: 'DELETE', headers: authHeaders() });
+    posts = posts.filter(p => p.id !== id);
+    if (currentPostId === id) { currentPostId = null; showList(); }
+    else renderPostList();
+  } catch (err) {
+    console.error('Delete post error:', err);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// View switching
+// ─────────────────────────────────────────────────────────────────────────────
+function showList() {
+  currentPostId = null;
+  showView('list');
+  loadPosts();
+}
+
+function showView(view) {
+  document.getElementById('listView').style.display   = view === 'list'   ? 'block' : 'none';
+  document.getElementById('postView').style.display   = view === 'post'   ? 'block' : 'none';
+  document.getElementById('editorView').style.display = view === 'editor' ? 'block' : 'none';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────────────────────────────────────
+function escHtml(str) {
+  return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function formatDate(iso) {
+  if (!iso) return '';
+  return new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Init
+// ─────────────────────────────────────────────────────────────────────────────
+loadPosts();
+</script>
+</body>
+</html>
