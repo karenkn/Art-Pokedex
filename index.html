@@ -896,7 +896,7 @@
 
 <header>
   <div class="header-logo">
-    <div class="logo-dot"></div>
+    <img src="pokedex_pixel_art_palette_repositioned.svg" style="width:30px">
     <span class="logo-text">Art Pokédex</span>
     <span class="logo-sub">✦ Claude AI</span>
   </div>
@@ -950,12 +950,12 @@
   <div class="sort-wrap">
     <span class="sort-label">Sort</span>
     <select class="sort-select" id="sortSelect" onchange="setSort(this.value)">
+      <option value="title">A–Z Title</option>
+      <option value="artist">A–Z Artist</option>
       <option value="newest">⬇ Newest first</option>
       <option value="oldest">⬆ Oldest first</option>
       <option value="liked">👍 Most liked</option>
       <option value="confidence">✓ Most confident</option>
-      <option value="title">A–Z Title</option>
-      <option value="artist">A–Z Artist</option>
     </select>
   </div>
 </div>
@@ -2324,7 +2324,6 @@ function renderGrouped(container, _key, icon, keyFn) {
 
     html += `<div class="location-group">
       <div class="location-header">
-        <span class="location-icon">${icon}</span>
         <span class="location-name">${escHtml(groupName)}</span>
         <span class="location-sub">${sub}</span>
       </div>
