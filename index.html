@@ -6,39 +6,83 @@
   <title>Art Pokédex, Powered by AI</title>
   <!-- Google Maps loaded dynamically after fetching API key from server -->
   <script src="https://cdn.jsdelivr.net/npm/exifr/dist/lite.umd.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
-      font-family: 'Segoe UI', system-ui, sans-serif;
-      background: #f5f0eb;
-      color: #2c2c2c;
+      font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+      background: #f0ede8;
+      color: #1a1a1a;
       min-height: 100vh;
     }
 
     /* ── Header ── */
     header {
-      background: #8f0101;
+      background: #111;
       color: #fff;
-      padding: 18px 32px;
+      padding: 0 clamp(16px, 4vw, 48px);
+      height: 58px;
       display: flex;
       align-items: center;
-      gap: 14px;
-      box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+      gap: 16px;
+      position: sticky; top: 0; z-index: 200;
+      box-shadow: none;
     }
-    header .logo { font-size: 26px; }
-    header h1 { font-size: 20px; font-weight: 600; letter-spacing: 0.5px; display: inline-block; vertical-align: middle}
-    header p  { font-size: 13px; color: #a8a8c0; margin-top: 2px; }
-    .ai-badge {
-      margin-left: auto;
-      background: linear-gradient(135deg, #e05c2e, #c930b0);
-      font-size: 12px;
-      font-weight: 700;
-      padding: 4px 12px;
-      border-radius: 20px;
-      letter-spacing: 0.5px;
-      white-space: nowrap;
+    .header-logo {
+      display: flex; align-items: center; gap: 10px; flex-shrink: 0; text-decoration: none;
     }
+    .logo-dot {
+      width: 9px; height: 9px;
+      background: #8f0101; border-radius: 50%; flex-shrink: 0;
+    }
+    .logo-text {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(15px, 2.5vw, 18px);
+      color: #fff; font-weight: 600; letter-spacing: 0.3px;
+    }
+    .logo-sub {
+      font-size: 10px; color: #4a4a4a; letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+    @media (max-width: 639px) { .logo-sub { display: none; } }
+    .header-nav {
+      display: flex; align-items: center; gap: 24px; margin-left: auto;
+    }
+    .header-nav a {
+      color: #666; text-decoration: none; font-size: 11px;
+      letter-spacing: 1px; text-transform: uppercase; font-weight: 500;
+      transition: color 0.2s;
+    }
+    .header-nav a:hover { color: #fff; }
+    .header-nav a.active { color: #fff; }
+    /* hamburger for mobile */
+    .header-hamburger {
+      display: none; background: none; border: none;
+      cursor: pointer; color: #aaa; font-size: 20px; padding: 4px;
+      margin-left: auto; line-height: 1;
+    }
+    .header-mobile-menu {
+      display: none; background: #0d0d0d;
+      border-bottom: 1px solid #1a1a1a;
+      position: sticky; top: 58px; z-index: 199;
+    }
+    .header-mobile-menu.open { display: block; }
+    .header-mobile-menu a, .header-mobile-menu button {
+      display: block; width: 100%; text-align: left;
+      padding: 13px 24px; color: #777; background: none; border: none;
+      font-size: 12px; letter-spacing: 0.8px; text-transform: uppercase;
+      font-family: inherit; cursor: pointer; border-bottom: 1px solid #191919;
+    }
+    .header-mobile-menu a.active { color: #fff; }
+    @media (max-width: 767px) {
+      .header-nav { display: none; }
+      .header-hamburger { display: flex; align-items: center; }
+    }
+    /* keep old .ai-badge in case referenced elsewhere but hide it */
+    .ai-badge { display: none; }
 
     /* ── API Key Panel ── */
     .api-panel {
@@ -93,75 +137,107 @@
     .toolbar {
       display: flex;
       align-items: center;
-      gap: 12px;
-      padding: 14px 32px;
-      background: #fafaf8;
-      border-bottom: 1px solid #e0dbd5;
+      gap: 10px;
+      padding: 13px clamp(16px, 4vw, 48px) 11px;
+      background: #f0ede8;
+      border-bottom: 1px solid #ddd8d0;
       flex-wrap: wrap;
     }
     .upload-btn {
-      background: #e05c2e;
+      background: #8f0101;
       color: #fff;
       border: none;
-      padding: 9px 20px;
-      border-radius: 6px;
-      font-size: 14px;
+      padding: 7px 16px;
+      border-radius: 3px;
+      font-size: 12px;
       font-weight: 600;
       cursor: pointer;
       display: flex;
       align-items: center;
-      gap: 7px;
+      gap: 6px;
+      letter-spacing: 0.3px;
       transition: background 0.2s;
     }
-    .upload-btn:hover { background: #c44d22; }
-    .upload-btn:disabled { background: #ccc; cursor: not-allowed; }
+    .upload-btn:hover { background: #700101; }
+    .upload-btn:disabled { background: #bbb; cursor: not-allowed; }
     #fileInput { display: none; }
     .clear-btn {
-      padding: 9px 16px;
-      border-radius: 6px;
-      border: 1.5px solid #ccc;
-      background: #fff;
-      font-size: 13px;
+      padding: 6px 13px;
+      border-radius: 3px;
+      border: 1px solid #c8c2b8;
+      background: transparent;
+      font-size: 11px;
       cursor: pointer;
-      color: #666;
+      color: #888;
+      letter-spacing: 0.3px;
       transition: all 0.2s;
     }
-    .clear-btn:hover { border-color: #c0392b; color: #c0392b; }
+    .clear-btn:hover { border-color: #8f0101; color: #8f0101; }
 
-    .filter-group { display: flex; gap: 8px; margin-left: auto; flex-wrap: wrap; }
+    .filter-group { display: flex; flex-wrap: wrap; gap: 0; margin-left: auto; }
     .filter-btn {
-      padding: 7px 15px;
-      border-radius: 20px;
-      border: 1.5px solid #ccc;
-      background: #fff;
-      font-size: 13px;
+      padding: 5px 14px;
+      border: none;
+      border-bottom: 2px solid transparent;
+      border-radius: 0;
+      background: none;
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.6px;
+      text-transform: uppercase;
       cursor: pointer;
       transition: all 0.2s;
+      color: #999;
+      font-family: inherit;
+    }
+    .filter-btn:hover { color: #1a1a1a; background: none; }
+    .filter-btn.active { color: #1a1a1a; border-bottom-color: #8f0101; background: none; }
+    .sort-wrap {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-left: 8px;
+    }
+    .sort-label {
+      font-size: 10px;
+      color: #aaa;
+      white-space: nowrap;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .sort-select {
+      padding: 4px 0;
+      border: none;
+      border-radius: 0;
+      background: transparent;
+      font-size: 11px;
       color: #555;
+      cursor: pointer;
+      font-family: inherit;
+      transition: color 0.2s;
+      appearance: none;
+      -webkit-appearance: none;
     }
-    .filter-btn:hover, .filter-btn.active {
-      background: #8f0101;
-      color: #fff;
-      border-color: #8f0101;
-    }
+    .sort-select:focus { outline: none; color: #1a1a1a; }
 
     /* ── Stats Bar ── */
     .stats-bar {
       display: flex;
-      gap: 24px;
-      padding: 10px 32px;
-      background: #f9f6f2;
-      border-bottom: 1px solid #e8e2da;
-      font-size: 13px;
-      color: #777;
+      gap: 20px;
+      padding: 6px clamp(16px, 4vw, 48px);
+      background: #f0ede8;
+      border-bottom: 1px solid #ddd8d0;
+      font-size: 10px;
+      color: #aaa;
+      letter-spacing: 0.3px;
       flex-wrap: wrap;
     }
-    .stats-bar span strong { color: #2c2c2c; }
-    #queueStatus { margin-left: auto; font-size: 12px; color: #e05c2e; font-weight: 600; }
+    .stats-bar span strong { color: #555; }
+    #queueStatus { margin-left: auto; font-size: 10px; color: #8f0101; font-weight: 600; }
 
     /* ── Main ── */
     .main {
-      padding: 28px 32px;
+      padding: clamp(20px, 3vw, 36px) clamp(16px, 4vw, 48px);
       max-width: 1400px;
       margin: 0 auto;
     }
@@ -189,39 +265,65 @@
 
 
     /* Location / Style groups */
-    .location-group { margin-bottom: 40px; }
+    .location-group { margin-bottom: clamp(36px, 5vw, 52px); }
     .location-header {
       display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 14px;
-      padding-bottom: 10px;
-      border-bottom: 2px solid #e0dbd5;
+      align-items: baseline;
+      gap: 12px;
+      margin-bottom: 16px;
+      padding-bottom: 11px;
+      border-bottom: 1px solid #c8c2b8;
       flex-wrap: wrap;
     }
-    .location-icon { font-size: 20px; }
-    .location-name { font-size: 18px; font-weight: 700; color: #000; }
-    .location-sub { font-size: 13px; color: #888; margin-left: auto; }
+    .location-icon { font-size: 14px; }
+    .location-name {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(16px, 2.8vw, 22px);
+      font-weight: 600; color: #1a1a1a; letter-spacing: -0.2px;
+    }
+    .location-sub {
+      font-size: 11px; color: #aaa; margin-left: auto; letter-spacing: 0.2px;
+    }
 
-    /* Photo grid */
+    /* Photo grid — 4-col desktop with featured-first layout */
     .photo-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-      gap: 18px;
+      grid-template-columns: repeat(4, 1fr);
+      gap: clamp(10px, 1.6vw, 16px);
+      grid-auto-flow: row dense;
     }
+    @media (max-width: 1023px) { .photo-grid { grid-template-columns: repeat(3, 1fr); } }
+    @media (max-width: 639px)  { .photo-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 399px)  { .photo-grid { grid-template-columns: 1fr; } }
+
     .photo-card {
       background: #fff;
-      border-radius: 10px;
+      border: 1px solid #e4dfd8;
+      border-radius: 0;
       overflow: hidden;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-      transition: transform 0.2s, box-shadow 0.2s;
+      box-shadow: none;
+      transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
       cursor: pointer;
       position: relative;
     }
-    .photo-card:hover { transform: translateY(-4px); box-shadow: 0 8px 24px rgba(0,0,0,0.14); }
+    .photo-card:hover { transform: translateY(-3px); box-shadow: 0 10px 28px rgba(0,0,0,0.10); border-color: #c2bab0; }
     .photo-card.done:hover { cursor: pointer; }
     .photo-card.error { cursor: default; }
-    .photo-card.error:hover { transform: none; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+    .photo-card.error:hover { transform: none; box-shadow: none; border-color: #e4dfd8; }
+
+    /* Featured card: first card per group, spans 2 cols × 2 rows */
+    .photo-card.featured {
+      grid-column: span 2;
+      grid-row: span 2;
+      display: flex;
+      flex-direction: column;
+    }
+    @media (max-width: 639px) {
+      .photo-card.featured { grid-row: span 1; display: block; }
+    }
+    @media (max-width: 399px) {
+      .photo-card.featured { grid-column: span 1; }
+    }
     .delete-btn {
       position: absolute; top: 7px; right: 7px;
       background: rgba(0,0,0,0.55); color: #fff;
@@ -233,16 +335,41 @@
     }
     .delete-btn:hover { background: #e53e3e; }
     .photo-card:hover .delete-btn { display: block; }
-    .like-btn {
-      display: flex; align-items: center; gap: 5px;
-      background: none; border: 1.5px solid #ddd;
-      border-radius: 20px; padding: 4px 10px;
-      font-size: 12px; font-weight: 600; color: #888;
-      cursor: pointer; transition: all 0.2s;
+    /* Pin button — top-left corner of card, admin-only */
+    .pin-btn {
+      position: absolute; top: 7px; left: 7px;
+      background: rgba(0,0,0,0.55); color: #fff;
+      border: none; border-radius: 50%;
+      width: 26px; height: 26px; font-size: 13px;
+      line-height: 26px; text-align: center;
+      cursor: pointer; display: none; z-index: 10;
+      transition: background 0.15s;
     }
-    .like-btn:hover { border-color: #e05c2e; color: #e05c2e; }
-    .like-btn.liked  { border-color: #e05c2e; color: #e05c2e; background: #fff5f2; }
-    .like-btn .heart { font-size: 14px; }
+    .pin-btn:hover { background: #8f0101; }
+    .photo-card:hover .pin-btn { display: block; }
+    /* When already pinned, always show the pin btn (in gold) — no badge overlap needed */
+    .photo-card.pinned .pin-btn { display: block; color: #f5c842; background: rgba(143,1,1,0.75); }
+    /* Persistent "★ FEATURED" ribbon — sits at bottom-left of image, not overlapping pin btn */
+    .pinned-badge {
+      position: absolute; bottom: 0; left: 0; right: 0;
+      background: linear-gradient(to top, rgba(143,1,1,0.85) 0%, transparent 100%);
+      color: #fff;
+      font-size: 9px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+      padding: 14px 8px 5px; pointer-events: none; z-index: 3;
+    }
+    .photo-card.pinned .pinned-badge { display: block; }
+    .photo-card:not(.pinned) .pinned-badge { display: none; }
+    .like-btn {
+      display: flex; align-items: center; gap: 4px;
+      background: none; border: none;
+      padding: 0;
+      font-size: 10px; font-weight: 500; color: #bbb;
+      cursor: pointer; transition: color 0.2s;
+      margin-top: 5px;
+    }
+    .like-btn:hover { color: #8f0101; }
+    .like-btn.liked  { color: #8f0101; }
+    .like-btn .heart { font-size: 11px; }
     .modal-like-btn {
       margin-top: 16px;
       margin-left: 8px;
@@ -258,9 +385,43 @@
     }
     .modal-like-btn:hover { border-color: #e05c2e; color: #e05c2e; }
     .modal-like-btn.liked { border-color: #e05c2e; color: #e05c2e; background: #fff5f2; }
-    .photo-card img {
-      width: 100%; height: 180px; object-fit: cover; display: block;
+    /* Image wrapper inside each card */
+    .card-img-wrap {
+      overflow: hidden;
+      position: relative;
+      background: #e0dbd4;
+      aspect-ratio: 4 / 3;      /* landscape for regular cards */
+      flex-shrink: 0;
     }
+    .photo-card.featured .card-img-wrap {
+      flex: 1;                   /* fill all height given by 2-row span */
+      aspect-ratio: unset;
+      min-height: 220px;
+    }
+    @media (max-width: 639px) {
+      .photo-card.featured .card-img-wrap {
+        flex: unset; aspect-ratio: 16/9; min-height: unset;
+      }
+    }
+    .card-img-wrap img {
+      width: 100%; height: 100%; object-fit: cover; display: block;
+      transition: transform 0.4s;
+    }
+    .photo-card:hover .card-img-wrap img { transform: scale(1.03); }
+    /* Keep backward-compat for any bare img inside a card (shouldn't exist after rewrite) */
+    .photo-card > img { width: 100%; height: auto; object-fit: cover; display: block; aspect-ratio: 4/3; }
+
+    /* GPS overlay badge on card image */
+    .card-gps-badge {
+      position: absolute; top: 8px; right: 8px;
+      background: rgba(0,0,0,0.60); color: #5ae09a;
+      font-size: 9px; font-weight: 600; letter-spacing: 0.4px;
+      padding: 3px 7px; border-radius: 3px;
+      display: flex; align-items: center; gap: 3px;
+      backdrop-filter: blur(4px);
+      pointer-events: none; white-space: nowrap; z-index: 2;
+    }
+    .card-gps-badge::before { content: '📍'; font-size: 9px; }
 
     /* Overlays */
     .status-overlay {
@@ -281,22 +442,44 @@
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* Card info */
-    .photo-info { padding: 12px 14px; }
+    /* Card info — Gallery Noir anatomy */
+    .photo-info { padding: 10px 12px 12px; }
+    .photo-card.featured .photo-info { padding: 12px 14px 14px; }
     .photo-title {
-      font-size: 13px; font-weight: 600;
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-      margin-bottom: 6px;
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(12px, 1.5vw, 14px);
+      font-weight: 400;
+      color: #1a1a1a;
+      line-height: 1.35;
+      margin-bottom: 3px;
+      overflow: hidden;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
     }
-    .tag-row { display: flex; gap: 5px; flex-wrap: wrap; }
-    .tag { font-size: 11px; padding: 2px 8px; border-radius: 12px; font-weight: 500; }
-    .tag.location { background: #e8f4fd; color: #1a6fa6; }
-    .tag.style    { background: #fef3e2; color: #b07a0a; }
-    .tag.medium   { background: #f0f7ee; color: #3a7d44; }
+    .photo-card.featured .photo-title { font-size: clamp(14px, 2vw, 17px); margin-bottom: 4px; }
+    .card-artist {
+      font-size: 10px; color: #888; margin-bottom: 2px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .photo-card.featured .card-artist { font-size: 11px; }
+    .card-movement {
+      font-size: 10px; color: #a8906a;
+      font-style: italic; margin-bottom: 7px; line-height: 1.3;
+    }
+    .photo-card.featured .card-movement { font-size: 11px; }
+    /* tag-row kept for featured card's medium/century pills */
+    .tag-row { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 6px; }
+    .tag { font-size: 9px; padding: 2px 7px; letter-spacing: 0.3px; font-weight: 400; }
+    .tag.location { border: 1px solid #d5e8f5; color: #1a6fa6; background: #f0f8ff; }
+    .tag.style    { border: 1px solid #e8ddd0; color: #a8906a; background: #faf6f0; }
+    .tag.medium   { border: 1px solid #dce8d8; color: #3a7d44; background: #f4f9f2; }
     .photo-meta {
       display: flex; justify-content: space-between; align-items: center;
-      margin-top: 8px; font-size: 11px; color: #aaa;
+      padding-top: 7px; border-top: 1px solid #eee9e3;
+      font-size: 9px; color: #bbb;
     }
+    .photo-meta-left { display: flex; align-items: center; gap: 6px; }
     .confidence-high { color: #3a7d44; font-weight: 600; }
     .confidence-med  { color: #b07a0a; font-weight: 600; }
     .confidence-low  { color: #c0392b; font-weight: 600; }
@@ -304,100 +487,112 @@
     /* Error message in card */
     .error-msg { font-size: 11px; color: #c0392b; padding: 8px 14px; }
 
-    /* ── Modal ── */
+    /* ── Modal (lightbox) — Gallery Noir style ── */
     .modal-bg {
       display: none; position: fixed; inset: 0;
-      background: rgba(0,0,0,0.78); z-index: 100;
+      background: rgba(0,0,0,0.82); z-index: 100;
       align-items: center; justify-content: center;
     }
     .modal-bg.open { display: flex; }
     .modal {
-      background: #fff; border-radius: 14px;
-      max-width: 800px; width: 95%; overflow: hidden;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+      background: #fff; border-radius: 0;
+      max-width: 820px; width: 95%; overflow: hidden;
+      box-shadow: 0 24px 64px rgba(0,0,0,0.5);
       display: flex; flex-direction: column; max-height: 92vh;
+      border: 1px solid #e4dfd8;
     }
-    .modal-img-wrap { background: #111; position: relative; }
+    .modal-img-wrap { background: #0d0d0d; position: relative; }
     .modal-img-wrap img { width: 100%; max-height: 420px; object-fit: contain; display: block; }
     .modal-close-btn {
       position: absolute; top: 12px; right: 14px;
-      background: rgba(0,0,0,0.5); color: #fff;
-      border: none; border-radius: 50%; width: 32px; height: 32px;
-      font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+      background: rgba(0,0,0,0.55); color: #fff;
+      border: none; border-radius: 50%; width: 30px; height: 30px;
+      font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+      transition: background 0.2s;
     }
-    .modal-body { padding: 24px; overflow-y: auto; }
-    .modal-title { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
-    .modal-tags  { display: flex; gap: 7px; flex-wrap: wrap; margin-bottom: 14px; }
-    .modal-tags .tag { font-size: 13px; }
-    .modal-desc  { font-size: 14px; color: #555; line-height: 1.65; margin-bottom: 18px; }
-    .modal-section-title { font-size: 12px; text-transform: uppercase; letter-spacing: 0.7px; color: #999; margin-bottom: 10px; }
+    .modal-close-btn:hover { background: rgba(0,0,0,0.8); }
+    .modal-body { padding: 22px 24px; overflow-y: auto; background: #fff; }
+    .modal-title {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(18px, 3vw, 22px); font-weight: 400; margin-bottom: 6px; color: #1a1a1a;
+    }
+    .modal-tags  { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+    .modal-tags .tag { font-size: 11px; }
+    .modal-desc  { font-size: 14px; color: #555; line-height: 1.7; margin-bottom: 18px; }
+    .modal-section-title {
+      font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #bbb; margin-bottom: 10px;
+    }
     .modal-detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-    .modal-detail { background: #f5f0eb; border-radius: 8px; padding: 11px 14px; }
-    .modal-detail label { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 3px; }
-    .modal-detail span  { font-weight: 600; color: #000; font-size: 14px; }
-    .model-note { margin-top: 16px; font-size: 12px; color: #bbb; text-align: right; }
+    .modal-detail { background: #f7f4f0; border: 1px solid #ece8e2; padding: 11px 14px; }
+    .modal-detail label { font-size: 10px; color: #aaa; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 3px; }
+    .modal-detail span  { font-weight: 600; color: #1a1a1a; font-size: 13px; }
+    .model-note { margin-top: 16px; font-size: 11px; color: #ccc; text-align: right; }
 
-    /* ── Edit mode ── */
+    /* ── Edit mode / modal action buttons ── */
     .modal-edit-btn {
-      margin-top: 16px;
-      padding: 8px 18px;
-      border-radius: 6px;
+      margin-top: 14px;
+      padding: 7px 16px;
+      border-radius: 3px;
       border: 1.5px solid #8f0101;
       background: #fff;
       color: #8f0101;
-      font-size: 13px;
+      font-size: 12px;
       font-weight: 600;
       cursor: pointer;
       transition: all 0.2s;
+      letter-spacing: 0.3px;
     }
     .modal-edit-btn:hover { background: #8f0101; color: #fff; }
     .modal-delete-btn {
-      margin-top: 16px;
+      margin-top: 14px;
       margin-left: 8px;
-      padding: 8px 18px;
-      border-radius: 6px;
-      border: 1.5px solid #e53e3e;
+      padding: 7px 16px;
+      border-radius: 3px;
+      border: 1.5px solid #c0392b;
       background: #fff;
-      color: #e53e3e;
-      font-size: 13px;
+      color: #c0392b;
+      font-size: 12px;
       font-weight: 600;
       cursor: pointer;
       transition: all 0.2s;
     }
-    .modal-delete-btn:hover { background: #e53e3e; color: #fff; }
+    .modal-delete-btn:hover { background: #c0392b; color: #fff; }
     .modal-save-btn {
-      margin-top: 16px;
-      padding: 8px 18px;
-      border-radius: 6px;
+      margin-top: 14px;
+      padding: 7px 16px;
+      border-radius: 3px;
       border: none;
-      background: #e05c2e;
+      background: #8f0101;
       color: #fff;
-      font-size: 13px;
+      font-size: 12px;
       font-weight: 600;
       cursor: pointer;
+      letter-spacing: 0.3px;
       transition: background 0.2s;
     }
-    .modal-save-btn:hover { background: #c44d22; }
+    .modal-save-btn:hover { background: #700101; }
     .modal-cancel-btn {
-      margin-top: 16px;
+      margin-top: 14px;
       margin-left: 8px;
-      padding: 8px 14px;
-      border-radius: 6px;
-      border: 1.5px solid #ccc;
+      padding: 7px 14px;
+      border-radius: 3px;
+      border: 1px solid #c8c2b8;
       background: #fff;
-      color: #666;
-      font-size: 13px;
+      color: #888;
+      font-size: 12px;
       cursor: pointer;
+      transition: all 0.2s;
     }
+    .modal-cancel-btn:hover { border-color: #888; color: #555; }
     .modal-reanalyze-btn {
-      margin-top: 16px;
+      margin-top: 14px;
       margin-left: 8px;
-      padding: 8px 16px;
-      border-radius: 6px;
+      padding: 7px 14px;
+      border-radius: 3px;
       border: 1.5px solid #1a6fa6;
       background: #fff;
       color: #1a6fa6;
-      font-size: 13px;
+      font-size: 12px;
       font-weight: 600;
       cursor: pointer;
       transition: all 0.2s;
@@ -449,29 +644,30 @@
     .edit-confidence input[type=range] { flex: 1; accent-color: #e05c2e; }
     .edit-confidence span { min-width: 36px; text-align: right; font-weight: 600; font-size: 13px; }
     .manually-edited-badge {
-      font-size: 11px;
-      background: #f0f7ee;
+      font-size: 9px;
+      border: 1px solid #dce8d8;
       color: #3a7d44;
-      padding: 2px 8px;
-      border-radius: 12px;
+      padding: 1px 6px;
       font-weight: 600;
       margin-left: 6px;
+      letter-spacing: 0.3px;
     }
+    /* .gps-badge used in modal detail area (not the card overlay) */
     .gps-badge {
-      font-size: 11px;
-      background: #e8f4fd;
+      font-size: 9px;
+      border: 1px solid #c8e0f5;
       color: #1a6fa6;
-      padding: 2px 8px;
-      border-radius: 12px;
+      padding: 1px 6px;
       font-weight: 600;
+      letter-spacing: 0.3px;
     }
     .ai-loc-badge {
-      font-size: 11px;
-      background: #fef3e2;
-      color: #b07a0a;
-      padding: 2px 8px;
-      border-radius: 12px;
+      font-size: 9px;
+      border: 1px solid #e8ddd0;
+      color: #a8906a;
+      padding: 1px 6px;
       font-weight: 600;
+      letter-spacing: 0.3px;
     }
 
     /* No-key notice */
@@ -608,19 +804,21 @@
 
     /* ── Admin login button in header ── */
     .admin-btn {
-      margin-left: auto;
-      padding: 7px 16px;
-      border-radius: 6px;
-      border: 1.5px solid rgba(255,255,255,0.5);
+      padding: 5px 13px;
+      border-radius: 3px;
+      border: 1px solid #3a3a3a;
       background: transparent;
-      color: #fff;
-      font-size: 13px;
-      font-weight: 600;
+      color: #777;
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
       cursor: pointer;
-      transition: background 0.2s;
+      transition: all 0.2s;
+      white-space: nowrap;
     }
-    .admin-btn:hover { background: rgba(255,255,255,0.15); }
-    .admin-btn.logged-in { border-color: #a8e6a3; color: #a8e6a3; }
+    .admin-btn:hover { border-color: #fff; color: #fff; }
+    .admin-btn.logged-in { border-color: #5ae09a; color: #5ae09a; }
 
     /* ── Login modal ── */
     .login-modal-bg {
@@ -630,50 +828,94 @@
     }
     .login-modal-bg.open { display: flex; }
     .login-modal {
-      background: #fff; border-radius: 12px;
-      padding: 32px 28px; width: 340px; max-width: 94vw;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+      background: #fff; border-radius: 0;
+      padding: 30px 28px; width: 340px; max-width: 94vw;
+      box-shadow: 0 16px 48px rgba(0,0,0,0.3);
+      border: 1px solid #e4dfd8;
     }
-    .login-modal h2 { font-size: 18px; margin: 0 0 6px; color: #000; }
-    .login-modal p  { font-size: 13px; color: #777; margin: 0 0 18px; }
+    .login-modal h2 {
+      font-family: 'Playfair Display', serif;
+      font-size: 20px; font-weight: 400; margin: 0 0 6px; color: #1a1a1a;
+    }
+    .login-modal p  { font-size: 12px; color: #aaa; margin: 0 0 18px; }
     .login-modal input[type=password] {
       width: 100%; box-sizing: border-box;
-      padding: 9px 12px; border: 1.5px solid #ccc;
-      border-radius: 6px; font-size: 14px; margin-bottom: 12px;
+      padding: 9px 12px; border: 1px solid #c8c2b8;
+      border-radius: 0; font-size: 13px; margin-bottom: 12px;
+      font-family: inherit;
     }
-    .login-modal input[type=password]:focus { outline: none; border-color: #e05c2e; }
+    .login-modal input[type=password]:focus { outline: none; border-color: #8f0101; }
     .login-modal-actions { display: flex; gap: 8px; }
     .login-submit-btn {
-      flex: 1; padding: 9px; border: none; border-radius: 6px;
-      background: #e05c2e; color: #fff; font-size: 14px;
-      font-weight: 600; cursor: pointer; transition: background 0.2s;
+      flex: 1; padding: 9px; border: none; border-radius: 0;
+      background: #111; color: #fff; font-size: 12px;
+      font-weight: 600; cursor: pointer; letter-spacing: 0.5px;
+      text-transform: uppercase; transition: background 0.2s;
     }
-    .login-submit-btn:hover { background: #c44d22; }
+    .login-submit-btn:hover { background: #8f0101; }
     .login-cancel-btn {
-      padding: 9px 16px; border: 1.5px solid #ccc; border-radius: 6px;
-      background: #fff; color: #666; font-size: 14px; cursor: pointer;
+      padding: 9px 16px; border: 1px solid #c8c2b8; border-radius: 0;
+      background: #fff; color: #888; font-size: 12px; cursor: pointer;
+      transition: all 0.2s;
     }
-    .login-error { color: #e53e3e; font-size: 13px; margin-bottom: 10px; display: none; }
+    .login-cancel-btn:hover { border-color: #888; }
+    .login-error { color: #c0392b; font-size: 12px; margin-bottom: 10px; display: none; }
 
     @media (max-width: 600px) {
-      header, .toolbar, .api-panel, .stats-bar { padding-left: 16px; padding-right: 16px; }
-      .main { padding: 16px; }
+      .main { padding: 14px 16px; }
       .modal-detail-grid { grid-template-columns: 1fr; }
       #mapPane { height: 240px; }
     }
+
+    /* ── Map sidebar Gallery Noir tints ── */
+    #mapSidebar { background: #f7f4f0; border-top: 1px solid #ddd8d0; }
+    #sidebarHeader { background: #f7f4f0; border-bottom: 1px solid #e4dfd8; }
+    #sidebarTitle {
+      font-family: 'Playfair Display', serif;
+      font-size: 15px; font-weight: 600; color: #1a1a1a; margin-bottom: 3px;
+    }
+    #sidebarSub { font-size: 11px; color: #aaa; }
+    .sidebar-thumb { background: #ece8e2; border-radius: 0; border: 1px solid transparent; }
+    .sidebar-thumb:hover { border-color: #8f0101; }
+    .sidebar-thumb-label { color: #555; background: #fff; font-size: 10px; }
+    .gmap-marker { background: #8f0101; }
+    .gmap-marker.selected { background: #111; }
+    .map-popup strong { color: #8f0101; }
+    /* Notice box */
+    .notice { background: #faf7f0; border-color: #e4c87a; border-radius: 0; color: #7a5700; }
+    /* Loading screen */
+    .loading-screen { background: #faf7f0; border-radius: 0; }
+    .loading-screen .load-spinner { border-color: #ddd8d0; border-top-color: #8f0101; }
+    /* API panel */
+    .api-panel { background: #f7f4f0; border-bottom: 1px solid #ddd8d0; padding: 12px clamp(16px,4vw,48px); }
+    .api-input:focus { border-color: #8f0101; }
+    .edit-field input:focus, .edit-field textarea:focus { border-color: #8f0101; }
+    .edit-confidence input[type=range] { accent-color: #8f0101; }
+    .places-option:hover, .places-option.active { background: #faf5f0; color: #8f0101; }
   </style>
 </head>
 <body>
 
 <header>
-  <div>
-    <img src="pokedex_pixel_art_palette_repositioned.svg" style="width: 30px; vertical-align:middle">
-    <h1>Art Pokédex</h1>
-    <span class="ai-badge">✦ Powered by Claude AI</span>
+  <div class="header-logo">
+    <div class="logo-dot"></div>
+    <span class="logo-text">Art Pokédex</span>
+    <span class="logo-sub">✦ Claude AI</span>
   </div>
-  <a href="blog.html" style="margin-left:18px;color:rgba(255,255,255,0.85);text-decoration:none;font-size:13px;font-weight:600;padding:6px 14px;border-radius:6px;border:1.5px solid rgba(255,255,255,0.4);transition:background 0.2s" onmouseover="this.style.background='rgba(255,255,255,0.15)'" onmouseout="this.style.background=''">📝 Blog</a>
-  <button class="admin-btn" id="adminBtn" onclick="toggleAdminLogin()">🔒 Admin Login</button>
+  <nav class="header-nav">
+    <a href="index.html" class="active">Collection</a>
+    <a href="index.html#map">Locations</a>
+    <a href="blog.html">Blog</a>
+    <button class="admin-btn" id="adminBtn" onclick="toggleAdminLogin()">🔒 Admin</button>
+  </nav>
+  <button class="header-hamburger" onclick="document.getElementById('headerMobileMenu').classList.toggle('open')" aria-label="Menu">☰</button>
 </header>
+<div class="header-mobile-menu" id="headerMobileMenu">
+  <a href="index.html" class="active">Collection</a>
+  <a href="index.html#map">Locations</a>
+  <a href="blog.html">Blog</a>
+  <button onclick="toggleAdminLogin(); document.getElementById('headerMobileMenu').classList.remove('open')">🔒 Admin Login</button>
+</div>
 
 <!-- Login Modal -->
 <div class="login-modal-bg" id="loginModalBg">
@@ -707,6 +949,18 @@
     <button class="filter-btn" onclick="setFilter('location', this)">📍 By Location</button>
     <button class="filter-btn" onclick="setFilter('style', this)">🎨 By Style</button>
     <button class="filter-btn" onclick="setFilter('artist', this)">🖌️ By Artist</button>
+  </div>
+
+  <div class="sort-wrap">
+    <span class="sort-label">Sort</span>
+    <select class="sort-select" id="sortSelect" onchange="setSort(this.value)">
+      <option value="newest">⬇ Newest first</option>
+      <option value="oldest">⬆ Oldest first</option>
+      <option value="liked">👍 Most liked</option>
+      <option value="confidence">✓ Most confident</option>
+      <option value="title">A–Z Title</option>
+      <option value="artist">A–Z Artist</option>
+    </select>
   </div>
 </div>
 
@@ -1041,6 +1295,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 let photos = [];
 let currentFilter = 'all';
+let currentSort   = 'newest';
 let serverUrl = '';
 let analysisQueue = Promise.resolve();  // serialise API calls
 let adminToken = null;  // set on successful login; null = view-only mode
@@ -1106,8 +1361,8 @@ function updateAdminUI() {
   document.querySelectorAll('.admin-only').forEach(el => {
     el.style.display = isAdmin ? '' : 'none';
   });
-  // Show / hide delete buttons on existing cards
-  document.querySelectorAll('.delete-btn').forEach(el => {
+  // Show / hide delete + pin buttons on existing cards
+  document.querySelectorAll('.delete-btn, .pin-btn').forEach(el => {
     el.dataset.adminVisible = isAdmin ? '1' : '0';
   });
   render();
@@ -1477,6 +1732,7 @@ async function loadSavedPhotos() {
         gpsCoords:      (row.gps_lat && row.gps_lng) ? [row.gps_lat, row.gps_lng] : null,
         fromDB:         true,
         likes:          row.likes || 0,
+        pinned:         row.pinned || false,
         aiData: {
           paintingName:   row.painting_name  || '',
           artist:         row.artist         || '',
@@ -1957,12 +2213,68 @@ function renderGrouped(container, _key, icon, keyFn) {
   const errors    = photos.filter(p => p.status === 'error');
   const done      = photos.filter(p => p.status === 'done');
 
+  // ── Sort photos within each group ────────────────────────────────────────
+  function sortedPhotos(arr) {
+    const a = [...arr];
+    switch (currentSort) {
+      case 'oldest':
+        return a.reverse();
+      case 'liked':
+        return a.sort((x, y) => (y.likes || 0) - (x.likes || 0));
+      case 'confidence':
+        return a.sort((x, y) => (y.aiData?.confidence || 0) - (x.aiData?.confidence || 0));
+      case 'title':
+        return a.sort((x, y) => (x.aiData?.paintingName || x.name).localeCompare(y.aiData?.paintingName || y.name));
+      case 'artist':
+        return a.sort((x, y) => (x.aiData?.artist || '').localeCompare(y.aiData?.artist || ''));
+      default: // newest — DB already returns newest first
+        return a;
+    }
+  }
+
   const groups = {};
   done.forEach(p => {
     const k = keyFn(p);
     if (!groups[k]) groups[k] = [];
     groups[k].push(p);
   });
+
+  // ── Sort groups ───────────────────────────────────────────────────────────
+  function sortedGroups(entries) {
+    switch (currentSort) {
+      case 'liked':
+        // Groups with the most total likes first
+        return entries.sort(([, a], [, b]) => {
+          const sumA = a.reduce((s, p) => s + (p.likes || 0), 0);
+          const sumB = b.reduce((s, p) => s + (p.likes || 0), 0);
+          return sumB - sumA;
+        });
+      case 'confidence':
+        // Groups with the highest average confidence first
+        return entries.sort(([, a], [, b]) => {
+          const avgA = a.reduce((s, p) => s + (p.aiData?.confidence || 0), 0) / a.length;
+          const avgB = b.reduce((s, p) => s + (p.aiData?.confidence || 0), 0) / b.length;
+          return avgB - avgA;
+        });
+      case 'oldest':
+        // Group whose oldest photo was added first (last in array = oldest from DB)
+        return entries.sort(([, a], [, b]) => {
+          const idxA = done.indexOf(a[a.length - 1]);
+          const idxB = done.indexOf(b[b.length - 1]);
+          return idxB - idxA;
+        });
+      case 'newest':
+        // Group whose most recently added photo was added first
+        return entries.sort(([, a], [, b]) => {
+          const idxA = done.indexOf(a[0]);
+          const idxB = done.indexOf(b[0]);
+          return idxA - idxB;
+        });
+      default:
+        // title, artist → alphabetical by group name
+        return entries.sort(([a], [b]) => a.localeCompare(b));
+    }
+  }
 
   let html = '';
 
@@ -1989,12 +2301,30 @@ function renderGrouped(container, _key, icon, keyFn) {
     </div>`;
   }
 
-  Object.entries(groups).sort(([a],[b]) => a.localeCompare(b)).forEach(([groupName, items]) => {
+  sortedGroups(Object.entries(groups)).forEach(([groupName, items]) => {
+    const sorted = sortedPhotos(items);
+
+    // Build a sort-aware subtitle for each group header
+    let sortNote = '';
+    if (currentSort === 'liked') {
+      const total = items.reduce((s, p) => s + (p.likes || 0), 0);
+      sortNote = ` · ${total} like${total !== 1 ? 's' : ''}`;
+    } else if (currentSort === 'confidence') {
+      const avg = Math.round(items.reduce((s, p) => s + (p.aiData?.confidence || 0), 0) / items.length);
+      sortNote = ` · avg ${avg}% confidence`;
+    }
+
     const sub = _key === 'location'
-      ? `${escHtml(items[0].aiData.country)} · ${items.length} photo${items.length > 1 ? 's' : ''}`
+      ? `${escHtml(items[0].aiData.country)} · ${items.length} photo${items.length > 1 ? 's' : ''}${sortNote}`
       : _key === 'artist'
-      ? `${escHtml(items[0].aiData.period || '')} · ${items.length} photo${items.length > 1 ? 's' : ''}`
-      : `${items.length} photo${items.length > 1 ? 's' : ''}`;
+      ? `${escHtml(items[0].aiData.period || '')} · ${items.length} photo${items.length > 1 ? 's' : ''}${sortNote}`
+      : `${items.length} photo${items.length > 1 ? 's' : ''}${sortNote}`;
+
+    // Put any pinned photo first in the group, then apply normal sort order for the rest
+    const pinnedFirst = [
+      ...sorted.filter(p => p.pinned),
+      ...sorted.filter(p => !p.pinned)
+    ];
 
     html += `<div class="location-group">
       <div class="location-header">
@@ -2002,14 +2332,14 @@ function renderGrouped(container, _key, icon, keyFn) {
         <span class="location-name">${escHtml(groupName)}</span>
         <span class="location-sub">${sub}</span>
       </div>
-      <div class="photo-grid">${items.map(photoCard).join('')}</div>
+      <div class="photo-grid">${pinnedFirst.map((p, i) => photoCard(p, i === 0 && pinnedFirst.length >= 3)).join('')}</div>
     </div>`;
   });
 
   container.innerHTML = html;
 }
 
-function photoCard(p) {
+function photoCard(p, featured = false) {
   let overlay = '';
   if (p.status === 'analyzing') {
     overlay = `<div class="status-overlay overlay-analyzing"><div class="spinner"></div><span>Claude is analyzing…</span></div>`;
@@ -2019,6 +2349,10 @@ function photoCard(p) {
     overlay = `<div class="status-overlay overlay-error"><span>⚠️</span><span>Analysis failed</span></div>`;
   }
 
+  // GPS overlay badge — appears on the photo image
+  const gpsBadge = (p.status === 'done' && p.locationSource === 'gps')
+    ? `<div class="card-gps-badge">GPS</div>` : '';
+
   const cardTitle = (p.status === 'done' && p.aiData?.paintingName) ? p.aiData.paintingName : p.name;
   let infoHtml = `<div class="photo-info"><div class="photo-title">${escHtml(cardTitle)}</div>`;
 
@@ -2026,28 +2360,29 @@ function photoCard(p) {
     const d = p.aiData;
     const confClass = d.confidence >= 80 ? 'confidence-high' : d.confidence >= 55 ? 'confidence-med' : 'confidence-low';
     const editedBadge = d.manuallyEdited ? `<span class="manually-edited-badge">✎ edited</span>` : '';
-    const artistLabel = d.artist ? `<div style="font-size:11px;color:#666;margin-bottom:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">🎨 ${escHtml(d.artist)}</div>` : '';
-    infoHtml += `
-      ${artistLabel}
-      <div class="tag-row">
-        <span class="tag location">📍 ${escHtml(d.location.split(',')[0])}</span>
-        <span class="tag style">${escHtml(d.style)}</span>
+    const artistHtml = d.artist ? `<div class="card-artist">${escHtml(d.artist)}</div>` : '';
+    // Movement/style displayed in italic warm text
+    const movementHtml = d.style ? `<div class="card-movement">${escHtml(d.style)}${d.medium ? ' · ' + escHtml(d.medium) : ''}</div>` : '';
+    // Featured cards show pill tags for period/medium
+    const featuredTags = featured && d.medium ? `<div class="tag-row">
         <span class="tag medium">${escHtml(d.medium)}</span>
-      </div>
+        ${d.period ? `<span class="tag style">${escHtml(d.period)}</span>` : ''}
+      </div>` : '';
+    infoHtml += `
+      ${artistHtml}
+      ${movementHtml}
+      ${featuredTags}
       <div class="photo-meta">
-        <span>${escHtml(d.period)}${editedBadge}</span>
-        <span style="display:flex;gap:4px;align-items:center">
-          ${p.locationSource === 'gps' ? '<span class="gps-badge">🛰 GPS</span>' : '<span class="ai-loc-badge">✦ AI</span>'}
-          <span class="${confClass}">✓ ${d.confidence}%</span>
-        </span>
+        <div class="photo-meta-left">
+          <span>${escHtml(d.period)}${editedBadge}</span>
+        </div>
+        <span class="${confClass}">✓ ${d.confidence}%</span>
       </div>
-      <div style="margin-top:8px">
-        <button class="like-btn${likedIds.has(p.id) ? ' liked' : ''}"
-                onclick="event.stopPropagation(); likePhoto('${p.id}', event)">
-          <span class="heart">${likedIds.has(p.id) ? '👍' : '👍🏻'}</span>
-          ${p.likes || 0}
-        </button>
-      </div>`;
+      <button class="like-btn${likedIds.has(p.id) ? ' liked' : ''}"
+              onclick="event.stopPropagation(); likePhoto('${p.id}', event)">
+        <span class="heart">♡</span>
+        ${p.likes || 0}
+      </button>`;
   } else if (p.status === 'error') {
     infoHtml += `<p class="error-msg">Error: ${escHtml(p.error || 'Unknown error')}</p>`;
   }
@@ -2055,10 +2390,19 @@ function photoCard(p) {
   infoHtml += '</div>';
 
   const clickable = p.status === 'done';
-  return `<div class="photo-card ${p.status}" ${clickable ? `onclick="openModal('${p.id}')"` : ''}>
+  const featuredClass = featured ? ' featured' : '';
+  const pinnedClass   = p.pinned  ? ' pinned'   : '';
+  const pinLabel      = p.pinned  ? '📌' : '📍';
+  const pinTitle      = p.pinned  ? 'Unpin (restore normal order)' : 'Pin as featured card for this group';
+  return `<div class="photo-card ${p.status}${featuredClass}${pinnedClass}" ${clickable ? `onclick="openModal('${p.id}')"` : ''}>
     ${adminToken ? `<button class="delete-btn" title="Remove photo" onclick="event.stopPropagation(); deletePhoto('${p.id}')">✕</button>` : ''}
-    <img src="${p.url}" alt="${escHtml(p.name)}" loading="lazy" />
-    ${overlay}
+    ${adminToken ? `<button class="pin-btn" title="${pinTitle}" onclick="event.stopPropagation(); pinPhoto('${p.id}', ${!p.pinned})">${pinLabel}</button>` : ''}
+    <div class="card-img-wrap">
+      <img src="${p.url}" alt="${escHtml(p.name)}" loading="lazy" />
+      ${p.pinned ? `<div class="pinned-badge">★ FEATURED</div>` : ''}
+      ${gpsBadge}
+      ${overlay}
+    </div>
     ${infoHtml}
   </div>`;
 }
@@ -2075,7 +2419,7 @@ function updateStats() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Filter
+// Filter & Sort
 // ─────────────────────────────────────────────────────────────────────────────
 function setFilter(filter, btn) {
   currentFilter = filter;
@@ -2085,6 +2429,11 @@ function setFilter(filter, btn) {
   if (filter === 'location' && googleMap) {
     setTimeout(() => google.maps.event.trigger(googleMap, 'resize'), 50);
   }
+}
+
+function setSort(value) {
+  currentSort = value;
+  render();
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -2234,6 +2583,45 @@ function deleteFromModal() {
   closeModal();
   deletePhoto(id);
 }
+async function pinPhoto(id, shouldPin) {
+  const photo = photos.find(p => p.id === id);
+  if (!photo || !adminToken) return;
+
+  // Snapshot ALL pinned states before touching anything — needed for full rollback
+  const prevStates = new Map(photos.map(p => [p.id, !!p.pinned]));
+
+  // Optimistic update: if pinning, unpin everything else in the same group first
+  if (shouldPin) {
+    const groupKey = p => `${p.aiData?.location}|${p.aiData?.style}|${p.aiData?.artist}`;
+    const group    = groupKey(photo);
+    photos.forEach(p => { if (groupKey(p) === group) p.pinned = false; });
+  }
+  photo.pinned = shouldPin;
+  render();
+
+  // Sync with server
+  try {
+    const res = await fetch(`${serverUrl}/api/photos/${id}/pin`, {
+      method:  'PATCH',
+      headers: authHeaders(),
+      body:    JSON.stringify({ pinned: shouldPin })
+    });
+    // Treat any non-2xx as an error so the catch block can roll back
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error || `Server returned ${res.status}`);
+    }
+    const data = await res.json();
+    photo.pinned = !!data.pinned;
+    render();
+  } catch (err) {
+    console.warn('Pin sync failed:', err.message);
+    // Full rollback — restore every photo to its pre-click pinned state
+    photos.forEach(p => { p.pinned = prevStates.get(p.id) ?? false; });
+    render();
+  }
+}
+
 async function likePhoto(id, event) {
   if (event) event.stopPropagation();
   const photo   = photos.find(p => p.id === id);

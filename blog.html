@@ -8,263 +8,293 @@
   <!-- Quill rich-text editor -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.snow.min.css" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
 
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-      background: #fdfaf7;
-      color: #2c2c2c;
+      font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+      background: #f0ede8;
+      color: #1a1a1a;
       min-height: 100vh;
     }
 
-    /* ── Header ── */
+    /* ── Header — Gallery Noir ── */
     header {
-      background: linear-gradient(135deg, #8f0101 0%, #c0392b 100%);
+      background: #111;
       color: #fff;
-      padding: 14px 32px;
+      padding: 0 clamp(16px, 4vw, 48px);
+      height: 58px;
       display: flex;
       align-items: center;
-      gap: 14px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.18);
+      gap: 16px;
+      position: sticky; top: 0; z-index: 200;
     }
-    header h1 { font-size: 20px; font-weight: 800; letter-spacing: -0.3px; }
-    .ai-badge {
-      font-size: 11px; font-weight: 600; letter-spacing: 0.5px;
-      background: rgba(255,255,255,0.18); padding: 3px 9px; border-radius: 20px;
+    .header-logo { display: flex; align-items: center; gap: 10px; flex-shrink: 0; text-decoration: none; }
+    .logo-dot { width: 9px; height: 9px; background: #8f0101; border-radius: 50%; }
+    .logo-text {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(15px, 2.5vw, 18px); color: #fff; font-weight: 600;
     }
-    .header-nav { margin-left: auto; display: flex; align-items: center; gap: 10px; }
-    .nav-link {
-      color: rgba(255,255,255,0.85); text-decoration: none;
-      font-size: 13px; font-weight: 600; padding: 6px 14px;
-      border-radius: 6px; border: 1.5px solid rgba(255,255,255,0.4);
-      transition: background 0.2s;
+    .logo-sub { font-size: 10px; color: #4a4a4a; letter-spacing: 1px; text-transform: uppercase; }
+    @media (max-width: 639px) { .logo-sub { display: none; } }
+    .header-nav { margin-left: auto; display: flex; align-items: center; gap: 24px; }
+    .header-nav-links { display: flex; align-items: center; gap: 24px; }
+    .header-nav-links a {
+      color: #666; text-decoration: none; font-size: 11px;
+      letter-spacing: 1px; text-transform: uppercase; font-weight: 500; transition: color 0.2s;
     }
-    .nav-link:hover { background: rgba(255,255,255,0.15); }
+    .header-nav-links a:hover { color: #fff; }
+    .header-nav-links a.active { color: #fff; }
     .admin-btn {
-      padding: 7px 16px; border-radius: 6px;
-      border: 1.5px solid rgba(255,255,255,0.5);
-      background: transparent; color: #fff;
-      font-size: 13px; font-weight: 600; cursor: pointer; transition: background 0.2s;
+      padding: 5px 13px; border-radius: 3px; border: 1px solid #3a3a3a;
+      background: transparent; color: #777; font-size: 10px; font-weight: 500;
+      letter-spacing: 0.5px; text-transform: uppercase; cursor: pointer; transition: all 0.2s;
     }
-    .admin-btn:hover { background: rgba(255,255,255,0.15); }
-    .admin-btn.logged-in { border-color: #a8e6a3; color: #a8e6a3; }
+    .admin-btn:hover { border-color: #fff; color: #fff; }
+    .admin-btn.logged-in { border-color: #5ae09a; color: #5ae09a; }
+    .header-hamburger {
+      display: none; background: none; border: none;
+      cursor: pointer; color: #aaa; font-size: 20px; padding: 4px; line-height: 1;
+    }
+    .header-mobile-menu {
+      display: none; background: #0d0d0d; border-bottom: 1px solid #1a1a1a;
+      position: sticky; top: 58px; z-index: 199;
+    }
+    .header-mobile-menu.open { display: block; }
+    .header-mobile-menu a, .header-mobile-menu button {
+      display: block; width: 100%; text-align: left; padding: 13px 24px;
+      color: #777; background: none; border: none; font-size: 12px;
+      letter-spacing: 0.8px; text-transform: uppercase; font-family: inherit;
+      cursor: pointer; border-bottom: 1px solid #191919;
+    }
+    .header-mobile-menu a.active { color: #fff; }
+    @media (max-width: 767px) {
+      .header-nav-links, .admin-btn { display: none; }
+      .header-hamburger { display: flex; align-items: center; margin-left: auto; }
+    }
 
     /* ── Login modal ── */
     .login-modal-bg {
       display: none; position: fixed; inset: 0;
-      background: rgba(0,0,0,0.55); z-index: 2000;
+      background: rgba(0,0,0,0.7); z-index: 2000;
       align-items: center; justify-content: center;
     }
     .login-modal-bg.open { display: flex; }
     .login-modal {
-      background: #fff; border-radius: 12px;
-      padding: 32px 28px; width: 340px; max-width: 94vw;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+      background: #fff; border-radius: 0; border: 1px solid #e4dfd8;
+      padding: 30px 28px; width: 340px; max-width: 94vw;
+      box-shadow: 0 16px 48px rgba(0,0,0,0.3);
     }
-    .login-modal h2 { font-size: 18px; margin: 0 0 6px; }
-    .login-modal p  { font-size: 13px; color: #777; margin: 0 0 18px; }
+    .login-modal h2 {
+      font-family: 'Playfair Display', serif;
+      font-size: 20px; font-weight: 400; margin: 0 0 6px; color: #1a1a1a;
+    }
+    .login-modal p  { font-size: 12px; color: #aaa; margin: 0 0 18px; }
     .login-modal input[type=password] {
       width: 100%; box-sizing: border-box; padding: 9px 12px;
-      border: 1.5px solid #ccc; border-radius: 6px;
-      font-size: 14px; margin-bottom: 12px;
+      border: 1px solid #c8c2b8; border-radius: 0;
+      font-size: 13px; margin-bottom: 12px; font-family: inherit;
     }
-    .login-modal input[type=password]:focus { outline: none; border-color: #e05c2e; }
+    .login-modal input[type=password]:focus { outline: none; border-color: #8f0101; }
     .login-modal-actions { display: flex; gap: 8px; }
     .login-submit-btn {
-      flex: 1; padding: 9px; border: none; border-radius: 6px;
-      background: #e05c2e; color: #fff; font-size: 14px;
-      font-weight: 600; cursor: pointer;
+      flex: 1; padding: 9px; border: none; border-radius: 0;
+      background: #111; color: #fff; font-size: 12px;
+      font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; cursor: pointer; transition: background 0.2s;
     }
+    .login-submit-btn:hover { background: #8f0101; }
     .login-cancel-btn {
-      padding: 9px 16px; border: 1.5px solid #ccc; border-radius: 6px;
-      background: #fff; color: #666; font-size: 14px; cursor: pointer;
+      padding: 9px 16px; border: 1px solid #c8c2b8; border-radius: 0;
+      background: #fff; color: #888; font-size: 12px; cursor: pointer; transition: all 0.2s;
     }
-    .login-error { color: #e53e3e; font-size: 13px; margin-bottom: 10px; display: none; }
+    .login-error { color: #c0392b; font-size: 12px; margin-bottom: 10px; display: none; }
 
     /* ── Layout ── */
-    .page-wrap { max-width: 820px; margin: 0 auto; padding: 48px 24px; }
+    .page-wrap { max-width: 820px; margin: 0 auto; padding: clamp(28px, 5vw, 56px) clamp(16px, 4vw, 40px); }
 
     /* ── List view ── */
-    .blog-header { margin-bottom: 36px; }
-    .blog-header h2 { font-size: 28px; font-weight: 800; margin-bottom: 6px; }
-    .blog-header p  { font-size: 15px; color: #888; }
+    .blog-header { margin-bottom: 32px; padding-bottom: 20px; border-bottom: 1px solid #c8c2b8; }
+    .blog-header h2 {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(22px, 4vw, 30px); font-weight: 600; margin-bottom: 6px; color: #1a1a1a;
+    }
+    .blog-header p  { font-size: 13px; color: #aaa; }
 
     .admin-toolbar { display: none; margin-bottom: 24px; }
     .admin-toolbar.visible { display: flex; gap: 10px; }
     .new-post-btn {
-      padding: 9px 20px; border-radius: 6px; border: none;
-      background: #e05c2e; color: #fff; font-size: 14px;
-      font-weight: 600; cursor: pointer; transition: background 0.2s;
+      padding: 7px 18px; border-radius: 3px; border: none;
+      background: #111; color: #fff; font-size: 11px; letter-spacing: 0.5px;
+      text-transform: uppercase; font-weight: 600; cursor: pointer; transition: background 0.2s;
     }
-    .new-post-btn:hover { background: #c44d22; }
+    .new-post-btn:hover { background: #8f0101; }
 
     .post-card {
-      background: #fff; border-radius: 12px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.07);
-      padding: 26px 28px; margin-bottom: 20px;
-      cursor: pointer; transition: transform 0.15s, box-shadow 0.15s;
-      border: 1.5px solid transparent; position: relative;
+      background: #fff; border: 1px solid #e4dfd8;
+      padding: 22px 24px; margin-bottom: 14px;
+      cursor: pointer; transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+      position: relative;
     }
-    .post-card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.1); border-color: #e05c2e; }
-    .post-card.draft { border-left: 4px solid #f0c040; }
-    .post-card-date  { font-size: 12px; color: #bbb; margin-bottom: 8px; }
-    .post-card-title { font-size: 20px; font-weight: 700; margin-bottom: 10px; color: #000; }
-    .post-card-excerpt { font-size: 14px; color: #666; line-height: 1.65; }
-    .post-card-read  { margin-top: 14px; font-size: 13px; color: #e05c2e; font-weight: 600; }
+    .post-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.09); border-color: #c2bab0; }
+    .post-card.draft { border-left: 3px solid #c8a060; }
+    .post-card-date  { font-size: 10px; color: #bbb; margin-bottom: 7px; letter-spacing: 0.4px; text-transform: uppercase; }
+    .post-card-title {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(16px, 2.5vw, 20px); font-weight: 600; margin-bottom: 8px; color: #1a1a1a;
+    }
+    .post-card-excerpt { font-size: 13px; color: #888; line-height: 1.65; }
+    .post-card-read  { margin-top: 12px; font-size: 11px; color: #8f0101; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; }
     .draft-badge {
-      display: inline-block; font-size: 11px; background: #fff8e1;
-      color: #b07a0a; padding: 2px 8px; border-radius: 12px;
-      font-weight: 600; margin-left: 8px; vertical-align: middle;
+      display: inline-block; font-size: 9px; border: 1px solid #e4c87a;
+      color: #b07a0a; padding: 1px 7px;
+      font-weight: 600; margin-left: 8px; vertical-align: middle; letter-spacing: 0.3px;
     }
     .post-admin-actions {
-      position: absolute; top: 18px; right: 20px;
+      position: absolute; top: 16px; right: 18px;
       display: none; gap: 6px;
     }
     .post-admin-actions.visible { display: flex; }
     .post-edit-btn, .post-delete-btn {
-      padding: 4px 12px; border-radius: 6px; font-size: 12px;
-      font-weight: 600; cursor: pointer; border: 1.5px solid;
+      padding: 4px 11px; border-radius: 3px; font-size: 11px;
+      font-weight: 600; cursor: pointer; border: 1.5px solid; transition: all 0.2s;
     }
     .post-edit-btn   { border-color: #8f0101; color: #8f0101; background: #fff; }
     .post-edit-btn:hover { background: #8f0101; color: #fff; }
-    .post-delete-btn { border-color: #e53e3e; color: #e53e3e; background: #fff; }
-    .post-delete-btn:hover { background: #e53e3e; color: #fff; }
+    .post-delete-btn { border-color: #c0392b; color: #c0392b; background: #fff; }
+    .post-delete-btn:hover { background: #c0392b; color: #fff; }
 
     /* ── Single post view ── */
     #postView { display: none; }
     .back-btn {
       display: inline-flex; align-items: center; gap: 6px;
-      color: #e05c2e; font-weight: 600; font-size: 14px;
-      background: none; border: none; cursor: pointer; padding: 0;
-      margin-bottom: 32px;
+      color: #8f0101; font-weight: 600; font-size: 12px; letter-spacing: 0.5px;
+      text-transform: uppercase; background: none; border: none; cursor: pointer; padding: 0;
+      margin-bottom: 28px;
     }
-    .back-btn:hover { text-decoration: underline; }
-    .post-full-date  { font-size: 13px; color: #bbb; margin-bottom: 10px; }
-    .post-full-title { font-size: 32px; font-weight: 800; line-height: 1.2; margin-bottom: 28px; }
+    .back-btn:hover { color: #1a1a1a; }
+    .post-full-date  { font-size: 11px; color: #bbb; margin-bottom: 10px; letter-spacing: 0.4px; text-transform: uppercase; }
+    .post-full-title {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(24px, 5vw, 36px); font-weight: 600; line-height: 1.25; margin-bottom: 28px;
+      color: #1a1a1a;
+    }
 
-    /* Styles for rendered post content */
-    .post-content { font-size: 16px; line-height: 1.75; color: #333; }
-    .post-content h1 { font-size: 26px; font-weight: 800; margin: 32px 0 14px; }
-    .post-content h2 { font-size: 21px; font-weight: 700; margin: 28px 0 12px; }
-    .post-content h3 { font-size: 17px; font-weight: 700; margin: 22px 0 10px; }
+    /* Rendered post content */
+    .post-content { font-size: 16px; line-height: 1.8; color: #333; }
+    .post-content h1 { font-family: 'Playfair Display', serif; font-size: 26px; font-weight: 600; margin: 32px 0 14px; }
+    .post-content h2 { font-family: 'Playfair Display', serif; font-size: 21px; font-weight: 600; margin: 28px 0 12px; }
+    .post-content h3 { font-size: 17px; font-weight: 600; margin: 22px 0 10px; }
     .post-content p  { margin-bottom: 16px; }
     .post-content ul, .post-content ol { margin: 0 0 16px 22px; }
     .post-content li { margin-bottom: 5px; }
     .post-content blockquote {
-      border-left: 4px solid #e0dbd5; margin: 0 0 16px;
-      padding: 10px 18px; color: #888; background: #faf7f4; border-radius: 0 6px 6px 0;
+      border-left: 3px solid #c8c2b8; margin: 0 0 16px;
+      padding: 10px 18px; color: #888; background: #faf7f2;
     }
     .post-content pre {
-      background: #1a1a2e; color: #e0e0e0; border-radius: 8px;
+      background: #111; color: #e0e0e0;
       padding: 16px 20px; overflow-x: auto; margin-bottom: 16px;
-      font-family: 'Fira Mono', 'Consolas', monospace; font-size: 14px;
+      font-family: 'Fira Mono', 'Consolas', monospace; font-size: 13px;
     }
     .post-content img {
-      max-width: 100%; border-radius: 8px;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.12); margin: 10px 0 18px; display: block;
+      max-width: 100%; border: 1px solid #e4dfd8;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.08); margin: 12px 0 20px; display: block;
     }
-    .post-content a { color: #e05c2e; }
-    .post-content hr { border: none; border-top: 2px solid #e0dbd5; margin: 28px 0; }
+    .post-content a { color: #8f0101; }
+    .post-content hr { border: none; border-top: 1px solid #ddd8d0; margin: 32px 0; }
 
     /* ── Editor view ── */
     #editorView { display: none; }
     .editor-header {
       display: flex; align-items: center; gap: 14px;
       margin-bottom: 20px; flex-wrap: wrap;
+      padding-bottom: 16px; border-bottom: 1px solid #ddd8d0;
     }
-    .editor-header h2 { font-size: 22px; font-weight: 800; }
+    .editor-header h2 {
+      font-family: 'Playfair Display', serif;
+      font-size: 20px; font-weight: 600; color: #1a1a1a;
+    }
     .editor-actions   { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; }
 
     .save-btn {
-      padding: 9px 20px; border-radius: 6px; border: none;
-      background: #e05c2e; color: #fff; font-size: 14px;
-      font-weight: 600; cursor: pointer; transition: background 0.2s;
+      padding: 7px 18px; border-radius: 3px; border: none;
+      background: #111; color: #fff; font-size: 11px; font-weight: 600;
+      letter-spacing: 0.5px; text-transform: uppercase; cursor: pointer; transition: background 0.2s;
     }
-    .save-btn:hover:not(:disabled) { background: #c44d22; }
+    .save-btn:hover:not(:disabled) { background: #8f0101; }
     .save-btn:disabled { background: #ccc; cursor: not-allowed; }
 
     .draft-toggle-btn {
-      padding: 9px 16px; border-radius: 6px; font-size: 14px;
-      font-weight: 600; cursor: pointer; transition: all 0.2s;
+      padding: 7px 14px; border-radius: 3px; font-size: 11px;
+      font-weight: 600; cursor: pointer; transition: all 0.2s; letter-spacing: 0.3px;
     }
-    .draft-toggle-btn.published { border: 1.5px solid #3a7d44; color: #3a7d44; background: #fff; }
-    .draft-toggle-btn.draft     { border: 1.5px solid #b07a0a; color: #b07a0a; background: #fff; }
+    .draft-toggle-btn.published { border: 1px solid #3a7d44; color: #3a7d44; background: #fff; }
+    .draft-toggle-btn.draft     { border: 1px solid #b07a0a; color: #b07a0a; background: #fff; }
 
     .cancel-btn {
-      padding: 9px 14px; border-radius: 6px; border: 1.5px solid #ccc;
-      background: #fff; color: #666; font-size: 14px; cursor: pointer;
+      padding: 7px 14px; border-radius: 3px; border: 1px solid #c8c2b8;
+      background: #fff; color: #888; font-size: 11px; cursor: pointer; transition: all 0.2s;
     }
+    .cancel-btn:hover { border-color: #888; }
 
     .editor-title-input {
-      width: 100%; padding: 12px 14px; font-size: 22px; font-weight: 700;
-      border: 1.5px solid #ddd; border-radius: 8px; outline: none;
-      font-family: inherit; margin-bottom: 16px; color: #000;
+      width: 100%; padding: 12px 14px;
+      font-family: 'Playfair Display', serif;
+      font-size: 22px; font-weight: 400;
+      border: 1px solid #c8c2b8; border-radius: 0; outline: none;
+      margin-bottom: 16px; color: #1a1a1a; background: #fff;
     }
-    .editor-title-input:focus { border-color: #e05c2e; }
+    .editor-title-input:focus { border-color: #8f0101; }
+    .editor-title-input::placeholder { color: #c8c2b8; }
 
-    /* Quill overrides to match app style */
+    /* Quill overrides — Gallery Noir tints */
     .ql-toolbar.ql-snow {
-      border: 1.5px solid #ddd;
-      border-radius: 8px 8px 0 0;
-      background: #faf7f4;
-      padding: 10px 12px;
+      border: 1px solid #c8c2b8; border-radius: 0;
+      background: #f7f4f0; padding: 10px 12px;
     }
     .ql-container.ql-snow {
-      border: 1.5px solid #ddd;
-      border-top: none;
-      border-radius: 0 0 8px 8px;
-      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-      font-size: 15px;
+      border: 1px solid #c8c2b8; border-top: none; border-radius: 0;
+      font-family: 'Inter', system-ui, sans-serif; font-size: 15px;
     }
     .ql-editor {
-      min-height: 480px;
-      line-height: 1.7;
-      color: #2c2c2c;
-      padding: 18px 20px;
+      min-height: 480px; line-height: 1.75; color: #1a1a1a; padding: 18px 20px;
     }
-    .ql-editor.ql-blank::before {
-      color: #bbb; font-style: normal;
-    }
-    .ql-editor img {
-      max-width: 100%; border-radius: 8px;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.12); margin: 6px 0;
-    }
+    .ql-editor.ql-blank::before { color: #c8c2b8; font-style: normal; }
+    .ql-editor img { max-width: 100%; border: 1px solid #e4dfd8; margin: 6px 0; }
     .ql-editor p { margin-bottom: 6px; }
     .ql-snow .ql-stroke { stroke: #555; }
     .ql-snow .ql-fill  { fill: #555; }
-    .ql-snow .ql-picker  { color: #555; }
-    .ql-snow .ql-picker-options { border-radius: 6px; }
+    .ql-snow .ql-picker { color: #555; }
     .ql-snow .ql-toolbar button:hover .ql-stroke,
-    .ql-snow .ql-toolbar button.ql-active .ql-stroke { stroke: #e05c2e; }
+    .ql-snow .ql-toolbar button.ql-active .ql-stroke { stroke: #8f0101; }
     .ql-snow .ql-toolbar button:hover .ql-fill,
-    .ql-snow .ql-toolbar button.ql-active .ql-fill { fill: #e05c2e; }
+    .ql-snow .ql-toolbar button.ql-active .ql-fill { fill: #8f0101; }
     .ql-snow .ql-toolbar button:hover,
-    .ql-snow .ql-toolbar button.ql-active { color: #e05c2e; }
+    .ql-snow .ql-toolbar button.ql-active { color: #8f0101; }
 
     .paste-hint {
-      font-size: 12px; color: #bbb; margin-top: 8px;
+      font-size: 11px; color: #bbb; margin-top: 8px;
       display: flex; align-items: center; gap: 5px;
     }
     .paste-hint kbd {
-      background: #f0ebe5; border: 1px solid #ddd; border-radius: 4px;
-      padding: 1px 5px; font-size: 11px; font-family: inherit;
+      background: #f0ede8; border: 1px solid #ddd8d0;
+      padding: 1px 5px; font-size: 10px; font-family: inherit;
     }
 
-    .save-status { font-size: 13px; color: #3a7d44; margin-top: 12px; min-height: 18px; }
+    .save-status { font-size: 12px; color: #3a7d44; margin-top: 12px; min-height: 18px; }
     .save-status.error { color: #c0392b; }
 
     /* ── Empty state / loading ── */
-    .empty-state {
-      text-align: center; padding: 80px 24px; color: #bbb;
-    }
-    .empty-state .icon { font-size: 52px; margin-bottom: 14px; }
-    .empty-state p { font-size: 16px; }
-    .loading-msg { text-align: center; padding: 60px; color: #bbb; font-size: 15px; }
+    .empty-state { text-align: center; padding: 80px 24px; color: #bbb; }
+    .empty-state .icon { font-size: 48px; margin-bottom: 14px; }
+    .empty-state p { font-size: 15px; }
+    .loading-msg { text-align: center; padding: 60px; color: #bbb; font-size: 14px; }
 
     @media (max-width: 600px) {
-      header { padding: 12px 16px; }
-      .page-wrap { padding: 28px 16px; }
+      .page-wrap { padding: 22px 16px; }
       .post-full-title { font-size: 24px; }
       .editor-header { gap: 8px; }
     }
@@ -273,16 +303,27 @@
 <body>
 
 <header>
-  <div style="display:flex;align-items:center;gap:10px">
-    <img src="pokedex_pixel_art_palette_repositioned.svg" style="width:30px;vertical-align:middle" onerror="this.style.display='none'">
-    <h1>Art Pokédex</h1>
-    <span class="ai-badge">✦ Powered by Claude AI</span>
+  <div class="header-logo">
+    <div class="logo-dot"></div>
+    <span class="logo-text">Art Pokédex</span>
+    <span class="logo-sub">✦ Claude AI</span>
   </div>
-  <div class="header-nav">
-    <a class="nav-link" href="index.html">← Gallery</a>
-    <button class="admin-btn" id="adminBtn" onclick="toggleAdminLogin()">🔒 Admin Login</button>
-  </div>
+  <nav class="header-nav">
+    <div class="header-nav-links">
+      <a href="index.html">Collection</a>
+      <a href="index.html#map">Locations</a>
+      <a href="blog.html" class="active">Blog</a>
+      <button class="admin-btn" id="adminBtn" onclick="toggleAdminLogin()">🔒 Admin</button>
+    </div>
+  </nav>
+  <button class="header-hamburger" onclick="document.getElementById('headerMobileMenu').classList.toggle('open')" aria-label="Menu">☰</button>
 </header>
+<div class="header-mobile-menu" id="headerMobileMenu">
+  <a href="index.html">Collection</a>
+  <a href="index.html#map">Locations</a>
+  <a href="blog.html" class="active">Blog</a>
+  <button onclick="toggleAdminLogin(); document.getElementById('headerMobileMenu').classList.remove('open')">🔒 Admin Login</button>
+</div>
 
 <!-- Login Modal -->
 <div class="login-modal-bg" id="loginModalBg">
@@ -304,7 +345,7 @@
   <!-- ── Post list ── -->
   <div id="listView">
     <div class="blog-header">
-      <h2>📝 Design &amp; Process Blog</h2>
+      <h2>Design &amp; Process</h2>
       <p>Behind the scenes of building the Art Pokédex — thinking, decisions, and discoveries.</p>
     </div>
     <div class="admin-toolbar" id="adminToolbar">

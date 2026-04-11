@@ -43,6 +43,9 @@ pool.query(`
   console.log('Database ready');
   // Add likes column if it doesn't exist yet (for existing databases)
   return pool.query(`ALTER TABLE photos ADD COLUMN IF NOT EXISTS likes INTEGER DEFAULT 0`);
+}).then(() => {
+  // Add pinned column if it doesn't exist yet (for existing databases)
+  return pool.query(`ALTER TABLE photos ADD COLUMN IF NOT EXISTS pinned BOOLEAN DEFAULT FALSE`);
 }).catch(err => console.error('Database init error:', err.message));
 
 pool.query(`
@@ -193,6 +196,48 @@ app.delete('/api/photos/:id/like', async (req, res) => {
     res.json({ likes: result.rows[0].likes });
   } catch (err) {
     console.error('Unlike error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── PATCH /api/photos/:id/pin — admin: pin/unpin a photo ─────────────────────
+// Body: { pinned: true | false }
+// Pinning a photo marks it as the featured card in its group.
+// When pinning, any other photo in the same group (same location+style+artist)
+// is automatically unpinned so only one pin exists per group.
+app.patch('/api/photos/:id/pin', authenticate, async (req, res) => {
+  try {
+    const { pinned } = req.body;
+    const isPinning = !!pinned;
+
+    if (isPinning) {
+      // Find the group key (location + style + artist) of the target photo
+      const photoRes = await pool.query(
+        'SELECT location, style, artist FROM photos WHERE id = $1',
+        [req.params.id]
+      );
+      if (photoRes.rowCount === 0) return res.status(404).json({ error: 'Photo not found.' });
+      const { location, style, artist } = photoRes.rows[0];
+
+      // Unpin any existing pin in the same group, then pin this photo
+      await pool.query(
+        `UPDATE photos SET pinned = FALSE
+         WHERE id != $1
+           AND COALESCE(location, '') = COALESCE($2, '')
+           AND COALESCE(style,    '') = COALESCE($3, '')
+           AND COALESCE(artist,   '') = COALESCE($4, '')`,
+        [req.params.id, location, style, artist]
+      );
+    }
+
+    const result = await pool.query(
+      'UPDATE photos SET pinned = $1 WHERE id = $2 RETURNING pinned',
+      [isPinning, req.params.id]
+    );
+    if (result.rowCount === 0) return res.status(404).json({ error: 'Photo not found.' });
+    res.json({ ok: true, pinned: result.rows[0].pinned });
+  } catch (err) {
+    console.error('Pin error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
