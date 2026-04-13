@@ -512,17 +512,40 @@
       border: 1px solid #cdcdcd;
       margin-top: 55px;
     }
+    /* drag handle — hidden on desktop */
+    .modal-drag-handle {
+      display: none; width: 40px; height: 4px;
+      background: #ccc; border-radius: 2px;
+      margin: 10px auto 0; flex-shrink: 0;
+    }
     .modal-img-wrap { background: #0d0d0d; position: relative; }
     .modal-img-wrap img { width: 100%; max-height: 420px; object-fit: contain; display: block; }
     .modal-close-btn {
       position: absolute; top: 12px; right: 14px;
       background: rgba(0,0,0,0.55); color: #fff;
-      border: none; border-radius: 50%; width: 30px; height: 30px;
+      border: none; border-radius: 50%; width: 34px; height: 34px;
       font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center;
       transition: background 0.2s;
     }
     .modal-close-btn:hover { background: rgba(0,0,0,0.8); }
-    .modal-body { padding: 22px 24px; overflow-y: auto; background: #fff; }
+    .modal-body {
+      padding: 22px 24px; overflow-y: auto; background: #fff;
+      -webkit-overflow-scrolling: touch; overscroll-behavior: contain;
+    }
+    /* ── Mobile: bottom-sheet modal ── */
+    @media (max-width: 767px) {
+      .modal-bg { align-items: flex-end; }
+      .modal {
+        width: 100%; max-width: 100%;
+        max-height: 92dvh;
+        border-radius: 18px 18px 0 0;
+        margin-top: 0;
+        border-left: none; border-right: none; border-bottom: none;
+      }
+      .modal-drag-handle { display: block; }
+      .modal-img-wrap img { max-height: 220px; }
+      .modal-close-btn { width: 44px; height: 44px; font-size: 19px; top: 10px; right: 12px; }
+    }
     .modal-title {
       font-family: 'Playfair Display', serif;
       font-size: clamp(18px, 3vw, 22px); font-weight: 400; margin-bottom: 6px; color: #1a1a1a;
@@ -1013,6 +1036,7 @@
 <!-- Modal -->
 <div class="modal-bg" id="modalBg" onclick="bgClick(event)">
   <div class="modal" id="modal">
+    <div class="modal-drag-handle" id="modalDragHandle"></div>
     <div class="modal-img-wrap">
       <img id="modalImg" src="" alt="" />
       <button class="modal-close-btn" onclick="closeModal()">✕</button>
@@ -2652,6 +2676,7 @@ function openModal(id) {
   document.getElementById('editMode').style.display = 'none';
 
   document.getElementById('modalBg').classList.add('open');
+  document.body.style.overflow = 'hidden';
 }
 
 function refreshModalView(p) {
@@ -2774,6 +2799,7 @@ function cancelEdit() {
 
 function closeModal() {
   document.getElementById('modalBg').classList.remove('open');
+  document.body.style.overflow = '';
   activeModalId = null;
 }
 function deleteFromModal() {
@@ -2860,6 +2886,34 @@ function refreshModalLikeBtn(photo) {
 }
 
 function bgClick(e) { if (e.target === document.getElementById('modalBg')) closeModal(); }
+
+// ── Swipe-down on the drag handle / image area to close modal on mobile ──
+(function() {
+  let swipeStartY = 0, swipeStartEl = null;
+  const modal = document.getElementById('modal');
+  modal.addEventListener('touchstart', function(e) {
+    // Only initiate swipe from image area or drag handle (not from scrollable body)
+    const target = e.target.closest('.modal-img-wrap, #modalDragHandle');
+    if (!target) return;
+    swipeStartY = e.touches[0].clientY;
+    swipeStartEl = target;
+  }, { passive: true });
+  modal.addEventListener('touchend', function(e) {
+    if (!swipeStartEl) return;
+    const dy = e.changedTouches[0].clientY - swipeStartY;
+    if (dy > 60) closeModal();
+    swipeStartEl = null;
+  }, { passive: true });
+})();
+
+// Close mobile menu when tapping outside
+document.addEventListener('click', e => {
+  const menu = document.getElementById('headerMobileMenu');
+  if (!menu) return;
+  if (!e.target.closest('#headerMobileMenu') && !e.target.closest('.header-hamburger')) {
+    menu.classList.remove('open');
+  }
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Map

@@ -177,6 +177,15 @@
       margin-bottom: 28px;
     }
     .back-btn:hover { color: #1a1a1a; }
+    .copy-link-btn {
+      display: inline-flex; align-items: center; gap: 5px;
+      background: none; border: 1.5px solid #d4cfc9; border-radius: 6px;
+      padding: 5px 13px; font-size: 11px; font-weight: 600; letter-spacing: 0.5px;
+      text-transform: uppercase; color: #888; cursor: pointer; font-family: inherit;
+      transition: border-color 0.2s, color 0.2s;
+    }
+    .copy-link-btn:hover { border-color: #8f0101; color: #8f0101; }
+    .copy-link-btn.copied { border-color: #3a7d44; color: #3a7d44; }
     .post-full-date  { font-size: 11px; color: #bbb; margin-bottom: 10px; letter-spacing: 0.4px; text-transform: uppercase; }
     .post-full-title {
       font-family: 'Playfair Display', serif;
@@ -314,6 +323,7 @@
     <div class="header-nav-links">
       <a href="index.html">Collection</a>
       <a href="blog.html" class="active">Design & Process</a>
+      <a href="submit.html">Submit a Photo</a>
       <button class="admin-btn" id="adminBtn" onclick="toggleAdminLogin()">🔒 Admin</button>
     </div>
   </nav>
@@ -322,6 +332,7 @@
 <div class="header-mobile-menu" id="headerMobileMenu">
   <a href="index.html">Collection</a>
   <a href="blog.html" class="active">Design & Process</a>
+  <a href="submit.html">Submit a Photo</a>
   <button onclick="toggleAdminLogin(); document.getElementById('headerMobileMenu').classList.remove('open')">🔒 Admin Login</button>
 </div>
 
@@ -358,7 +369,10 @@
 
   <!-- ── Single post view ── -->
   <div id="postView">
-    <button class="back-btn" onclick="showList()">← Back to all posts</button>
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:4px">
+      <button class="back-btn" style="margin-bottom:0" onclick="showList()">← Back to all posts</button>
+      <button class="copy-link-btn" id="copyLinkBtn" onclick="copyPostLink()" title="Copy shareable link">🔗 Copy link</button>
+    </div>
     <div class="post-full-date"  id="postFullDate"></div>
     <h1 class="post-full-title" id="postFullTitle"></h1>
     <div class="post-content"   id="postFullContent"></div>
@@ -560,6 +574,8 @@ async function openPost(id) {
     if (!res.ok) return;
     const post = await res.json();
     currentPostId = id;
+    // Update URL so this post has a shareable link
+    history.pushState({ postId: id }, '', '#post-' + id);
 
     document.getElementById('postFullDate').textContent  = formatDate(post.created_at);
     document.getElementById('postFullTitle').textContent = post.title || 'Untitled';
@@ -719,6 +735,7 @@ async function deletePost(id) {
 // ─────────────────────────────────────────────────────────────────────────────
 function showList() {
   currentPostId = null;
+  history.pushState(null, '', location.pathname + location.search);
   showView('list');
   loadPosts();
 }
@@ -729,6 +746,35 @@ function showView(view) {
   document.getElementById('editorView').style.display = view === 'editor' ? 'block' : 'none';
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Shareable links — hash routing
+// ─────────────────────────────────────────────────────────────────────────────
+function copyPostLink() {
+  if (!currentPostId) return;
+  const url = location.origin + location.pathname + '#post-' + currentPostId;
+  navigator.clipboard.writeText(url).then(() => {
+    const btn = document.getElementById('copyLinkBtn');
+    btn.textContent = '✓ Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = '🔗 Copy link'; btn.classList.remove('copied'); }, 2200);
+  }).catch(() => {
+    // Fallback for browsers without clipboard API
+    prompt('Copy this link:', location.origin + location.pathname + '#post-' + currentPostId);
+  });
+}
+
+// Handle browser back/forward
+window.addEventListener('popstate', () => {
+  const match = location.hash.match(/^#post-(\d+)$/);
+  if (match) {
+    openPost(match[1]);
+  } else {
+    currentPostId = null;
+    showView('list');
+    renderPostList();
+  }
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -743,9 +789,22 @@ function formatDate(iso) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Init
+// Init — load posts, then open direct-link post if hash present
 // ─────────────────────────────────────────────────────────────────────────────
-loadPosts();
+(async () => {
+  await loadPosts();
+  const match = location.hash.match(/^#post-(\d+)$/);
+  if (match) openPost(match[1]);
+})();
+
+// Close mobile menu when tapping outside
+document.addEventListener('click', e => {
+  const menu = document.getElementById('headerMobileMenu');
+  if (!menu) return;
+  if (!e.target.closest('#headerMobileMenu') && !e.target.closest('.header-hamburger')) {
+    menu.classList.remove('open');
+  }
+});
 </script>
 </body>
 </html>

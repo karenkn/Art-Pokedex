@@ -23,7 +23,28 @@
     .header-nav a { color: #666; text-decoration: none; font-size: 11px; letter-spacing: 1px; text-transform: uppercase; font-weight: 500; transition: color 0.2s; }
     .header-nav a:hover { color: #fff; }
     .header-nav a.active { color: #fff; }
-    @media (max-width: 767px) { .header-nav { display: none; } }
+    .header-hamburger {
+      display: none; background: none; border: none;
+      cursor: pointer; color: #aaa; font-size: 20px; padding: 4px;
+      margin-left: auto; line-height: 1;
+    }
+    .header-mobile-menu {
+      display: none; background: #0d0d0d;
+      border-bottom: 1px solid #1a1a1a;
+      position: sticky; top: 58px; z-index: 199;
+    }
+    .header-mobile-menu.open { display: block; }
+    .header-mobile-menu a {
+      display: block; width: 100%; text-align: left;
+      padding: 13px 24px; color: #777; text-decoration: none;
+      font-size: 12px; letter-spacing: 0.8px; text-transform: uppercase;
+      font-family: inherit; border-bottom: 1px solid #191919;
+    }
+    .header-mobile-menu a.active { color: #fff; }
+    @media (max-width: 767px) {
+      .header-nav { display: none; }
+      .header-hamburger { display: flex; align-items: center; }
+    }
 
     /* ── Page layout ── */
     .page-wrap { max-width: 720px; margin: 0 auto; padding: 40px clamp(16px,4vw,32px) 80px; }
@@ -134,14 +155,21 @@
     <span class="logo-dot"></span>
     <span>
       <span class="logo-text">Art Pokédex</span>
-      <span class="logo-sub" style="display:block">Powered by AI</span>
+      <span class="logo-sub" style="display:block">✦ Claude AI</span>
     </span>
   </a>
   <nav class="header-nav">
-    <a href="index.html">Gallery</a>
+    <a href="index.html">Collection</a>
+    <a href="blog.html">Design &amp; Process</a>
     <a href="submit.html" class="active">Submit a Photo</a>
   </nav>
+  <button class="header-hamburger" onclick="document.getElementById('headerMobileMenu').classList.toggle('open')" aria-label="Menu">☰</button>
 </header>
+<div class="header-mobile-menu" id="headerMobileMenu">
+  <a href="index.html">Collection</a>
+  <a href="blog.html">Design &amp; Process</a>
+  <a href="submit.html" class="active">Submit a Photo</a>
+</div>
 
 <div class="page-wrap">
   <h1 class="page-title">Submit a Photo</h1>
@@ -778,6 +806,15 @@ Return ONLY a valid JSON object with ALL of these keys (raw JSON, no markdown fe
   function esc(str) {
     return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
+
+  // Close mobile menu when tapping outside
+  document.addEventListener('click', e => {
+    const menu = document.getElementById('headerMobileMenu');
+    if (!menu) return;
+    if (!e.target.closest('#headerMobileMenu') && !e.target.closest('.header-hamburger')) {
+      menu.classList.remove('open');
+    }
+  });
 </script>
 </body>
 </html>
