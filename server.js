@@ -8,7 +8,27 @@ const { Pool }  = require('pg');
 const app = express();
 
 // ── Middleware ────────────────────────────────────────────────────────────────
-app.use(cors());
+// Restrict CORS to the declared frontend origin(s).
+// Set ALLOWED_ORIGINS env var to a comma-separated list, e.g.:
+//   https://karennan.github.io,https://yourdomain.com
+// Falls back to permissive '*' only if the env var is not set (dev convenience).
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
+  : null;
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow server-to-server requests (no Origin header) and localhost dev
+    if (!origin || origin.startsWith('http://localhost') || origin.startsWith('http://127.0.0.1')) {
+      return callback(null, true);
+    }
+    if (!allowedOrigins) return callback(null, true);  // no restriction configured
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    callback(new Error(`CORS: origin ${origin} not allowed`));
+  },
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}));
 app.use(express.json({ limit: '25mb' }));
 
 // ── Database ──────────────────────────────────────────────────────────────────
@@ -106,8 +126,7 @@ function authenticate(req, res, next) {
   }
 }
 
-// ── Rate limiting (public endpoints) ─────────────────────────────────────────
-// Admins with a valid JWT bypass rate limits.
+// ── Rate limiting ─────────────────────────────────────────────────────────────
 const analyzeLimit = rateLimit({
   windowMs: 15 * 60 * 1000,   // 15 minutes
   max: 5,
@@ -121,6 +140,22 @@ const submitLimit = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many submissions. Please try again later.' }
+});
+// Brute-force protection on login: 10 attempts per 15 minutes per IP
+const loginLimit = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many login attempts. Please try again in 15 minutes.' }
+});
+// Throttle public like endpoint to prevent artificial inflation
+const likeLimit = rateLimit({
+  windowMs: 60 * 1000,   // 1 minute
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests.' }
 });
 
 // Middleware factory: apply the given limiter only if the request is NOT from
@@ -209,7 +244,7 @@ app.get('/api/reverse-geocode', async (req, res) => {
 // ── POST /api/login ───────────────────────────────────────────────────────────
 // Body: { password: "..." }
 // Returns: { token: "<jwt>" }  (valid 12 hours)
-app.post('/api/login', async (req, res) => {
+app.post('/api/login', loginLimit, async (req, res) => {
   if (!JWT_SECRET) {
     return res.status(500).json({ error: 'JWT_SECRET is not configured on the server.' });
   }
@@ -227,7 +262,7 @@ app.post('/api/login', async (req, res) => {
 });
 
 // ── POST /api/photos/:id/like — public: add a like ───────────────────────────
-app.post('/api/photos/:id/like', async (req, res) => {
+app.post('/api/photos/:id/like', likeLimit, async (req, res) => {
   try {
     const result = await pool.query(
       'UPDATE photos SET likes = likes + 1 WHERE id = $1 RETURNING likes',
@@ -242,7 +277,7 @@ app.post('/api/photos/:id/like', async (req, res) => {
 });
 
 // ── DELETE /api/photos/:id/like — public: remove a like ──────────────────────
-app.delete('/api/photos/:id/like', async (req, res) => {
+app.delete('/api/photos/:id/like', likeLimit, async (req, res) => {
   try {
     const result = await pool.query(
       'UPDATE photos SET likes = GREATEST(likes - 1, 0) WHERE id = $1 RETURNING likes',
@@ -299,6 +334,17 @@ app.patch('/api/photos/:id/pin', authenticate, async (req, res) => {
 });
 
 // ── Claude proxy — public (rate-limited) / admin (unlimited) ─────────────────
+// SECURITY: We reconstruct the Anthropic request from a strict whitelist of
+// fields rather than forwarding req.body directly. This prevents a caller from
+// overriding the model, inflating max_tokens, injecting extra messages, or
+// triggering any other Anthropic API feature.
+const ALLOWED_MODELS = new Set([
+  'claude-opus-4-6',
+  'claude-sonnet-4-6',
+  'claude-haiku-4-5-20251001',
+]);
+const MAX_TOKENS_CAP = 1000;   // well above the ~800 the app ever needs
+
 app.post('/api/analyze', publicRateLimit(analyzeLimit), async (req, res) => {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
@@ -306,6 +352,52 @@ app.post('/api/analyze', publicRateLimit(analyzeLimit), async (req, res) => {
       error: { message: 'ANTHROPIC_API_KEY is not set on the server.' }
     });
   }
+
+  // ── Validate and sanitise request ─────────────────────────────────────────
+  const { model, max_tokens, temperature, system, messages } = req.body;
+
+  if (!ALLOWED_MODELS.has(model)) {
+    return res.status(400).json({ error: { message: `Model '${model}' is not permitted.` } });
+  }
+  if (!Array.isArray(messages) || messages.length !== 1) {
+    return res.status(400).json({ error: { message: 'messages must be an array with exactly one entry.' } });
+  }
+
+  const msg = messages[0];
+  if (msg.role !== 'user' || !Array.isArray(msg.content)) {
+    return res.status(400).json({ error: { message: 'Invalid message structure.' } });
+  }
+  // Allow only an image block + a text block (in any order, both optional but
+  // at least one must be present).  Reject any other content block types.
+  const allowedTypes = new Set(['image', 'text']);
+  for (const block of msg.content) {
+    if (!allowedTypes.has(block.type)) {
+      return res.status(400).json({ error: { message: `Content block type '${block.type}' is not permitted.` } });
+    }
+    if (block.type === 'image') {
+      // Only base64-encoded images are permitted (no URL sources that could
+      // cause Anthropic to fetch arbitrary remote URLs on our behalf).
+      if (!block.source || block.source.type !== 'base64') {
+        return res.status(400).json({ error: { message: 'Only base64 image sources are permitted.' } });
+      }
+      const allowed_media = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp']);
+      if (!allowed_media.has(block.source.media_type)) {
+        return res.status(400).json({ error: { message: `Media type '${block.source.media_type}' is not permitted.` } });
+      }
+    }
+  }
+
+  // Build the forwarded payload from validated fields only
+  const safePayload = {
+    model,
+    max_tokens: Math.min(Number(max_tokens) || MAX_TOKENS_CAP, MAX_TOKENS_CAP),
+    temperature: typeof temperature === 'number' ? Math.max(0, Math.min(1, temperature)) : 0,
+    messages: [{ role: 'user', content: msg.content }],
+  };
+  if (typeof system === 'string' && system.length > 0) {
+    safePayload.system = system.slice(0, 4000);  // cap system prompt length
+  }
+
   try {
     const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -314,7 +406,7 @@ app.post('/api/analyze', publicRateLimit(analyzeLimit), async (req, res) => {
         'anthropic-version': '2023-06-01',
         'content-type':      'application/json'
       },
-      body: JSON.stringify(req.body)
+      body: JSON.stringify(safePayload)
     });
     const data = await anthropicRes.json();
     res.status(anthropicRes.status).json(data);
@@ -350,12 +442,24 @@ app.post('/api/submit', publicRateLimit(submitLimit), async (req, res) => {
   }
   // ──────────────────────────────────────────────────────────────────────────
 
+  // ── Input validation ───────────────────────────────────────────────────────
   if (!submitterName || !submitterEmail) {
     return res.status(400).json({ error: 'Name and email are required.' });
+  }
+  // Basic email format check
+  if (typeof submitterEmail !== 'string' || !submitterEmail.includes('@') || !submitterEmail.includes('.')) {
+    return res.status(400).json({ error: 'Please provide a valid email address.' });
   }
   if (!id || !thumbnail) {
     return res.status(400).json({ error: 'Photo data is required.' });
   }
+  // Thumbnail size cap: base64 of a ~1.5 MB image is ~2 MB of characters
+  if (typeof thumbnail !== 'string' || thumbnail.length > 2_200_000) {
+    return res.status(400).json({ error: 'Thumbnail is too large. Please use a smaller image.' });
+  }
+  // Field length caps (prevents oversized payloads that slip under the 25 MB JSON limit)
+  const clean = s => (typeof s === 'string' ? s : '');
+  const trunc  = (s, n) => clean(s).slice(0, n);
 
   try {
     await pool.query(
@@ -366,13 +470,13 @@ app.post('/api/submit', publicRateLimit(submitLimit), async (req, res) => {
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,'pending')
        ON CONFLICT (id) DO NOTHING`,
       [
-        id, name || '', thumbnail,
-        paintingName || '', artist    || '',
-        location     || '', country   || '',
-        style        || '', medium    || '',
-        period       || '', confidence ?? null,
-        description  || '', artistHint || '',
-        submitterName, submitterEmail, note || ''
+        trunc(id, 128),      trunc(name, 255), thumbnail,
+        trunc(paintingName, 500), trunc(artist, 300),
+        trunc(location, 300),     trunc(country, 100),
+        trunc(style, 200),        trunc(medium, 200),
+        trunc(period, 100),       (typeof confidence === 'number' ? Math.min(Math.max(Math.round(confidence), 0), 100) : null),
+        trunc(description, 5000), trunc(artistHint, 1000),
+        trunc(submitterName, 200), trunc(submitterEmail, 254), trunc(note, 2000)
       ]
     );
     res.json({ ok: true });
