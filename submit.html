@@ -241,6 +241,28 @@
       font-size: 12px; color: #999; font-style: italic;
     }
 
+    /* ── Re-analyze status message ── */
+    .reanalyze-status {
+      font-size: 12px; margin-top: 8px; display: none;
+    }
+
+    /* ── Places autocomplete ── */
+    .places-wrap { position: relative; }
+    .places-dropdown {
+      display: none; position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+      background: #fff; border: 1.5px solid #d4cfc9; border-radius: 8px;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.10); z-index: 100; overflow: hidden;
+    }
+    .places-dropdown.open { display: block; }
+    .places-option {
+      padding: 10px 14px; cursor: pointer; font-size: 13px;
+      border-bottom: 1px solid #f0ede8;
+    }
+    .places-option:last-child { border-bottom: none; }
+    .places-option:hover, .places-option.active { background: #fff7f7; color: #8f0101; }
+    .places-option .places-main { font-weight: 600; }
+    .places-option .places-sub  { font-size: 11px; color: #999; margin-top: 1px; }
+
     /* ── Error banner ── */
     .error-banner {
       background: #fde8e8; border: 1px solid #f5c6c6; border-radius: 8px;
@@ -391,9 +413,10 @@
           ↻ Re-analyse
         </button>
       </div>
-      <p class="rate-notice" style="margin-bottom:16px">
-        You can re-analyse up to 5 times per 15 minutes.
+      <p class="rate-notice" style="margin-bottom:4px">
+        Edit any fields below, then click Re-analyse to update the description for consistency.
       </p>
+      <p id="reanalyzeStatus" class="reanalyze-status"></p>
 
       <div class="confidence-row">
         <div class="confidence-bar-wrap">
@@ -425,7 +448,14 @@
         </div>
         <div>
           <label class="field-label">Location</label>
-          <input class="field-input" id="fLocation" type="text" placeholder="e.g. Rijksmuseum, Amsterdam" />
+          <div class="places-wrap">
+            <input class="field-input" id="fLocation" type="text"
+              placeholder="e.g. Rijksmuseum, Amsterdam"
+              oninput="onPlacesInput()"
+              onkeydown="onPlacesKeydown(event)"
+              autocomplete="off" />
+            <div class="places-dropdown" id="placesDropdown"></div>
+          </div>
         </div>
         <div>
           <label class="field-label">Country</label>
@@ -725,18 +755,122 @@ Return a JSON object with EXACTLY these fields (no markdown, raw JSON only):
     }
   }
 
-  // ── Re-analyse button ──────────────────────────────────────────────────────
+  // ── Re-analyse button — context-aware ─────────────────────────────────────
+  // Reads the current field values as confirmed facts and asks Claude to
+  // regenerate the description, confidence, artistHint, and fill any blank
+  // fields — without overwriting fields the user has already edited.
   async function reanalyze() {
-    if (!currentFile) return;
+    if (!currentBase64) return;
     clearError();
-    const btn = document.getElementById('reanalyzeBtn');
-    btn.disabled = true;
+
+    const btn    = document.getElementById('reanalyzeBtn');
+    const status = document.getElementById('reanalyzeStatus');
+    btn.disabled  = true;
     btn.innerHTML = '<span class="spin-sm"></span> Analysing…';
-    showState('Analyzing');
-    document.getElementById('analyzePreviewImg').src = document.getElementById('reviewPreviewImg').src;
-    await runAnalysis(currentFile);
+    status.style.display  = 'block';
+    status.style.color    = '#999';
+    status.textContent    = 'Sending to Claude — this takes a few seconds…';
+
+    // Read current form values
+    const paintingName = document.getElementById('fPaintingName').value.trim();
+    const artist       = document.getElementById('fArtist').value.trim();
+    const location     = document.getElementById('fLocation').value.trim();
+    const country      = document.getElementById('fCountry').value.trim();
+    const style        = document.getElementById('fStyle').value.trim();
+    const medium       = document.getElementById('fMedium').value.trim();
+    const period       = document.getElementById('fPeriod').value.trim();
+
+    // Build confirmed-facts section — only include non-empty fields
+    const knownFacts = [
+      paintingName && `Painting Name: ${paintingName}`,
+      artist       && `Artist: ${artist}`,
+      location     && `Location: ${location}`,
+      country      && `Country: ${country}`,
+      style        && `Art Style: ${style}`,
+      medium       && `Medium: ${medium}`,
+      period       && `Period: ${period}`,
+    ].filter(Boolean).join('\n');
+
+    const userPrompt = `You are an expert museum curator. The following details about this artwork have been confirmed by the person who photographed it:
+
+${knownFacts || '(no fields confirmed yet — use what you can observe)'}
+
+Using these confirmed facts together with what you can observe in the image, please provide:
+1. A rich, expert 3–4 sentence description covering: key visual observations, why the style/artist attribution fits, and any notable art-historical significance.
+2. A revised confidence score (0–100) for the artist/painting identification.
+3. Expanded artist context: nationality, active period, signature techniques, and where this work fits in their oeuvre.
+4. Fill in any of the following fields that are currently blank, based on the image and confirmed facts. Do NOT change fields that are already confirmed above.
+
+Return ONLY a valid JSON object with exactly these keys (raw JSON, no markdown fences):
+{
+  "description": "...",
+  "confidence": <integer 0–100>,
+  "artistHint": "...",
+  "paintingName": "${paintingName || ''}",
+  "artist": "${artist || ''}",
+  "style": "${style || ''}",
+  "medium": "${medium || ''}",
+  "period": "${period || ''}"
+}`;
+
+    try {
+      const res = await fetch(`${SERVER_URL}/api/analyze`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-opus-4-6',
+          max_tokens: 900,
+          temperature: 0,
+          messages: [{
+            role: 'user',
+            content: [
+              { type: 'image', source: { type: 'base64', media_type: currentMediaType, data: currentBase64 } },
+              { type: 'text',  text: userPrompt }
+            ]
+          }]
+        })
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err?.error?.message || `Server error (${res.status})`);
+      }
+
+      const data = await res.json();
+      const text = data.content?.[0]?.text || '';
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) throw new Error('Could not parse AI response. Please try again.');
+      const parsed = JSON.parse(jsonMatch[0]);
+
+      // Always update the regeneratable fields
+      if (parsed.description) document.getElementById('fDescription').value = parsed.description;
+
+      // Only fill in fields that were blank (respect user's manual edits)
+      if (!paintingName && parsed.paintingName) document.getElementById('fPaintingName').value = parsed.paintingName;
+      if (!artist       && parsed.artist)       document.getElementById('fArtist').value       = parsed.artist;
+      if (!style        && parsed.style)        document.getElementById('fStyle').value        = parsed.style;
+      if (!medium       && parsed.medium)       document.getElementById('fMedium').value       = parsed.medium;
+      if (!period       && parsed.period)       document.getElementById('fPeriod').value       = parsed.period;
+
+      // Update confidence bar
+      if (typeof parsed.confidence === 'number') {
+        const conf = Math.max(0, Math.min(100, parsed.confidence));
+        document.getElementById('confBar').style.width = conf + '%';
+        document.getElementById('confNum').textContent = conf + '%';
+      }
+
+      status.style.color  = '#3a7d44';
+      status.textContent  = '✓ Description updated — review and submit when ready.';
+
+    } catch (err) {
+      status.style.color = '#c0392b';
+      status.textContent = '⚠ Re-analysis failed: ' + err.message;
+    }
+
+    btn.disabled  = false;
     btn.innerHTML = '↻ Re-analyse';
-    btn.disabled = false;
+    // Re-arm the submit timer after re-analyse (counts as a new review moment)
+    armSubmitTimer();
   }
 
   // ── Submit ─────────────────────────────────────────────────────────────────
@@ -846,6 +980,104 @@ Return a JSON object with EXACTLY these fields (no markdown, raw JSON only):
       }
     } catch (_) {}
     return null;
+  }
+
+  // ── Google Places autocomplete ─────────────────────────────────────────────
+  let placesDebounce    = null;
+  let placesActiveIdx   = -1;
+  let placesSuggestions = [];
+  let placesSessionToken = crypto.randomUUID ? crypto.randomUUID() : String(Math.random());
+
+  function onPlacesInput() {
+    const val = document.getElementById('fLocation').value.trim();
+    clearTimeout(placesDebounce);
+    if (val.length < 2) { closePlacesDropdown(); return; }
+    placesDebounce = setTimeout(() => fetchPlacesSuggestions(val), 300);
+  }
+
+  async function fetchPlacesSuggestions(input) {
+    try {
+      const res  = await fetch(`${SERVER_URL}/api/places?input=${encodeURIComponent(input)}&sessiontoken=${encodeURIComponent(placesSessionToken)}`);
+      const data = await res.json();
+      placesSuggestions = data.suggestions || [];
+      renderPlacesDropdown();
+    } catch { closePlacesDropdown(); }
+  }
+
+  function renderPlacesDropdown() {
+    const dropdown = document.getElementById('placesDropdown');
+    if (!placesSuggestions.length) { closePlacesDropdown(); return; }
+    dropdown.innerHTML = placesSuggestions.map((s, i) => {
+      const pred  = s.placePrediction || {};
+      const text  = pred.text?.text || '';
+      const parts = text.split(',');
+      const main  = parts[0] || text;
+      const sub   = parts.slice(1).join(',').trim();
+      return `<div class="places-option" data-idx="${i}" onmousedown="selectPlace(${i})">
+        <div class="places-main">${escHtmlLocal(main)}</div>
+        ${sub ? `<div class="places-sub">${escHtmlLocal(sub)}</div>` : ''}
+      </div>`;
+    }).join('');
+    placesActiveIdx = -1;
+    dropdown.classList.add('open');
+  }
+
+  async function selectPlace(idx) {
+    const s    = placesSuggestions[idx];
+    const pred = s?.placePrediction;
+    if (!pred) return;
+
+    const fullText = pred.text?.text || '';
+    document.getElementById('fLocation').value = fullText;
+    closePlacesDropdown();
+
+    // Fetch place details to auto-fill country
+    if (!pred.placeId) return;
+    try {
+      const res  = await fetch(`${SERVER_URL}/api/place-details?place_id=${encodeURIComponent(pred.placeId)}&sessiontoken=${encodeURIComponent(placesSessionToken)}`);
+      const data = await res.json();
+      const countryComp = (data.addressComponents || []).find(c => c.types?.includes('country'));
+      if (countryComp) document.getElementById('fCountry').value = countryComp.longText || '';
+    } catch { /* non-critical */ }
+
+    // Rotate session token after a complete session
+    placesSessionToken = crypto.randomUUID ? crypto.randomUUID() : String(Math.random());
+  }
+
+  function onPlacesKeydown(e) {
+    const dropdown = document.getElementById('placesDropdown');
+    const options  = dropdown.querySelectorAll('.places-option');
+    if (!options.length) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      placesActiveIdx = Math.min(placesActiveIdx + 1, options.length - 1);
+      options.forEach((o, i) => o.classList.toggle('active', i === placesActiveIdx));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      placesActiveIdx = Math.max(placesActiveIdx - 1, 0);
+      options.forEach((o, i) => o.classList.toggle('active', i === placesActiveIdx));
+    } else if (e.key === 'Enter' && placesActiveIdx >= 0) {
+      e.preventDefault();
+      selectPlace(placesActiveIdx);
+    } else if (e.key === 'Escape') {
+      closePlacesDropdown();
+    }
+  }
+
+  function closePlacesDropdown() {
+    document.getElementById('placesDropdown')?.classList.remove('open');
+    placesSuggestions = [];
+    placesActiveIdx   = -1;
+  }
+
+  // Close dropdown when clicking outside the location field
+  document.addEventListener('click', e => {
+    if (!e.target.closest('.places-wrap')) closePlacesDropdown();
+  });
+
+  // Local escaping helper (no dependency on index.html's escHtml)
+  function escHtmlLocal(str) {
+    return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
 </script>
 </body>
