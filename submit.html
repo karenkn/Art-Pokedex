@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Submit a Photo — Art Pokédex</title>
+  <script src="https://cdn.jsdelivr.net/npm/exifr/dist/lite.umd.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+      background: #f0ede8;
+      color: #1a1a1a;
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    header {
+      background: #111;
+      color: #fff;
+      padding: 0 clamp(16px, 4vw, 48px);
+      height: 58px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      position: sticky; top: 0; z-index: 200;
+    }
+    .header-logo {
+      display: flex; align-items: center; gap: 10px; flex-shrink: 0; text-decoration: none;
+    }
+    .logo-dot {
+      width: 9px; height: 9px;
+      background: #8f0101; border-radius: 50%; flex-shrink: 0;
+    }
+    .logo-text {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(15px, 2.5vw, 18px);
+      color: #fff; font-weight: 600; letter-spacing: 0.3px;
+    }
+    .logo-sub {
+      font-size: 10px; color: #4a4a4a; letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+    @media (max-width: 639px) { .logo-sub { display: none; } }
+    .header-nav {
+      display: flex; align-items: center; gap: 24px; margin-left: auto;
+    }
+    .header-nav a {
+      color: #666; text-decoration: none; font-size: 11px;
+      letter-spacing: 1px; text-transform: uppercase; font-weight: 500;
+      transition: color 0.2s;
+    }
+    .header-nav a:hover { color: #fff; }
+    .header-nav a.active { color: #fff; }
+    @media (max-width: 767px) {
+      .header-nav { display: none; }
+    }
+
+    /* ── Page layout ── */
+    .page-wrap {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 40px clamp(16px, 4vw, 32px) 80px;
+    }
+
+    .page-title {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(22px, 4vw, 30px);
+      font-weight: 600;
+      color: #111;
+      margin-bottom: 6px;
+    }
+    .page-subtitle {
+      font-size: 14px;
+      color: #666;
+      margin-bottom: 32px;
+      line-height: 1.6;
+    }
+
+    /* ── Upload zone ── */
+    #uploadZone {
+      border: 2px dashed #c8c2ba;
+      border-radius: 12px;
+      background: #faf8f5;
+      padding: 52px 24px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      position: relative;
+    }
+    #uploadZone:hover, #uploadZone.drag-over {
+      border-color: #8f0101;
+      background: #fff7f7;
+    }
+    #uploadZone input[type=file] {
+      position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+    }
+    .upload-icon { font-size: 40px; margin-bottom: 12px; color: #aaa; }
+    .upload-label {
+      font-size: 15px; font-weight: 600; color: #333; margin-bottom: 6px;
+    }
+    .upload-hint { font-size: 13px; color: #999; }
+
+    /* ── States ── */
+    .state { display: none; }
+    .state.active { display: block; }
+
+    /* ── Analyzing spinner ── */
+    .analyzing-wrap {
+      text-align: center;
+      padding: 40px 24px;
+    }
+    .spinner {
+      width: 44px; height: 44px;
+      border: 3px solid #e0dbd5;
+      border-top-color: #8f0101;
+      border-radius: 50%;
+      animation: spin 0.9s linear infinite;
+      margin: 0 auto 20px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .analyzing-label {
+      font-size: 15px; color: #444; font-weight: 500; margin-bottom: 6px;
+    }
+    .analyzing-sub { font-size: 13px; color: #999; }
+
+    /* ── Preview image ── */
+    .preview-img-wrap {
+      border-radius: 10px;
+      overflow: hidden;
+      margin-bottom: 24px;
+      background: #111;
+      max-height: 360px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .preview-img-wrap img {
+      width: 100%; max-height: 360px;
+      object-fit: contain; display: block;
+    }
+
+    /* ── Card-style section ── */
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      border: 1px solid #e0dbd5;
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+    .card-title {
+      font-size: 12px;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: #8f0101;
+      margin-bottom: 18px;
+    }
+
+    /* ── Confidence badge ── */
+    .confidence-row {
+      display: flex; align-items: center; gap: 10px; margin-bottom: 16px;
+    }
+    .confidence-bar-wrap {
+      flex: 1; height: 6px; background: #e8e3de; border-radius: 3px; overflow: hidden;
+    }
+    .confidence-bar {
+      height: 100%; border-radius: 3px;
+      background: linear-gradient(90deg, #e05c2e, #8f0101);
+      transition: width 0.4s ease;
+    }
+    .confidence-num {
+      font-size: 12px; font-weight: 700; color: #8f0101; min-width: 36px; text-align: right;
+    }
+
+    /* ── Form fields ── */
+    .field-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+    @media (max-width: 500px) { .field-grid { grid-template-columns: 1fr; } }
+    .field-full { grid-column: 1 / -1; }
+
+    .field-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: #666;
+      letter-spacing: 0.6px;
+      text-transform: uppercase;
+      margin-bottom: 5px;
+      display: block;
+    }
+    .field-label .req { color: #8f0101; }
+    .field-input, .field-textarea {
+      width: 100%;
+      padding: 9px 12px;
+      border: 1.5px solid #d4cfc9;
+      border-radius: 7px;
+      font-size: 13px;
+      font-family: inherit;
+      color: #1a1a1a;
+      background: #fefefe;
+      outline: none;
+      transition: border-color 0.2s;
+      resize: none;
+    }
+    .field-input:focus, .field-textarea:focus { border-color: #8f0101; }
+    .field-input::placeholder, .field-textarea::placeholder { color: #bbb; }
+
+    /* ── Re-analyze button ── */
+    .reanalyze-row {
+      display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 10px;
+      margin-bottom: 6px;
+    }
+    .btn-reanalyze {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: none;
+      border: 1.5px solid #c8c2ba;
+      border-radius: 7px;
+      padding: 7px 14px;
+      font-size: 12px; font-family: inherit; font-weight: 500;
+      color: #555; cursor: pointer;
+      transition: border-color 0.2s, color 0.2s;
+    }
+    .btn-reanalyze:hover { border-color: #8f0101; color: #8f0101; }
+    .btn-reanalyze:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-reanalyze .spin-sm {
+      display: inline-block; width: 12px; height: 12px;
+      border: 2px solid currentColor; border-top-color: transparent;
+      border-radius: 50%; animation: spin 0.8s linear infinite;
+    }
+
+    /* ── Rate-limit notice ── */
+    .rate-notice {
+      font-size: 12px; color: #999; font-style: italic;
+    }
+
+    /* ── Error banner ── */
+    .error-banner {
+      background: #fde8e8; border: 1px solid #f5c6c6; border-radius: 8px;
+      padding: 12px 16px; margin-bottom: 18px;
+      font-size: 13px; color: #c0392b;
+      display: none;
+    }
+    .error-banner.show { display: block; }
+
+    /* ── Success state ── */
+    .success-wrap {
+      text-align: center;
+      padding: 48px 24px;
+    }
+    .success-icon { font-size: 52px; margin-bottom: 18px; }
+    .success-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 24px; font-weight: 600; color: #111;
+      margin-bottom: 10px;
+    }
+    .success-sub { font-size: 14px; color: #666; line-height: 1.6; margin-bottom: 28px; }
+
+    /* ── Submit button ── */
+    .btn-submit {
+      display: block; width: 100%;
+      padding: 15px 24px;
+      background: #8f0101;
+      color: #fff;
+      border: none; border-radius: 9px;
+      font-size: 15px; font-weight: 600; font-family: inherit;
+      cursor: pointer; letter-spacing: 0.3px;
+      transition: background 0.2s, transform 0.1s;
+      margin-top: 8px;
+    }
+    .btn-submit:hover { background: #7a0101; }
+    .btn-submit:active { transform: scale(0.99); }
+    .btn-submit:disabled { background: #ccc; cursor: not-allowed; }
+
+    /* ── Upload-again button ── */
+    .btn-ghost {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: none;
+      border: 1.5px solid #c8c2ba;
+      border-radius: 8px;
+      padding: 10px 20px;
+      font-size: 13px; font-family: inherit; font-weight: 500;
+      color: #555; cursor: pointer;
+      transition: border-color 0.2s, color 0.2s;
+      margin-right: 10px;
+    }
+    .btn-ghost:hover { border-color: #8f0101; color: #8f0101; }
+
+    .bottom-actions {
+      display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 12px;
+      margin-top: 10px;
+    }
+    .bottom-left { display: flex; align-items: center; gap: 10px; }
+
+    /* ── Divider ── */
+    .divider {
+      border: none; border-top: 1px solid #e8e3de;
+      margin: 24px 0;
+    }
+
+    /* ── Section label (inside card) ── */
+    .section-label {
+      font-size: 11px; letter-spacing: 1px; text-transform: uppercase;
+      font-weight: 600; color: #aaa; margin-bottom: 14px;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ─────────────────────────────────────────────────────────────── -->
+<header>
+  <a class="header-logo" href="index.html">
+    <span class="logo-dot"></span>
+    <span>
+      <span class="logo-text">Art Pokédex</span>
+      <span class="logo-sub" style="display:block">Powered by AI</span>
+    </span>
+  </a>
+  <nav class="header-nav">
+    <a href="index.html">Gallery</a>
+    <a href="submit.html" class="active">Submit a Photo</a>
+  </nav>
+</header>
+
+<!-- ── Page content ───────────────────────────────────────────────────────── -->
+<div class="page-wrap">
+  <h1 class="page-title">Submit a Photo</h1>
+  <p class="page-subtitle">
+    Spotted an interesting painting on your travels? Upload a photo and our AI will
+    identify the artwork for you. You can review and edit the details before sending
+    it to the curator team for consideration.
+  </p>
+
+  <!-- State: upload -->
+  <div id="stateUpload" class="state active">
+    <div id="uploadZone">
+      <input type="file" id="fileInput" accept="image/*" />
+      <div class="upload-icon">🖼️</div>
+      <div class="upload-label">Drop a photo here, or click to browse</div>
+      <div class="upload-hint">JPEG, PNG, HEIC · max 20 MB</div>
+    </div>
+  </div>
+
+  <!-- State: analyzing -->
+  <div id="stateAnalyzing" class="state">
+    <div id="analyzePreviewWrap" class="preview-img-wrap" style="margin-bottom:28px">
+      <img id="analyzePreviewImg" src="" alt="" />
+    </div>
+    <div class="analyzing-wrap" style="padding-top:0">
+      <div class="spinner"></div>
+      <div class="analyzing-label">Analysing with Claude AI…</div>
+      <div class="analyzing-sub">This usually takes 5–15 seconds</div>
+    </div>
+  </div>
+
+  <!-- State: review (edit + submitter info) -->
+  <div id="stateReview" class="state">
+
+    <!-- Error banner -->
+    <div id="errorBanner" class="error-banner"></div>
+
+    <!-- Preview image -->
+    <div class="preview-img-wrap">
+      <img id="reviewPreviewImg" src="" alt="" />
+    </div>
+
+    <!-- AI Analysis card -->
+    <div class="card">
+      <div class="reanalyze-row">
+        <div class="card-title" style="margin-bottom:0">AI Analysis</div>
+        <button id="reanalyzeBtn" class="btn-reanalyze" onclick="reanalyze()">
+          ↻ Re-analyse
+        </button>
+      </div>
+      <p class="rate-notice" style="margin-bottom:16px">
+        You can re-analyse up to 5 times per 15 minutes.
+      </p>
+
+      <div class="confidence-row">
+        <div class="confidence-bar-wrap">
+          <div id="confBar" class="confidence-bar" style="width:0%"></div>
+        </div>
+        <div id="confNum" class="confidence-num">–</div>
+      </div>
+
+      <div class="field-grid">
+        <div class="field-full">
+          <label class="field-label">Painting Name</label>
+          <input class="field-input" id="fPaintingName" type="text" placeholder="e.g. The Night Watch" />
+        </div>
+        <div>
+          <label class="field-label">Artist</label>
+          <input class="field-input" id="fArtist" type="text" placeholder="e.g. Rembrandt van Rijn" />
+        </div>
+        <div>
+          <label class="field-label">Style / Movement</label>
+          <input class="field-input" id="fStyle" type="text" placeholder="e.g. Dutch Golden Age" />
+        </div>
+        <div>
+          <label class="field-label">Medium</label>
+          <input class="field-input" id="fMedium" type="text" placeholder="e.g. Oil on Canvas" />
+        </div>
+        <div>
+          <label class="field-label">Period</label>
+          <input class="field-input" id="fPeriod" type="text" placeholder="e.g. 17th century" />
+        </div>
+        <div>
+          <label class="field-label">Location</label>
+          <input class="field-input" id="fLocation" type="text" placeholder="e.g. Rijksmuseum, Amsterdam" />
+        </div>
+        <div>
+          <label class="field-label">Country</label>
+          <input class="field-input" id="fCountry" type="text" placeholder="e.g. Netherlands" />
+        </div>
+        <div class="field-full">
+          <label class="field-label">Description</label>
+          <textarea class="field-textarea" id="fDescription" rows="4"
+            placeholder="AI-generated description of the artwork…"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <!-- Submitter info card -->
+    <div class="card">
+      <div class="card-title">Your Details</div>
+      <div class="field-grid">
+        <div>
+          <label class="field-label">Name <span class="req">*</span></label>
+          <input class="field-input" id="fName" type="text" placeholder="Your name" autocomplete="name" />
+        </div>
+        <div>
+          <label class="field-label">Email <span class="req">*</span></label>
+          <input class="field-input" id="fEmail" type="email" placeholder="your@email.com" autocomplete="email" />
+        </div>
+        <div class="field-full">
+          <label class="field-label">Note to Curator <span style="font-weight:400;color:#bbb">(optional)</span></label>
+          <textarea class="field-textarea" id="fNote" rows="3"
+            placeholder="Anything you'd like to tell the curator about this photo…"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="bottom-actions">
+      <div class="bottom-left">
+        <button class="btn-ghost" onclick="startOver()">← Start Over</button>
+      </div>
+      <button class="btn-submit" onclick="submitPhoto()">
+        Submit for Final Review
+      </button>
+    </div>
+  </div>
+
+  <!-- State: submitting -->
+  <div id="stateSubmitting" class="state">
+    <div class="analyzing-wrap">
+      <div class="spinner"></div>
+      <div class="analyzing-label">Submitting your photo…</div>
+      <div class="analyzing-sub">Just a moment</div>
+    </div>
+  </div>
+
+  <!-- State: success -->
+  <div id="stateSuccess" class="state">
+    <div class="success-wrap">
+      <div class="success-icon">🎨</div>
+      <div class="success-title">Thank you for your submission!</div>
+      <p class="success-sub">
+        Your photo has been sent to the curator team for review.<br />
+        If approved, it will appear in the public gallery.
+      </p>
+      <button class="btn-ghost" style="margin:0 auto" onclick="startOver()">
+        Submit Another Photo
+      </button>
+    </div>
+  </div>
+
+</div><!-- /page-wrap -->
+
+<script>
+  // ── Config ─────────────────────────────────────────────────────────────────
+  // Server URL: reads from localStorage (set by index.html) or falls back to
+  // the same Railway URL used by index.html.
+  // Update the fallback below if you redeploy to a new server URL.
+  const FALLBACK_SERVER_URL = 'https://art-pokedex-production.up.railway.app';
+  const SERVER_URL = (() => {
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      return 'http://localhost:3000';
+    }
+    try {
+      const saved = localStorage.getItem('artpokemon_server_url');
+      if (saved && saved.startsWith('http')) return saved;
+    } catch (_) {}
+    return FALLBACK_SERVER_URL;
+  })();
+
+  // ── Module state ───────────────────────────────────────────────────────────
+  let currentFile   = null;   // File object
+  let currentBase64 = null;   // raw base64 (no data: prefix)
+  let currentMediaType = 'image/jpeg';
+  let currentId     = null;   // unique id for this submission
+
+  // ── UI helpers ─────────────────────────────────────────────────────────────
+  function showState(name) {
+    document.querySelectorAll('.state').forEach(el => el.classList.remove('active'));
+    document.getElementById('state' + name).classList.add('active');
+  }
+
+  function showError(msg) {
+    const banner = document.getElementById('errorBanner');
+    banner.textContent = msg;
+    banner.classList.add('show');
+    banner.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  function clearError() {
+    const banner = document.getElementById('errorBanner');
+    banner.textContent = '';
+    banner.classList.remove('show');
+  }
+
+  // ── File handling ──────────────────────────────────────────────────────────
+  const uploadZone = document.getElementById('uploadZone');
+  const fileInput  = document.getElementById('fileInput');
+
+  uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag-over'); });
+  uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
+  uploadZone.addEventListener('drop', e => {
+    e.preventDefault(); uploadZone.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith('image/')) handleFile(file);
+  });
+  fileInput.addEventListener('change', () => {
+    if (fileInput.files[0]) handleFile(fileInput.files[0]);
+  });
+
+  async function handleFile(file) {
+    if (file.size > 20 * 1024 * 1024) {
+      alert('File is too large. Please use an image under 20 MB.');
+      return;
+    }
+    currentFile = file;
+    currentId   = crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(36).slice(2);
+    currentMediaType = file.type || 'image/jpeg';
+
+    // Show preview while analysing
+    const objectUrl = URL.createObjectURL(file);
+    document.getElementById('analyzePreviewImg').src = objectUrl;
+    showState('Analyzing');
+
+    await runAnalysis(file);
+  }
+
+  // ── Core analysis ──────────────────────────────────────────────────────────
+  async function runAnalysis(file) {
+    clearError();
+    const reBtn = document.getElementById('reanalyzeBtn');
+    if (reBtn) reBtn.disabled = true;
+
+    try {
+      // Extract GPS
+      let gpsCoords    = null;
+      let gpsLocation  = null;
+      try {
+        const gps = await exifr.gps(file);
+        if (gps && typeof gps.latitude === 'number') {
+          gpsCoords = [gps.latitude, gps.longitude];
+          gpsLocation = await reverseGeocode(gpsCoords[0], gpsCoords[1]);
+        }
+      } catch (_) {}
+
+      // Encode image
+      const base64 = await fileToBase64(file);
+      currentBase64 = base64;
+
+      // Build prompts (identical to admin version)
+      const systemPrompt = `Act as a museum curator interested in identifying paintings. For each painting fed into the API, try to identify the artist that most closely matches the style of the painting, the name of the painting, and the location where the painting was taken.
+
+Before drawing any conclusions, reason carefully about the visual evidence: examine the brushwork, color palette, composition, subject matter, architectural surroundings, frame style, gallery wall treatment, any visible signage or labels, and stylistic hallmarks of specific artists or movements. Prioritize evidence you can actually see over general assumptions.
+
+Express genuine uncertainty when the evidence is ambiguous — never fabricate a specific artist name or painting title without strong visual justification. If you cannot identify the specific painting or artist, describe the style and the closest likely school or movement instead.`;
+
+      const locationInstruction = gpsCoords
+        ? `This photo contains GPS metadata: latitude ${gpsCoords[0].toFixed(6)}, longitude ${gpsCoords[1].toFixed(6)}. Using your knowledge of museums, galleries, and art institutions worldwide, determine the most specific and accurate venue name for these coordinates (e.g. "Rijksmuseum, Amsterdam" rather than just "Amsterdam"). A nearby reverse-geocode hint is: "${gpsLocation ? gpsLocation.name : 'unavailable'}". Populate the location and country fields based on your best identification of these GPS coordinates.`
+        : `Identify the location from visual clues in the image (gallery architecture, signage, frame styles, wall treatment, etc.).`;
+
+      const userPrompt = `Analyze this painting photo. ${locationInstruction}
+
+Return a JSON object with EXACTLY these fields (no markdown, raw JSON only):
+{
+  "paintingName": "The specific title of the painting if identifiable, or a descriptive title like 'Unknown portrait' if not",
+  "artist": "The artist's full name if identifiable, or the closest matching school/movement, e.g. 'Rembrandt van Rijn' or 'School of Caravaggio'",
+  "location": "The most specific venue name you can determine — for GPS photos use the coordinates to identify the museum/gallery; for non-GPS photos infer from visual clues. Format: 'Venue Name, City'",
+  "country": "Country name",
+  "style": "Art style/movement, e.g. 'Dutch Golden Age', 'Impressionism', 'Baroque'",
+  "medium": "Medium used, e.g. 'Oil on Canvas', 'Watercolor', 'Bronze Sculpture'",
+  "period": "Time period or century, e.g. '17th century', 'Late 19th c.', 'Contemporary'",
+  "confidence": <integer 0-100 for confidence in the painting/artist identification only>,
+  "description": "3-4 sentences: (1) key visual clues observed, (2) why this artist/style matches, (3) notable features of the work.",
+  "artistHint": "Additional context about the artist — nationality, active period, signature techniques"
+}`;
+
+      // Call /api/analyze — public, rate-limited (no auth header)
+      const response = await fetch(`${SERVER_URL}/api/analyze`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-opus-4-6',
+          max_tokens: 800,
+          temperature: 0,
+          system: systemPrompt,
+          messages: [{
+            role: 'user',
+            content: [
+              { type: 'image', source: { type: 'base64', media_type: currentMediaType, data: base64 } },
+              { type: 'text', text: userPrompt }
+            ]
+          }]
+        })
+      });
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        const msg = err?.error?.message || `Server error (${response.status})`;
+        throw new Error(msg);
+      }
+
+      const data = await response.json();
+      const text = data.content?.[0]?.text || '';
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) throw new Error('Could not parse AI response. Please try again.');
+      const parsed = JSON.parse(jsonMatch[0]);
+
+      // Populate review form
+      document.getElementById('fPaintingName').value = parsed.paintingName || '';
+      document.getElementById('fArtist').value       = parsed.artist       || '';
+      document.getElementById('fStyle').value        = parsed.style        || '';
+      document.getElementById('fMedium').value       = parsed.medium       || '';
+      document.getElementById('fPeriod').value       = parsed.period       || '';
+      document.getElementById('fLocation').value     = parsed.location     || '';
+      document.getElementById('fCountry').value      = parsed.country      || '';
+      document.getElementById('fDescription').value  = parsed.description  || '';
+
+      const conf = typeof parsed.confidence === 'number' ? parsed.confidence : 75;
+      document.getElementById('confBar').style.width = conf + '%';
+      document.getElementById('confNum').textContent = conf + '%';
+
+      // Show preview in review state too
+      const objectUrl = URL.createObjectURL(file);
+      document.getElementById('reviewPreviewImg').src = objectUrl;
+
+      showState('Review');
+
+    } catch (err) {
+      // Return to review state if we were re-analysing, or back to upload
+      if (document.getElementById('stateReview').classList.contains('active') ||
+          currentBase64 !== null) {
+        showState('Review');
+        showError('Analysis failed: ' + err.message);
+      } else {
+        showState('Upload');
+        alert('Analysis failed: ' + err.message + '\n\nPlease try again.');
+      }
+    } finally {
+      if (reBtn) reBtn.disabled = false;
+    }
+  }
+
+  // ── Re-analyse button ──────────────────────────────────────────────────────
+  async function reanalyze() {
+    if (!currentFile) return;
+    clearError();
+    const btn = document.getElementById('reanalyzeBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spin-sm"></span> Analysing…';
+    showState('Analyzing');
+    document.getElementById('analyzePreviewImg').src = document.getElementById('reviewPreviewImg').src;
+    await runAnalysis(currentFile);
+    btn.innerHTML = '↻ Re-analyse';
+    btn.disabled = false;
+  }
+
+  // ── Submit ─────────────────────────────────────────────────────────────────
+  async function submitPhoto() {
+    clearError();
+
+    const name  = document.getElementById('fName').value.trim();
+    const email = document.getElementById('fEmail').value.trim();
+    if (!name || !email) {
+      showError('Please fill in your name and email before submitting.');
+      document.getElementById('fName').focus();
+      return;
+    }
+    if (!email.includes('@')) {
+      showError('Please enter a valid email address.');
+      document.getElementById('fEmail').focus();
+      return;
+    }
+    if (!currentBase64) {
+      showError('No image data found. Please start over.');
+      return;
+    }
+
+    showState('Submitting');
+
+    try {
+      const payload = {
+        id:           currentId,
+        name:         currentFile ? currentFile.name : 'photo.jpg',
+        thumbnail:    currentBase64,
+        paintingName: document.getElementById('fPaintingName').value.trim(),
+        artist:       document.getElementById('fArtist').value.trim(),
+        location:     document.getElementById('fLocation').value.trim(),
+        country:      document.getElementById('fCountry').value.trim(),
+        style:        document.getElementById('fStyle').value.trim(),
+        medium:       document.getElementById('fMedium').value.trim(),
+        period:       document.getElementById('fPeriod').value.trim(),
+        confidence:   parseInt(document.getElementById('confNum').textContent) || null,
+        description:  document.getElementById('fDescription').value.trim(),
+        artistHint:   '',
+        submitterName:  name,
+        submitterEmail: email,
+        note:           document.getElementById('fNote').value.trim()
+      };
+
+      const res = await fetch(`${SERVER_URL}/api/submit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err?.error || `Server error (${res.status})`);
+      }
+
+      showState('Success');
+
+    } catch (err) {
+      showState('Review');
+      showError('Submission failed: ' + err.message);
+    }
+  }
+
+  // ── Start over ─────────────────────────────────────────────────────────────
+  function startOver() {
+    currentFile      = null;
+    currentBase64    = null;
+    currentId        = null;
+    currentMediaType = 'image/jpeg';
+    fileInput.value  = '';
+    clearError();
+    showState('Upload');
+  }
+
+  // ── Utility: file to base64 ────────────────────────────────────────────────
+  function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload  = () => resolve(reader.result.split(',')[1]);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // ── Utility: reverse geocode via server proxy ──────────────────────────────
+  async function reverseGeocode(lat, lng) {
+    try {
+      const res  = await fetch(`${SERVER_URL}/api/reverse-geocode?lat=${encodeURIComponent(lat)}&lng=${encodeURIComponent(lng)}`);
+      const data = await res.json();
+      if (data && data.address) {
+        const a = data.address;
+        const name = a.museum || a.attraction || a.building || a.amenity ||
+                     a.historic || a.tourism ||
+                     [a.city || a.town || a.village, a.country].filter(Boolean).join(', ');
+        return { name: name || data.display_name || 'Unknown Location', country: a.country || '' };
+      }
+    } catch (_) {}
+    return null;
+  }
+</script>
+</body>
+</html>

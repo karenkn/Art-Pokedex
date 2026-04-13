@@ -192,6 +192,19 @@
     }
     .filter-btn:hover { color: #1a1a1a; background: none; }
     .filter-btn.active { color: #1a1a1a; border-bottom-color: #8f0101; background: none; }
+    .filter-btn .sub-badge {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-width: 17px; height: 17px; padding: 0 5px;
+      background: #8f0101; color: #fff;
+      border-radius: 9px; font-size: 10px; font-weight: 700;
+      margin-left: 5px; vertical-align: middle;
+    }
+    /* Submission review cards */
+    .sub-card { grid-template-columns: 200px 1fr !important; }
+    @media (max-width: 540px) {
+      .sub-card { grid-template-columns: 1fr !important; }
+      .sub-card-thumb { max-height: 200px !important; min-height: 140px !important; }
+    }
     .sort-wrap {
       display: flex;
       align-items: center;
@@ -903,6 +916,7 @@
   <nav class="header-nav">
     <a href="index.html" class="active">Collection</a>
     <a href="blog.html">Design & Process</a>
+    <a href="submit.html">Submit a Photo</a>
     <button class="admin-btn" id="adminBtn" onclick="toggleAdminLogin()">🔒 Admin</button>
   </nav>
   <button class="header-hamburger" onclick="document.getElementById('headerMobileMenu').classList.toggle('open')" aria-label="Menu">☰</button>
@@ -910,6 +924,7 @@
 <div class="header-mobile-menu" id="headerMobileMenu">
   <a href="index.html" class="active">Collection</a>
   <a href="blog.html">Design & Process</a>
+  <a href="submit.html">Submit a Photo</a>
   <button onclick="toggleAdminLogin(); document.getElementById('headerMobileMenu').classList.remove('open')">🔒 Admin Login</button>
 </div>
 
@@ -945,6 +960,7 @@
     <button class="filter-btn" onclick="setFilter('location', this)">📍 By Location</button>
     <button class="filter-btn" onclick="setFilter('style', this)">🎨 By Style</button>
     <button class="filter-btn" onclick="setFilter('artist', this)">🖌️ By Artist</button>
+    <button class="filter-btn admin-only" id="submissionsFilterBtn" onclick="setFilter('submissions', this)" style="display:none">📬 Submissions<span id="submissionsBadge" class="sub-badge" style="display:none"></span></button>
   </div>
 
   <div class="sort-wrap">
@@ -1290,6 +1306,7 @@
 // State
 // ─────────────────────────────────────────────────────────────────────────────
 let photos = [];
+let submissions = [];
 let currentFilter = 'all';
 let currentSort   = 'title';
 let serverUrl = '';
@@ -1361,6 +1378,12 @@ function updateAdminUI() {
   document.querySelectorAll('.delete-btn, .pin-btn').forEach(el => {
     el.dataset.adminVisible = isAdmin ? '1' : '0';
   });
+  if (isAdmin) loadSubmissions();
+  else {
+    submissions = [];
+    updateSubmissionsBadge();
+    if (currentFilter === 'submissions') { currentFilter = 'all'; document.querySelector('.filter-btn').classList.add('active'); }
+  }
   render();
 }
 
@@ -1472,6 +1495,8 @@ document.addEventListener('click', e => {
 // ─────────────────────────────────────────────────────────────────────────────
 function onServerUrlInput() {
   serverUrl = document.getElementById('serverUrlInput').value.trim().replace(/\/$/, '');
+  // Persist so submit.html (and other pages) can auto-read the same URL
+  try { if (serverUrl) localStorage.setItem('artpokemon_server_url', serverUrl); } catch (_) {}
   const valid  = serverUrl.startsWith('http');
   const btn    = document.getElementById('uploadBtn');
   const st     = document.getElementById('apiStatus');
@@ -2163,6 +2188,13 @@ function render() {
 
   const donephotos = photos.filter(p => p.status === 'done');
 
+  if (currentFilter === 'submissions') {
+    mapView.classList.remove('active');
+    content.style.display = '';
+    renderSubmissions(content);
+    return;
+  }
+
   if (currentFilter === 'location' && donephotos.length > 0) {
     mapView.classList.add('active');
     content.style.display = 'none';
@@ -2178,6 +2210,183 @@ function render() {
     } else {
       renderGrouped(content, 'location', '📍', p => p.aiData.location);
     }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Submissions (admin review panel)
+// ─────────────────────────────────────────────────────────────────────────────
+async function loadSubmissions() {
+  if (!adminToken || !serverUrl) return;
+  try {
+    const res  = await fetch(`${serverUrl}/api/submissions`, { headers: authHeaders() });
+    if (!res.ok) return;
+    submissions = await res.json();
+    updateSubmissionsBadge();
+    if (currentFilter === 'submissions') render();
+  } catch (err) {
+    console.warn('Could not load submissions:', err.message);
+  }
+}
+
+function updateSubmissionsBadge() {
+  const badge = document.getElementById('submissionsBadge');
+  if (!badge) return;
+  if (submissions.length > 0) {
+    badge.textContent = submissions.length;
+    badge.style.display = '';
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+function renderSubmissions(container) {
+  if (!adminToken) { container.innerHTML = ''; return; }
+  if (submissions.length === 0) {
+    container.innerHTML = `
+      <div style="text-align:center; padding:60px 24px; color:#999;">
+        <div style="font-size:36px; margin-bottom:12px">📬</div>
+        <div style="font-size:15px; font-weight:600; color:#555; margin-bottom:6px">No pending submissions</div>
+        <div style="font-size:13px">Submissions from the public will appear here for review.</div>
+      </div>`;
+    return;
+  }
+  container.innerHTML = `
+    <div style="padding: 24px 0 12px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+      <h2 style="font-family:'Playfair Display',serif; font-size:20px; font-weight:600; color:#111;">
+        Pending Submissions
+      </h2>
+      <span style="font-size:12px; background:#fde8e8; color:#8f0101; border-radius:20px; padding:3px 10px; font-weight:600;">
+        ${submissions.length} awaiting review
+      </span>
+    </div>
+    <div style="display:flex; flex-direction:column; gap:16px; padding-bottom:40px;">
+      ${submissions.map(submissionCard).join('')}
+    </div>`;
+}
+
+function submissionCard(s) {
+  const thumb = s.thumbnail ? `data:image/jpeg;base64,${s.thumbnail}` : '';
+  const conf  = s.confidence != null ? s.confidence : '–';
+  const confPct = s.confidence != null ? s.confidence + '%' : '0%';
+  const ago = (() => {
+    const d = new Date(s.created_at);
+    const diff = Date.now() - d.getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 60) return mins + 'm ago';
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return hrs + 'h ago';
+    return d.toLocaleDateString();
+  })();
+
+  return `<div id="subcard-${s.id}" class="sub-card" style="
+    background:#fff; border-radius:12px; border:1px solid #e0dbd5;
+    display:grid; overflow:hidden;
+    box-shadow:0 1px 4px rgba(0,0,0,0.06);">
+    <!-- Thumbnail -->
+    <div class="sub-card-thumb" style="background:#111; display:flex; align-items:center; justify-content:center; min-height:180px; max-height:260px; overflow:hidden;">
+      ${thumb ? `<img src="${thumb}" alt="" style="width:100%; height:100%; object-fit:cover; display:block;" />` : '<span style="color:#555;font-size:32px">🖼️</span>'}
+    </div>
+    <!-- Details -->
+    <div style="padding:20px 22px; display:flex; flex-direction:column; gap:0;">
+      <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:12px; flex-wrap:wrap;">
+        <div>
+          <div style="font-family:'Playfair Display',serif; font-size:17px; font-weight:600; color:#111; margin-bottom:2px;">
+            ${escHtml(s.painting_name || 'Untitled')}
+          </div>
+          <div style="font-size:13px; color:#555;">${escHtml(s.artist || 'Unknown Artist')}</div>
+        </div>
+        <div style="font-size:11px; color:#aaa; white-space:nowrap;">${ago}</div>
+      </div>
+
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px 16px; font-size:12px; color:#666; margin-bottom:12px;">
+        <div><span style="color:#aaa;text-transform:uppercase;letter-spacing:.6px;font-size:10px;font-weight:600">Location</span><br>${escHtml(s.location || '–')}</div>
+        <div><span style="color:#aaa;text-transform:uppercase;letter-spacing:.6px;font-size:10px;font-weight:600">Style</span><br>${escHtml(s.style || '–')}</div>
+        <div><span style="color:#aaa;text-transform:uppercase;letter-spacing:.6px;font-size:10px;font-weight:600">Medium</span><br>${escHtml(s.medium || '–')}</div>
+        <div><span style="color:#aaa;text-transform:uppercase;letter-spacing:.6px;font-size:10px;font-weight:600">Period</span><br>${escHtml(s.period || '–')}</div>
+      </div>
+
+      ${s.description ? `<div style="font-size:12px; color:#555; line-height:1.55; margin-bottom:12px; font-style:italic;">"${escHtml(s.description.slice(0, 180))}${s.description.length > 180 ? '…' : ''}"</div>` : ''}
+
+      <!-- Confidence bar -->
+      <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">
+        <div style="flex:1; height:5px; background:#e8e3de; border-radius:3px; overflow:hidden;">
+          <div style="height:100%; width:${confPct}; background:linear-gradient(90deg,#e05c2e,#8f0101); border-radius:3px;"></div>
+        </div>
+        <span style="font-size:11px; font-weight:700; color:#8f0101; min-width:30px; text-align:right;">${conf}${s.confidence != null ? '%' : ''}</span>
+      </div>
+
+      <!-- Submitter info -->
+      <div style="font-size:12px; color:#888; margin-bottom:${s.note ? '8px' : '16px'};">
+        Submitted by <strong style="color:#555">${escHtml(s.submitter_name)}</strong>
+        &lt;${escHtml(s.submitter_email)}&gt;
+      </div>
+      ${s.note ? `<div style="font-size:12px; color:#777; background:#f8f6f2; border-radius:6px; padding:8px 12px; margin-bottom:16px; line-height:1.5;"><em>Note: ${escHtml(s.note)}</em></div>` : ''}
+
+      <!-- Action buttons -->
+      <div style="display:flex; gap:10px; margin-top:auto;">
+        <button onclick="approveSubmission('${s.id}')"
+          style="flex:1; padding:9px; background:#8f0101; color:#fff; border:none; border-radius:8px;
+                 font-size:13px; font-weight:600; font-family:inherit; cursor:pointer; transition:background .2s;"
+          onmouseover="this.style.background='#7a0101'" onmouseout="this.style.background='#8f0101'">
+          ✓ Approve & Add to Gallery
+        </button>
+        <button onclick="rejectSubmission('${s.id}')"
+          style="padding:9px 16px; background:none; color:#999; border:1.5px solid #d4cfc9;
+                 border-radius:8px; font-size:13px; font-weight:500; font-family:inherit; cursor:pointer; transition:all .2s;"
+          onmouseover="this.style.borderColor='#c0392b';this.style.color='#c0392b'"
+          onmouseout="this.style.borderColor='#d4cfc9';this.style.color='#999'">
+          ✕ Reject
+        </button>
+      </div>
+    </div>
+  </div>`;
+}
+
+async function approveSubmission(id) {
+  const card = document.getElementById('subcard-' + id);
+  if (card) card.style.opacity = '0.5';
+  try {
+    const res = await fetch(`${serverUrl}/api/submissions/${id}`, {
+      method: 'PATCH',
+      headers: authHeaders(),
+      body: JSON.stringify({ action: 'approve' })
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err?.error || `HTTP ${res.status}`);
+    }
+    submissions = submissions.filter(s => s.id !== id);
+    updateSubmissionsBadge();
+    // Reload photos so the approved photo appears in the gallery
+    await loadSavedPhotos();
+    if (currentFilter === 'submissions') render();
+  } catch (err) {
+    if (card) card.style.opacity = '';
+    alert('Could not approve submission: ' + err.message);
+  }
+}
+
+async function rejectSubmission(id) {
+  if (!confirm('Reject this submission? This cannot be undone.')) return;
+  const card = document.getElementById('subcard-' + id);
+  if (card) card.style.opacity = '0.5';
+  try {
+    const res = await fetch(`${serverUrl}/api/submissions/${id}`, {
+      method: 'PATCH',
+      headers: authHeaders(),
+      body: JSON.stringify({ action: 'reject' })
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err?.error || `HTTP ${res.status}`);
+    }
+    submissions = submissions.filter(s => s.id !== id);
+    updateSubmissionsBadge();
+    if (currentFilter === 'submissions') render();
+  } catch (err) {
+    if (card) card.style.opacity = '';
+    alert('Could not reject submission: ' + err.message);
   }
 }
 
@@ -2978,6 +3187,15 @@ function escHtml(str) {
 
 // Proxy server URL — update this if you redeploy to a new Railway URL
 serverUrl = 'https://art-pokedex-production.up.railway.app';
+
+// Pre-populate server URL input from localStorage if available
+try {
+  const saved = localStorage.getItem('artpokemon_server_url');
+  if (saved) {
+    const input = document.getElementById('serverUrlInput');
+    if (input && !input.value) { input.value = saved; serverUrl = saved; }
+  }
+} catch (_) {}
 
 // Load any previously saved photos from the database
 loadSavedPhotos();

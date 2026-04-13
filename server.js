@@ -1,8 +1,9 @@
-const express = require('express');
-const cors    = require('cors');
-const bcrypt  = require('bcryptjs');
-const jwt     = require('jsonwebtoken');
-const { Pool } = require('pg');
+const express   = require('express');
+const cors      = require('cors');
+const bcrypt    = require('bcryptjs');
+const jwt       = require('jsonwebtoken');
+const rateLimit = require('express-rate-limit');
+const { Pool }  = require('pg');
 
 const app = express();
 
@@ -49,6 +50,29 @@ pool.query(`
 }).catch(err => console.error('Database init error:', err.message));
 
 pool.query(`
+  CREATE TABLE IF NOT EXISTS submissions (
+    id              TEXT PRIMARY KEY,
+    name            TEXT,
+    thumbnail       TEXT,
+    painting_name   TEXT DEFAULT '',
+    artist          TEXT DEFAULT '',
+    location        TEXT DEFAULT '',
+    country         TEXT DEFAULT '',
+    style           TEXT DEFAULT '',
+    medium          TEXT DEFAULT '',
+    period          TEXT DEFAULT '',
+    confidence      INTEGER,
+    description     TEXT DEFAULT '',
+    artist_hint     TEXT DEFAULT '',
+    submitter_name  TEXT NOT NULL,
+    submitter_email TEXT NOT NULL,
+    note            TEXT DEFAULT '',
+    status          TEXT DEFAULT 'pending',
+    created_at      TIMESTAMPTZ DEFAULT NOW()
+  )
+`).catch(err => console.error('Submissions table init error:', err.message));
+
+pool.query(`
   CREATE TABLE IF NOT EXISTS posts (
     id           TEXT PRIMARY KEY,
     title        TEXT NOT NULL DEFAULT '',
@@ -80,6 +104,38 @@ function authenticate(req, res, next) {
   } catch {
     res.status(401).json({ error: 'Session expired or invalid. Please log in again.' });
   }
+}
+
+// ── Rate limiting (public endpoints) ─────────────────────────────────────────
+// Admins with a valid JWT bypass rate limits.
+const analyzeLimit = rateLimit({
+  windowMs: 15 * 60 * 1000,   // 15 minutes
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: { message: 'Too many analysis requests. Please try again in 15 minutes.' } }
+});
+const submitLimit = rateLimit({
+  windowMs: 60 * 60 * 1000,   // 1 hour
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many submissions. Please try again later.' }
+});
+
+// Middleware factory: apply the given limiter only if the request is NOT from
+// a verified admin (i.e. no valid Bearer JWT).  Admins bypass entirely.
+function publicRateLimit(limiter) {
+  return (req, res, next) => {
+    if (JWT_SECRET) {
+      const header = req.headers['authorization'] || '';
+      const token  = header.startsWith('Bearer ') ? header.slice(7) : null;
+      if (token) {
+        try { jwt.verify(token, JWT_SECRET); return next(); } catch {}
+      }
+    }
+    return limiter(req, res, next);
+  };
 }
 
 // ── Health check ──────────────────────────────────────────────────────────────
@@ -242,8 +298,8 @@ app.patch('/api/photos/:id/pin', authenticate, async (req, res) => {
   }
 });
 
-// ── Claude proxy (admin only) ─────────────────────────────────────────────────
-app.post('/api/analyze', authenticate, async (req, res) => {
+// ── Claude proxy — public (rate-limited) / admin (unlimited) ─────────────────
+app.post('/api/analyze', publicRateLimit(analyzeLimit), async (req, res) => {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     return res.status(500).json({
@@ -265,6 +321,99 @@ app.post('/api/analyze', authenticate, async (req, res) => {
   } catch (err) {
     console.error('Proxy error:', err.message);
     res.status(500).json({ error: { message: err.message } });
+  }
+});
+
+// ── POST /api/submit — public (rate-limited): submit a photo for review ───────
+app.post('/api/submit', publicRateLimit(submitLimit), async (req, res) => {
+  const {
+    id, name, thumbnail,
+    paintingName, artist, location, country, style, medium, period,
+    confidence, description, artistHint,
+    submitterName, submitterEmail, note
+  } = req.body;
+
+  if (!submitterName || !submitterEmail) {
+    return res.status(400).json({ error: 'Name and email are required.' });
+  }
+  if (!id || !thumbnail) {
+    return res.status(400).json({ error: 'Photo data is required.' });
+  }
+
+  try {
+    await pool.query(
+      `INSERT INTO submissions
+         (id, name, thumbnail, painting_name, artist, location, country,
+          style, medium, period, confidence, description, artist_hint,
+          submitter_name, submitter_email, note, status)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,'pending')
+       ON CONFLICT (id) DO NOTHING`,
+      [
+        id, name || '', thumbnail,
+        paintingName || '', artist    || '',
+        location     || '', country   || '',
+        style        || '', medium    || '',
+        period       || '', confidence ?? null,
+        description  || '', artistHint || '',
+        submitterName, submitterEmail, note || ''
+      ]
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Submit error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── GET /api/submissions — admin only: list pending submissions ───────────────
+app.get('/api/submissions', authenticate, async (_req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT * FROM submissions WHERE status = 'pending' ORDER BY created_at ASC`
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Load submissions error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── PATCH /api/submissions/:id — admin only: approve or reject ────────────────
+// Body: { action: 'approve' | 'reject' }
+app.patch('/api/submissions/:id', authenticate, async (req, res) => {
+  const { action } = req.body;
+  if (action !== 'approve' && action !== 'reject') {
+    return res.status(400).json({ error: "action must be 'approve' or 'reject'." });
+  }
+  try {
+    if (action === 'approve') {
+      // Copy submission into photos table, then mark approved
+      const sel = await pool.query('SELECT * FROM submissions WHERE id = $1', [req.params.id]);
+      if (sel.rowCount === 0) return res.status(404).json({ error: 'Submission not found.' });
+      const s = sel.rows[0];
+      await pool.query(
+        `INSERT INTO photos
+           (id, name, thumbnail, painting_name, artist, location, country,
+            style, medium, period, confidence, description, artist_hint,
+            manually_edited, location_source)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,FALSE,'ai')
+         ON CONFLICT (id) DO NOTHING`,
+        [
+          s.id, s.name, s.thumbnail,
+          s.painting_name, s.artist,   s.location, s.country,
+          s.style,         s.medium,   s.period,   s.confidence,
+          s.description,   s.artist_hint
+        ]
+      );
+    }
+    await pool.query(
+      `UPDATE submissions SET status = $1 WHERE id = $2`,
+      [action === 'approve' ? 'approved' : 'rejected', req.params.id]
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Review submission error:', err.message);
+    res.status(500).json({ error: err.message });
   }
 });
 
