@@ -10,345 +10,125 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    body {
-      font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
-      background: #f0ede8;
-      color: #1a1a1a;
-      min-height: 100vh;
-    }
+    body { font-family: 'Inter', 'Segoe UI', system-ui, sans-serif; background: #f0ede8; color: #1a1a1a; min-height: 100vh; }
 
     /* ── Header ── */
-    header {
-      background: #111;
-      color: #fff;
-      padding: 0 clamp(16px, 4vw, 48px);
-      height: 58px;
-      display: flex;
-      align-items: center;
-      gap: 16px;
-      position: sticky; top: 0; z-index: 200;
-    }
-    .header-logo {
-      display: flex; align-items: center; gap: 10px; flex-shrink: 0; text-decoration: none;
-    }
-    .logo-dot {
-      width: 9px; height: 9px;
-      background: #8f0101; border-radius: 50%; flex-shrink: 0;
-    }
-    .logo-text {
-      font-family: 'Playfair Display', serif;
-      font-size: clamp(15px, 2.5vw, 18px);
-      color: #fff; font-weight: 600; letter-spacing: 0.3px;
-    }
-    .logo-sub {
-      font-size: 10px; color: #4a4a4a; letter-spacing: 1px;
-      text-transform: uppercase;
-    }
+    header { background: #111; color: #fff; padding: 0 clamp(16px,4vw,48px); height: 58px; display: flex; align-items: center; gap: 16px; position: sticky; top: 0; z-index: 200; }
+    .header-logo { display: flex; align-items: center; gap: 10px; flex-shrink: 0; text-decoration: none; }
+    .logo-dot { width: 9px; height: 9px; background: #8f0101; border-radius: 50%; flex-shrink: 0; }
+    .logo-text { font-family: 'Playfair Display', serif; font-size: clamp(15px,2.5vw,18px); color: #fff; font-weight: 600; letter-spacing: 0.3px; }
+    .logo-sub { font-size: 10px; color: #4a4a4a; letter-spacing: 1px; text-transform: uppercase; }
     @media (max-width: 639px) { .logo-sub { display: none; } }
-    .header-nav {
-      display: flex; align-items: center; gap: 24px; margin-left: auto;
-    }
-    .header-nav a {
-      color: #666; text-decoration: none; font-size: 11px;
-      letter-spacing: 1px; text-transform: uppercase; font-weight: 500;
-      transition: color 0.2s;
-    }
+    .header-nav { display: flex; align-items: center; gap: 24px; margin-left: auto; }
+    .header-nav a { color: #666; text-decoration: none; font-size: 11px; letter-spacing: 1px; text-transform: uppercase; font-weight: 500; transition: color 0.2s; }
     .header-nav a:hover { color: #fff; }
     .header-nav a.active { color: #fff; }
-    @media (max-width: 767px) {
-      .header-nav { display: none; }
-    }
+    @media (max-width: 767px) { .header-nav { display: none; } }
 
     /* ── Page layout ── */
-    .page-wrap {
-      max-width: 720px;
-      margin: 0 auto;
-      padding: 40px clamp(16px, 4vw, 32px) 80px;
-    }
-
-    .page-title {
-      font-family: 'Playfair Display', serif;
-      font-size: clamp(22px, 4vw, 30px);
-      font-weight: 600;
-      color: #111;
-      margin-bottom: 6px;
-    }
-    .page-subtitle {
-      font-size: 14px;
-      color: #666;
-      margin-bottom: 32px;
-      line-height: 1.6;
-    }
+    .page-wrap { max-width: 720px; margin: 0 auto; padding: 40px clamp(16px,4vw,32px) 80px; }
+    .page-title { font-family: 'Playfair Display', serif; font-size: clamp(22px,4vw,30px); font-weight: 600; color: #111; margin-bottom: 6px; }
+    .page-subtitle { font-size: 14px; color: #666; margin-bottom: 32px; line-height: 1.6; }
 
     /* ── Upload zone ── */
-    #uploadZone {
-      border: 2px dashed #c8c2ba;
-      border-radius: 12px;
-      background: #faf8f5;
-      padding: 52px 24px;
-      text-align: center;
-      cursor: pointer;
-      transition: border-color 0.2s, background 0.2s;
-      position: relative;
-    }
-    #uploadZone:hover, #uploadZone.drag-over {
-      border-color: #8f0101;
-      background: #fff7f7;
-    }
-    #uploadZone input[type=file] {
-      position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
-    }
+    #uploadZone { border: 2px dashed #c8c2ba; border-radius: 12px; background: #faf8f5; padding: 52px 24px; text-align: center; cursor: pointer; transition: border-color 0.2s, background 0.2s; position: relative; }
+    #uploadZone:hover, #uploadZone.drag-over { border-color: #8f0101; background: #fff7f7; }
+    #uploadZone input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
     .upload-icon { font-size: 40px; margin-bottom: 12px; color: #aaa; }
-    .upload-label {
-      font-size: 15px; font-weight: 600; color: #333; margin-bottom: 6px;
-    }
+    .upload-label { font-size: 15px; font-weight: 600; color: #333; margin-bottom: 6px; }
     .upload-hint { font-size: 13px; color: #999; }
 
     /* ── States ── */
     .state { display: none; }
     .state.active { display: block; }
 
-    /* ── Analyzing spinner ── */
-    .analyzing-wrap {
-      text-align: center;
-      padding: 40px 24px;
-    }
-    .spinner {
-      width: 44px; height: 44px;
-      border: 3px solid #e0dbd5;
-      border-top-color: #8f0101;
-      border-radius: 50%;
-      animation: spin 0.9s linear infinite;
-      margin: 0 auto 20px;
-    }
+    /* ── Spinner ── */
+    .spinner { width: 44px; height: 44px; border: 3px solid #e0dbd5; border-top-color: #8f0101; border-radius: 50%; animation: spin 0.9s linear infinite; margin: 0 auto 20px; }
     @keyframes spin { to { transform: rotate(360deg); } }
-    .analyzing-label {
-      font-size: 15px; color: #444; font-weight: 500; margin-bottom: 6px;
-    }
+    .analyzing-wrap { text-align: center; padding: 40px 24px; }
+    .analyzing-label { font-size: 15px; color: #444; font-weight: 500; margin-bottom: 6px; }
     .analyzing-sub { font-size: 13px; color: #999; }
 
     /* ── Preview image ── */
-    .preview-img-wrap {
-      border-radius: 10px;
-      overflow: hidden;
-      margin-bottom: 24px;
-      background: #111;
-      max-height: 360px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .preview-img-wrap img {
-      width: 100%; max-height: 360px;
-      object-fit: contain; display: block;
-    }
+    .preview-img-wrap { border-radius: 10px; overflow: hidden; margin-bottom: 24px; background: #111; max-height: 360px; display: flex; align-items: center; justify-content: center; }
+    .preview-img-wrap img { width: 100%; max-height: 360px; object-fit: contain; display: block; }
 
-    /* ── Card-style section ── */
-    .card {
-      background: #fff;
-      border-radius: 12px;
-      border: 1px solid #e0dbd5;
-      padding: 24px;
-      margin-bottom: 20px;
-    }
-    .card-title {
-      font-size: 12px;
-      letter-spacing: 1.2px;
-      text-transform: uppercase;
-      font-weight: 600;
-      color: #8f0101;
-      margin-bottom: 18px;
-    }
+    /* ── Card ── */
+    .card { background: #fff; border-radius: 12px; border: 1px solid #e0dbd5; padding: 24px; margin-bottom: 20px; }
+    .card-title { font-size: 12px; letter-spacing: 1.2px; text-transform: uppercase; font-weight: 600; color: #8f0101; margin-bottom: 18px; }
 
-    /* ── Confidence badge ── */
-    .confidence-row {
-      display: flex; align-items: center; gap: 10px; margin-bottom: 16px;
-    }
-    .confidence-bar-wrap {
-      flex: 1; height: 6px; background: #e8e3de; border-radius: 3px; overflow: hidden;
-    }
-    .confidence-bar {
-      height: 100%; border-radius: 3px;
-      background: linear-gradient(90deg, #e05c2e, #8f0101);
-      transition: width 0.4s ease;
-    }
-    .confidence-num {
-      font-size: 12px; font-weight: 700; color: #8f0101; min-width: 36px; text-align: right;
-    }
+    /* ── Confidence bar ── */
+    .confidence-row { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+    .confidence-bar-wrap { flex: 1; height: 6px; background: #e8e3de; border-radius: 3px; overflow: hidden; }
+    .confidence-bar { height: 100%; border-radius: 3px; background: linear-gradient(90deg, #e05c2e, #8f0101); transition: width 0.4s ease; }
+    .confidence-num { font-size: 12px; font-weight: 700; color: #8f0101; min-width: 36px; text-align: right; }
 
     /* ── Form fields ── */
-    .field-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 14px;
-    }
+    .field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
     @media (max-width: 500px) { .field-grid { grid-template-columns: 1fr; } }
     .field-full { grid-column: 1 / -1; }
-
-    .field-label {
-      font-size: 11px;
-      font-weight: 600;
-      color: #666;
-      letter-spacing: 0.6px;
-      text-transform: uppercase;
-      margin-bottom: 5px;
-      display: block;
-    }
+    .field-label { font-size: 11px; font-weight: 600; color: #666; letter-spacing: 0.6px; text-transform: uppercase; margin-bottom: 5px; display: block; }
     .field-label .req { color: #8f0101; }
-    .field-input, .field-textarea {
-      width: 100%;
-      padding: 9px 12px;
-      border: 1.5px solid #d4cfc9;
-      border-radius: 7px;
-      font-size: 13px;
-      font-family: inherit;
-      color: #1a1a1a;
-      background: #fefefe;
-      outline: none;
-      transition: border-color 0.2s;
-      resize: none;
-    }
+    .field-input, .field-textarea { width: 100%; padding: 9px 12px; border: 1.5px solid #d4cfc9; border-radius: 7px; font-size: 13px; font-family: inherit; color: #1a1a1a; background: #fefefe; outline: none; transition: border-color 0.2s; resize: none; }
     .field-input:focus, .field-textarea:focus { border-color: #8f0101; }
     .field-input::placeholder, .field-textarea::placeholder { color: #bbb; }
 
-    /* ── Re-analyze button ── */
-    .reanalyze-row {
-      display: flex; align-items: center; justify-content: space-between;
-      flex-wrap: wrap; gap: 10px;
-      margin-bottom: 6px;
+    /* ── Dirty-field indicator: a small lock icon on the label when manually edited ── */
+    .field-wrap { position: relative; }
+    .field-wrap.dirty .field-label::after {
+      content: '✎';
+      font-size: 10px; color: #8f0101; margin-left: 5px;
+      font-style: normal; font-weight: 400;
+      opacity: 0.7;
     }
-    .btn-reanalyze {
-      display: inline-flex; align-items: center; gap: 6px;
-      background: none;
-      border: 1.5px solid #c8c2ba;
-      border-radius: 7px;
-      padding: 7px 14px;
-      font-size: 12px; font-family: inherit; font-weight: 500;
-      color: #555; cursor: pointer;
-      transition: border-color 0.2s, color 0.2s;
-    }
-    .btn-reanalyze:hover { border-color: #8f0101; color: #8f0101; }
-    .btn-reanalyze:disabled { opacity: 0.5; cursor: not-allowed; }
-    .btn-reanalyze .spin-sm {
-      display: inline-block; width: 12px; height: 12px;
-      border: 2px solid currentColor; border-top-color: transparent;
-      border-radius: 50%; animation: spin 0.8s linear infinite;
-    }
-
-    /* ── Rate-limit notice ── */
-    .rate-notice {
-      font-size: 12px; color: #999; font-style: italic;
-    }
-
-    /* ── Re-analyze status message ── */
-    .reanalyze-status {
-      font-size: 12px; margin-top: 8px; display: none;
-    }
+    .field-wrap.dirty .field-input,
+    .field-wrap.dirty .field-textarea { border-color: #c8a0a0; background: #fffafa; }
 
     /* ── Places autocomplete ── */
     .places-wrap { position: relative; }
-    .places-dropdown {
-      display: none; position: absolute; top: calc(100% + 4px); left: 0; right: 0;
-      background: #fff; border: 1.5px solid #d4cfc9; border-radius: 8px;
-      box-shadow: 0 6px 20px rgba(0,0,0,0.10); z-index: 100; overflow: hidden;
-    }
+    .places-dropdown { display: none; position: absolute; top: calc(100% + 4px); left: 0; right: 0; background: #fff; border: 1.5px solid #d4cfc9; border-radius: 8px; box-shadow: 0 6px 20px rgba(0,0,0,.10); z-index: 100; overflow: hidden; }
     .places-dropdown.open { display: block; }
-    .places-option {
-      padding: 10px 14px; cursor: pointer; font-size: 13px;
-      border-bottom: 1px solid #f0ede8;
-    }
+    .places-option { padding: 10px 14px; cursor: pointer; font-size: 13px; border-bottom: 1px solid #f0ede8; }
     .places-option:last-child { border-bottom: none; }
     .places-option:hover, .places-option.active { background: #fff7f7; color: #8f0101; }
     .places-option .places-main { font-weight: 600; }
     .places-option .places-sub  { font-size: 11px; color: #999; margin-top: 1px; }
 
+    /* ── Re-analyse button row ── */
+    .reanalyze-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-bottom: 6px; }
+    .btn-reanalyze { display: inline-flex; align-items: center; gap: 6px; background: none; border: 1.5px solid #c8c2ba; border-radius: 7px; padding: 7px 14px; font-size: 12px; font-family: inherit; font-weight: 500; color: #555; cursor: pointer; transition: border-color 0.2s, color 0.2s; }
+    .btn-reanalyze:hover { border-color: #8f0101; color: #8f0101; }
+    .btn-reanalyze:disabled { opacity: 0.5; cursor: not-allowed; }
+    .spin-sm { display: inline-block; width: 12px; height: 12px; border: 2px solid currentColor; border-top-color: transparent; border-radius: 50%; animation: spin 0.8s linear infinite; }
+    .reanalyze-hint { font-size: 12px; color: #aaa; font-style: italic; margin-bottom: 4px; }
+    .reanalyze-status { font-size: 12px; margin-top: 6px; display: none; }
+
     /* ── Error banner ── */
-    .error-banner {
-      background: #fde8e8; border: 1px solid #f5c6c6; border-radius: 8px;
-      padding: 12px 16px; margin-bottom: 18px;
-      font-size: 13px; color: #c0392b;
-      display: none;
-    }
+    .error-banner { background: #fde8e8; border: 1px solid #f5c6c6; border-radius: 8px; padding: 12px 16px; margin-bottom: 18px; font-size: 13px; color: #c0392b; display: none; }
     .error-banner.show { display: block; }
 
-    /* ── Success state ── */
-    .success-wrap {
-      text-align: center;
-      padding: 48px 24px;
-    }
+    /* ── Success ── */
+    .success-wrap { text-align: center; padding: 48px 24px; }
     .success-icon { font-size: 52px; margin-bottom: 18px; }
-    .success-title {
-      font-family: 'Playfair Display', serif;
-      font-size: 24px; font-weight: 600; color: #111;
-      margin-bottom: 10px;
-    }
+    .success-title { font-family: 'Playfair Display', serif; font-size: 24px; font-weight: 600; color: #111; margin-bottom: 10px; }
     .success-sub { font-size: 14px; color: #666; line-height: 1.6; margin-bottom: 28px; }
 
-    /* ── Honeypot: visually hidden from humans, but reachable by bots ── */
-    .hp-field {
-      position: absolute;
-      left: -9999px;
-      top: -9999px;
-      width: 1px; height: 1px;
-      opacity: 0;
-      pointer-events: none;
-      tab-index: -1;
-    }
+    /* ── Honeypot ── */
+    .hp-field { position: absolute; left: -9999px; top: -9999px; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
 
     /* ── Submit button ── */
-    .btn-submit {
-      display: block; width: 100%;
-      padding: 15px 24px;
-      background: #8f0101;
-      color: #fff;
-      border: none; border-radius: 9px;
-      font-size: 15px; font-weight: 600; font-family: inherit;
-      cursor: pointer; letter-spacing: 0.3px;
-      transition: background 0.2s, transform 0.1s;
-      margin-top: 8px;
-    }
+    .btn-submit { display: block; width: 100%; padding: 15px 24px; background: #8f0101; color: #fff; border: none; border-radius: 9px; font-size: 15px; font-weight: 600; font-family: inherit; cursor: pointer; letter-spacing: 0.3px; transition: background 0.2s, transform 0.1s; margin-top: 8px; }
     .btn-submit:hover { background: #7a0101; }
     .btn-submit:active { transform: scale(0.99); }
     .btn-submit:disabled { background: #ccc; cursor: not-allowed; }
-
-    /* ── Upload-again button ── */
-    .btn-ghost {
-      display: inline-flex; align-items: center; gap: 6px;
-      background: none;
-      border: 1.5px solid #c8c2ba;
-      border-radius: 8px;
-      padding: 10px 20px;
-      font-size: 13px; font-family: inherit; font-weight: 500;
-      color: #555; cursor: pointer;
-      transition: border-color 0.2s, color 0.2s;
-      margin-right: 10px;
-    }
+    .btn-ghost { display: inline-flex; align-items: center; gap: 6px; background: none; border: 1.5px solid #c8c2ba; border-radius: 8px; padding: 10px 20px; font-size: 13px; font-family: inherit; font-weight: 500; color: #555; cursor: pointer; transition: border-color 0.2s, color 0.2s; }
     .btn-ghost:hover { border-color: #8f0101; color: #8f0101; }
-
-    .bottom-actions {
-      display: flex; align-items: center; justify-content: space-between;
-      flex-wrap: wrap; gap: 12px;
-      margin-top: 10px;
-    }
-    .bottom-left { display: flex; align-items: center; gap: 10px; }
-
-    /* ── Divider ── */
-    .divider {
-      border: none; border-top: 1px solid #e8e3de;
-      margin: 24px 0;
-    }
-
-    /* ── Section label (inside card) ── */
-    .section-label {
-      font-size: 11px; letter-spacing: 1px; text-transform: uppercase;
-      font-weight: 600; color: #aaa; margin-bottom: 14px;
-    }
+    .bottom-actions { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-top: 10px; }
+    .submit-ready-hint { text-align: right; font-size: 11px; color: #bbb; margin-top: 6px; display: none; }
   </style>
 </head>
 <body>
 
-<!-- ── Header ─────────────────────────────────────────────────────────────── -->
 <header>
   <a class="header-logo" href="index.html">
     <span class="logo-dot"></span>
@@ -363,14 +143,9 @@
   </nav>
 </header>
 
-<!-- ── Page content ───────────────────────────────────────────────────────── -->
 <div class="page-wrap">
   <h1 class="page-title">Submit a Photo</h1>
-  <p class="page-subtitle">
-    Spotted an interesting painting on your travels? Upload a photo and our AI will
-    identify the artwork for you. You can review and edit the details before sending
-    it to the curator team for consideration.
-  </p>
+  <p class="page-subtitle">Spotted an interesting painting on your travels? Upload a photo and our AI will identify the artwork. Review and edit the details, then send it to the curator team for consideration.</p>
 
   <!-- State: upload -->
   <div id="stateUpload" class="state active">
@@ -382,11 +157,9 @@
     </div>
   </div>
 
-  <!-- State: analyzing -->
+  <!-- State: analyzing (fresh analysis) -->
   <div id="stateAnalyzing" class="state">
-    <div id="analyzePreviewWrap" class="preview-img-wrap" style="margin-bottom:28px">
-      <img id="analyzePreviewImg" src="" alt="" />
-    </div>
+    <div class="preview-img-wrap" style="margin-bottom:28px"><img id="analyzePreviewImg" src="" alt="" /></div>
     <div class="analyzing-wrap" style="padding-top:0">
       <div class="spinner"></div>
       <div class="analyzing-label">Analysing with Claude AI…</div>
@@ -394,13 +167,10 @@
     </div>
   </div>
 
-  <!-- State: review (edit + submitter info) -->
+  <!-- State: review -->
   <div id="stateReview" class="state">
-
-    <!-- Error banner -->
     <div id="errorBanner" class="error-banner"></div>
 
-    <!-- Preview image -->
     <div class="preview-img-wrap">
       <img id="reviewPreviewImg" src="" alt="" />
     </div>
@@ -409,62 +179,56 @@
     <div class="card">
       <div class="reanalyze-row">
         <div class="card-title" style="margin-bottom:0">AI Analysis</div>
-        <button id="reanalyzeBtn" class="btn-reanalyze" onclick="reanalyze()">
-          ↻ Re-analyse
-        </button>
+        <button id="reanalyzeBtn" class="btn-reanalyze" onclick="reanalyze()">↻ Re-analyse</button>
       </div>
-      <p class="rate-notice" style="margin-bottom:4px">
-        Edit any fields below, then click Re-analyse to update the description for consistency.
-      </p>
+      <p class="reanalyze-hint">Edit any fields below to lock them in — Re-analyse will update everything else.</p>
       <p id="reanalyzeStatus" class="reanalyze-status"></p>
 
       <div class="confidence-row">
-        <div class="confidence-bar-wrap">
-          <div id="confBar" class="confidence-bar" style="width:0%"></div>
-        </div>
+        <div class="confidence-bar-wrap"><div id="confBar" class="confidence-bar" style="width:0%"></div></div>
         <div id="confNum" class="confidence-num">–</div>
       </div>
 
       <div class="field-grid">
-        <div class="field-full">
+        <div class="field-full field-wrap" id="wrap-fPaintingName">
           <label class="field-label">Painting Name</label>
-          <input class="field-input" id="fPaintingName" type="text" placeholder="e.g. The Night Watch" />
+          <input class="field-input" id="fPaintingName" type="text" placeholder="e.g. The Night Watch" oninput="markDirty('fPaintingName')" />
         </div>
-        <div>
+        <div class="field-wrap" id="wrap-fArtist">
           <label class="field-label">Artist</label>
-          <input class="field-input" id="fArtist" type="text" placeholder="e.g. Rembrandt van Rijn" />
+          <input class="field-input" id="fArtist" type="text" placeholder="e.g. Rembrandt van Rijn" oninput="markDirty('fArtist')" />
         </div>
-        <div>
+        <div class="field-wrap" id="wrap-fStyle">
           <label class="field-label">Style / Movement</label>
-          <input class="field-input" id="fStyle" type="text" placeholder="e.g. Dutch Golden Age" />
+          <input class="field-input" id="fStyle" type="text" placeholder="e.g. Dutch Golden Age" oninput="markDirty('fStyle')" />
         </div>
-        <div>
+        <div class="field-wrap" id="wrap-fMedium">
           <label class="field-label">Medium</label>
-          <input class="field-input" id="fMedium" type="text" placeholder="e.g. Oil on Canvas" />
+          <input class="field-input" id="fMedium" type="text" placeholder="e.g. Oil on Canvas" oninput="markDirty('fMedium')" />
         </div>
-        <div>
+        <div class="field-wrap" id="wrap-fPeriod">
           <label class="field-label">Period</label>
-          <input class="field-input" id="fPeriod" type="text" placeholder="e.g. 17th century" />
+          <input class="field-input" id="fPeriod" type="text" placeholder="e.g. 17th century" oninput="markDirty('fPeriod')" />
         </div>
-        <div>
+        <div class="field-wrap" id="wrap-fLocation">
           <label class="field-label">Location</label>
           <div class="places-wrap">
             <input class="field-input" id="fLocation" type="text"
               placeholder="e.g. Rijksmuseum, Amsterdam"
-              oninput="onPlacesInput()"
+              oninput="markDirty('fLocation'); onPlacesInput()"
               onkeydown="onPlacesKeydown(event)"
               autocomplete="off" />
             <div class="places-dropdown" id="placesDropdown"></div>
           </div>
         </div>
-        <div>
+        <div class="field-wrap" id="wrap-fCountry">
           <label class="field-label">Country</label>
-          <input class="field-input" id="fCountry" type="text" placeholder="e.g. Netherlands" />
+          <input class="field-input" id="fCountry" type="text" placeholder="e.g. Netherlands" oninput="markDirty('fCountry')" />
         </div>
-        <div class="field-full">
+        <div class="field-full field-wrap" id="wrap-fDescription">
           <label class="field-label">Description</label>
           <textarea class="field-textarea" id="fDescription" rows="4"
-            placeholder="AI-generated description of the artwork…"></textarea>
+            placeholder="AI-generated description of the artwork…" oninput="markDirty('fDescription')"></textarea>
         </div>
       </div>
     </div>
@@ -483,11 +247,10 @@
         </div>
         <div class="field-full">
           <label class="field-label">Note to Curator <span style="font-weight:400;color:#bbb">(optional)</span></label>
-          <textarea class="field-textarea" id="fNote" rows="3"
-            placeholder="Anything you'd like to tell the curator about this photo…"></textarea>
+          <textarea class="field-textarea" id="fNote" rows="3" placeholder="Anything you'd like to tell the curator about this photo…"></textarea>
         </div>
       </div>
-      <!-- Honeypot: hidden from real users; bots that fill all fields get silently rejected -->
+      <!-- Honeypot -->
       <div class="hp-field" aria-hidden="true">
         <label for="fWebsite">Website</label>
         <input type="text" id="fWebsite" name="website" autocomplete="off" tabindex="-1" />
@@ -496,16 +259,12 @@
 
     <!-- Actions -->
     <div class="bottom-actions">
-      <div class="bottom-left">
-        <button class="btn-ghost" onclick="startOver()">← Start Over</button>
-      </div>
+      <button class="btn-ghost" onclick="startOver()">← Start Over</button>
       <button class="btn-submit" id="submitBtn" onclick="submitPhoto()" disabled>
         <span id="submitBtnLabel">Submit for Final Review</span>
       </button>
     </div>
-    <p id="submitReadyHint" style="text-align:right; font-size:11px; color:#bbb; margin-top:6px; display:none;">
-      Please review the details above before submitting.
-    </p>
+    <p id="submitReadyHint" class="submit-ready-hint">Review the details above before submitting.</p>
   </div>
 
   <!-- State: submitting -->
@@ -522,46 +281,84 @@
     <div class="success-wrap">
       <div class="success-icon">🎨</div>
       <div class="success-title">Thank you for your submission!</div>
-      <p class="success-sub">
-        Your photo has been sent to the curator team for review.<br />
-        If approved, it will appear in the public gallery.
-      </p>
-      <button class="btn-ghost" style="margin:0 auto" onclick="startOver()">
-        Submit Another Photo
-      </button>
+      <p class="success-sub">Your photo has been sent to the curator team for review.<br>If approved, it will appear in the public gallery.</p>
+      <button class="btn-ghost" style="margin:0 auto" onclick="startOver()">Submit Another Photo</button>
     </div>
   </div>
-
-</div><!-- /page-wrap -->
+</div>
 
 <script>
-  // ── Config ─────────────────────────────────────────────────────────────────
-  // Server URL: reads from localStorage (set by index.html) or falls back to
-  // the same Railway URL used by index.html.
-  // Update the fallback below if you redeploy to a new server URL.
+  // ── Server URL ──────────────────────────────────────────────────────────────
   const FALLBACK_SERVER_URL = 'https://art-pokedex-production.up.railway.app';
   const SERVER_URL = (() => {
-    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-      return 'http://localhost:3000';
-    }
-    try {
-      const saved = localStorage.getItem('artpokemon_server_url');
-      if (saved && saved.startsWith('http')) return saved;
-    } catch (_) {}
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') return 'http://localhost:3000';
+    try { const s = localStorage.getItem('artpokemon_server_url'); if (s && s.startsWith('http')) return s; } catch (_) {}
     return FALLBACK_SERVER_URL;
   })();
 
-  // ── Module state ───────────────────────────────────────────────────────────
-  let currentFile   = null;   // File object
-  let currentBase64 = null;   // raw base64 (no data: prefix)
-  let currentMediaType = 'image/jpeg';
-  let currentId     = null;   // unique id for this submission
-  const PAGE_LOAD_TIME = Date.now();  // used for timing gate
+  // ── AI-editable field IDs ───────────────────────────────────────────────────
+  // These are the fields the AI populates. We track which ones the user has
+  // manually changed so re-analyse only locks those as "confirmed facts" and
+  // freely updates everything else.
+  const AI_FIELDS = ['fPaintingName', 'fArtist', 'fStyle', 'fMedium', 'fPeriod', 'fLocation', 'fCountry', 'fDescription'];
 
-  // ── Timing gate: unlock submit button 5 s after the review form is shown ──
-  // This prevents bots that instantly POST after parsing the form.
+  // ── Module state ────────────────────────────────────────────────────────────
+  let currentFile      = null;
+  let currentBase64    = null;
+  let currentMediaType = 'image/jpeg';
+  let currentId        = null;
+  const PAGE_LOAD_TIME = Date.now();
+
+  // aiBaseline: values set by the last AI run — used to detect manual edits.
+  // dirtyFields: Set of field IDs the user has manually changed since last AI run.
+  let aiBaseline  = {};
+  let dirtyFields = new Set();
+
   let submitUnlockTimer = null;
 
+  // ── Dirty-field tracking ────────────────────────────────────────────────────
+  // Called on every `oninput` event on an AI-managed field.
+  function markDirty(fieldId) {
+    const el  = document.getElementById(fieldId);
+    const val = el ? (el.tagName === 'TEXTAREA' ? el.value : el.value) : '';
+    const wrap = document.getElementById('wrap-' + fieldId);
+    // A field is "dirty" (user-edited) when its current value differs from
+    // what the AI last set it to.
+    if (val !== (aiBaseline[fieldId] ?? '')) {
+      dirtyFields.add(fieldId);
+      if (wrap) wrap.classList.add('dirty');
+    } else {
+      dirtyFields.delete(fieldId);
+      if (wrap) wrap.classList.remove('dirty');
+    }
+  }
+
+  // Record the AI's values as the new baseline and clear dirty state.
+  function setAiBaseline(values) {
+    aiBaseline  = { ...values };
+    dirtyFields = new Set();
+    AI_FIELDS.forEach(id => {
+      const wrap = document.getElementById('wrap-' + id);
+      if (wrap) wrap.classList.remove('dirty');
+    });
+  }
+
+  // ── UI helpers ──────────────────────────────────────────────────────────────
+  function showState(name) {
+    document.querySelectorAll('.state').forEach(el => el.classList.remove('active'));
+    document.getElementById('state' + name).classList.add('active');
+  }
+  function showError(msg) {
+    const b = document.getElementById('errorBanner');
+    b.textContent = msg; b.classList.add('show');
+    b.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+  function clearError() {
+    const b = document.getElementById('errorBanner');
+    b.textContent = ''; b.classList.remove('show');
+  }
+
+  // ── Submit timing gate ──────────────────────────────────────────────────────
   function armSubmitTimer() {
     const btn   = document.getElementById('submitBtn');
     const label = document.getElementById('submitBtnLabel');
@@ -569,11 +366,9 @@
     if (!btn) return;
     btn.disabled = true;
     clearTimeout(submitUnlockTimer);
-
     let remaining = 5;
     label.textContent = `Please wait… (${remaining}s)`;
     hint.style.display = 'none';
-
     const tick = () => {
       remaining--;
       if (remaining > 0) {
@@ -588,80 +383,48 @@
     submitUnlockTimer = setTimeout(tick, 1000);
   }
 
-  // ── UI helpers ─────────────────────────────────────────────────────────────
-  function showState(name) {
-    document.querySelectorAll('.state').forEach(el => el.classList.remove('active'));
-    document.getElementById('state' + name).classList.add('active');
-  }
-
-  function showError(msg) {
-    const banner = document.getElementById('errorBanner');
-    banner.textContent = msg;
-    banner.classList.add('show');
-    banner.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  }
-
-  function clearError() {
-    const banner = document.getElementById('errorBanner');
-    banner.textContent = '';
-    banner.classList.remove('show');
-  }
-
-  // ── File handling ──────────────────────────────────────────────────────────
+  // ── File handling ────────────────────────────────────────────────────────────
   const uploadZone = document.getElementById('uploadZone');
   const fileInput  = document.getElementById('fileInput');
-
-  uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag-over'); });
+  uploadZone.addEventListener('dragover',  e => { e.preventDefault(); uploadZone.classList.add('drag-over'); });
   uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
   uploadZone.addEventListener('drop', e => {
     e.preventDefault(); uploadZone.classList.remove('drag-over');
-    const file = e.dataTransfer.files[0];
-    if (file && file.type.startsWith('image/')) handleFile(file);
+    const f = e.dataTransfer.files[0];
+    if (f && f.type.startsWith('image/')) handleFile(f);
   });
-  fileInput.addEventListener('change', () => {
-    if (fileInput.files[0]) handleFile(fileInput.files[0]);
-  });
+  fileInput.addEventListener('change', () => { if (fileInput.files[0]) handleFile(fileInput.files[0]); });
 
   async function handleFile(file) {
-    if (file.size > 20 * 1024 * 1024) {
-      alert('File is too large. Please use an image under 20 MB.');
-      return;
-    }
+    if (file.size > 20 * 1024 * 1024) { alert('File is too large. Please use an image under 20 MB.'); return; }
     currentFile = file;
     currentId   = crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(36).slice(2);
     currentMediaType = file.type || 'image/jpeg';
-
-    // Show preview while analysing
-    const objectUrl = URL.createObjectURL(file);
-    document.getElementById('analyzePreviewImg').src = objectUrl;
+    document.getElementById('analyzePreviewImg').src = URL.createObjectURL(file);
     showState('Analyzing');
-
-    await runAnalysis(file);
+    await runAnalysis(file, /* isFirstRun */ true);
   }
 
-  // ── Core analysis ──────────────────────────────────────────────────────────
-  async function runAnalysis(file) {
+  // ── Core analysis (fresh run — fills all fields from scratch) ────────────────
+  async function runAnalysis(file, isFirstRun = false) {
     clearError();
     const reBtn = document.getElementById('reanalyzeBtn');
     if (reBtn) reBtn.disabled = true;
 
     try {
       // Extract GPS
-      let gpsCoords    = null;
-      let gpsLocation  = null;
+      let gpsCoords = null, gpsLocation = null;
       try {
         const gps = await exifr.gps(file);
         if (gps && typeof gps.latitude === 'number') {
-          gpsCoords = [gps.latitude, gps.longitude];
+          gpsCoords   = [gps.latitude, gps.longitude];
           gpsLocation = await reverseGeocode(gpsCoords[0], gpsCoords[1]);
         }
       } catch (_) {}
 
-      // Encode image
       const base64 = await fileToBase64(file);
       currentBase64 = base64;
 
-      // Build prompts (identical to admin version)
       const systemPrompt = `Act as a museum curator interested in identifying paintings. For each painting fed into the API, try to identify the artist that most closely matches the style of the painting, the name of the painting, and the location where the painting was taken.
 
 Before drawing any conclusions, reason carefully about the visual evidence: examine the brushwork, color palette, composition, subject matter, architectural surroundings, frame style, gallery wall treatment, any visible signage or labels, and stylistic hallmarks of specific artists or movements. Prioritize evidence you can actually see over general assumptions.
@@ -688,30 +451,19 @@ Return a JSON object with EXACTLY these fields (no markdown, raw JSON only):
   "artistHint": "Additional context about the artist — nationality, active period, signature techniques"
 }`;
 
-      // Call /api/analyze — public, rate-limited (no auth header)
       const response = await fetch(`${SERVER_URL}/api/analyze`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: 'claude-opus-4-6',
-          max_tokens: 800,
-          temperature: 0,
+          model: 'claude-opus-4-6', max_tokens: 800, temperature: 0,
           system: systemPrompt,
-          messages: [{
-            role: 'user',
-            content: [
-              { type: 'image', source: { type: 'base64', media_type: currentMediaType, data: base64 } },
-              { type: 'text', text: userPrompt }
-            ]
-          }]
+          messages: [{ role: 'user', content: [
+            { type: 'image', source: { type: 'base64', media_type: currentMediaType, data: base64 } },
+            { type: 'text',  text: userPrompt }
+          ]}]
         })
       });
-
-      if (!response.ok) {
-        const err = await response.json().catch(() => ({}));
-        const msg = err?.error?.message || `Server error (${response.status})`;
-        throw new Error(msg);
-      }
+      if (!response.ok) { const e = await response.json().catch(() => ({})); throw new Error(e?.error?.message || `HTTP ${response.status}`); }
 
       const data = await response.json();
       const text = data.content?.[0]?.text || '';
@@ -719,46 +471,44 @@ Return a JSON object with EXACTLY these fields (no markdown, raw JSON only):
       if (!jsonMatch) throw new Error('Could not parse AI response. Please try again.');
       const parsed = JSON.parse(jsonMatch[0]);
 
-      // Populate review form
-      document.getElementById('fPaintingName').value = parsed.paintingName || '';
-      document.getElementById('fArtist').value       = parsed.artist       || '';
-      document.getElementById('fStyle').value        = parsed.style        || '';
-      document.getElementById('fMedium').value       = parsed.medium       || '';
-      document.getElementById('fPeriod').value       = parsed.period       || '';
-      document.getElementById('fLocation').value     = parsed.location     || '';
-      document.getElementById('fCountry').value      = parsed.country      || '';
-      document.getElementById('fDescription').value  = parsed.description  || '';
+      // Populate all fields and record the new AI baseline
+      const newValues = {
+        fPaintingName: parsed.paintingName || '',
+        fArtist:       parsed.artist       || '',
+        fStyle:        parsed.style        || '',
+        fMedium:       parsed.medium       || '',
+        fPeriod:       parsed.period       || '',
+        fLocation:     parsed.location     || '',
+        fCountry:      parsed.country      || '',
+        fDescription:  parsed.description  || '',
+      };
+      AI_FIELDS.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = newValues[id];
+      });
+      setAiBaseline(newValues);   // resets dirtyFields and removes .dirty classes
 
       const conf = typeof parsed.confidence === 'number' ? parsed.confidence : 75;
       document.getElementById('confBar').style.width = conf + '%';
       document.getElementById('confNum').textContent = conf + '%';
 
-      // Show preview in review state too
-      const objectUrl = URL.createObjectURL(file);
-      document.getElementById('reviewPreviewImg').src = objectUrl;
-
+      document.getElementById('reviewPreviewImg').src = URL.createObjectURL(file);
+      const statusEl = document.getElementById('reanalyzeStatus');
+      statusEl.style.display = 'none';
       showState('Review');
       armSubmitTimer();
 
     } catch (err) {
-      // Return to review state if we were re-analysing, or back to upload
-      if (document.getElementById('stateReview').classList.contains('active') ||
-          currentBase64 !== null) {
-        showState('Review');
-        showError('Analysis failed: ' + err.message);
-      } else {
-        showState('Upload');
-        alert('Analysis failed: ' + err.message + '\n\nPlease try again.');
-      }
+      if (currentBase64 !== null) { showState('Review'); showError('Analysis failed: ' + err.message); }
+      else { showState('Upload'); alert('Analysis failed: ' + err.message + '\n\nPlease try again.'); }
     } finally {
       if (reBtn) reBtn.disabled = false;
     }
   }
 
-  // ── Re-analyse button — context-aware ─────────────────────────────────────
-  // Reads the current field values as confirmed facts and asks Claude to
-  // regenerate the description, confidence, artistHint, and fill any blank
-  // fields — without overwriting fields the user has already edited.
+  // ── Context-aware Re-analyse ─────────────────────────────────────────────────
+  // Only the fields the user manually changed are treated as "confirmed facts".
+  // Everything else is updated by Claude based on those locked values + the image.
   async function reanalyze() {
     if (!currentBase64) return;
     clearError();
@@ -767,50 +517,66 @@ Return a JSON object with EXACTLY these fields (no markdown, raw JSON only):
     const status = document.getElementById('reanalyzeStatus');
     btn.disabled  = true;
     btn.innerHTML = '<span class="spin-sm"></span> Analysing…';
-    status.style.display  = 'block';
-    status.style.color    = '#999';
-    status.textContent    = 'Sending to Claude — this takes a few seconds…';
+    status.style.display = 'block';
+    status.style.color   = '#999';
+    status.textContent   = 'Sending to Claude — this takes a few seconds…';
 
-    // Read current form values
-    const paintingName = document.getElementById('fPaintingName').value.trim();
-    const artist       = document.getElementById('fArtist').value.trim();
-    const location     = document.getElementById('fLocation').value.trim();
-    const country      = document.getElementById('fCountry').value.trim();
-    const style        = document.getElementById('fStyle').value.trim();
-    const medium       = document.getElementById('fMedium').value.trim();
-    const period       = document.getElementById('fPeriod').value.trim();
+    // Build confirmed-facts from ONLY the dirty (manually edited) fields
+    const fieldLabels = {
+      fPaintingName: 'Painting Name',
+      fArtist:       'Artist',
+      fStyle:        'Art Style',
+      fMedium:       'Medium',
+      fPeriod:       'Period',
+      fLocation:     'Location',
+      fCountry:      'Country',
+      fDescription:  'Description',
+    };
 
-    // Build confirmed-facts section — only include non-empty fields
-    const knownFacts = [
-      paintingName && `Painting Name: ${paintingName}`,
-      artist       && `Artist: ${artist}`,
-      location     && `Location: ${location}`,
-      country      && `Country: ${country}`,
-      style        && `Art Style: ${style}`,
-      medium       && `Medium: ${medium}`,
-      period       && `Period: ${period}`,
-    ].filter(Boolean).join('\n');
+    const confirmedFacts = [];
+    const confirmedKeys  = new Set();
+    dirtyFields.forEach(id => {
+      const el = document.getElementById(id);
+      const val = el ? el.value.trim() : '';
+      if (val) {
+        confirmedFacts.push(`${fieldLabels[id]}: ${val}`);
+        confirmedKeys.add(id);
+      }
+    });
 
-    const userPrompt = `You are an expert museum curator. The following details about this artwork have been confirmed by the person who photographed it:
+    // Which fields should Claude fill in / revise?
+    const fieldsToUpdate = AI_FIELDS.filter(id => !confirmedKeys.has(id));
+    const updateList = fieldsToUpdate.map(id => `- ${fieldLabels[id]}`).join('\n');
 
-${knownFacts || '(no fields confirmed yet — use what you can observe)'}
+    const factsBlock = confirmedFacts.length > 0
+      ? confirmedFacts.join('\n')
+      : '(no fields have been manually edited — please revise all fields based on the image)';
 
-Using these confirmed facts together with what you can observe in the image, please provide:
-1. A rich, expert 3–4 sentence description covering: key visual observations, why the style/artist attribution fits, and any notable art-historical significance.
-2. A revised confidence score (0–100) for the artist/painting identification.
-3. Expanded artist context: nationality, active period, signature techniques, and where this work fits in their oeuvre.
-4. Fill in any of the following fields that are currently blank, based on the image and confirmed facts. Do NOT change fields that are already confirmed above.
+    const userPrompt = `You are an expert museum curator re-analysing a painting photo.
 
-Return ONLY a valid JSON object with exactly these keys (raw JSON, no markdown fences):
+The following details have been CONFIRMED by the person who photographed the painting and must NOT be changed:
+${factsBlock}
+
+Based on those confirmed facts and what you can observe in the image, please update ONLY the following fields:
+${updateList || '(none — all fields are confirmed)'}
+
+Provide:
+1. A rich, expert 3–4 sentence description consistent with the confirmed facts.
+2. A confidence score (0–100) for the artist/painting identification given the confirmed details.
+3. Expanded artist context: nationality, active period, signature techniques.
+
+Return ONLY a valid JSON object with ALL of these keys (raw JSON, no markdown fences). For confirmed fields, echo back the confirmed value unchanged:
 {
+  "paintingName": "...",
+  "artist": "...",
+  "style": "...",
+  "medium": "...",
+  "period": "...",
+  "location": "...",
+  "country": "...",
   "description": "...",
-  "confidence": <integer 0–100>,
   "artistHint": "...",
-  "paintingName": "${paintingName || ''}",
-  "artist": "${artist || ''}",
-  "style": "${style || ''}",
-  "medium": "${medium || ''}",
-  "period": "${period || ''}"
+  "confidence": <integer 0–100>
 }`;
 
     try {
@@ -818,23 +584,14 @@ Return ONLY a valid JSON object with exactly these keys (raw JSON, no markdown f
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: 'claude-opus-4-6',
-          max_tokens: 900,
-          temperature: 0,
-          messages: [{
-            role: 'user',
-            content: [
-              { type: 'image', source: { type: 'base64', media_type: currentMediaType, data: currentBase64 } },
-              { type: 'text',  text: userPrompt }
-            ]
-          }]
+          model: 'claude-opus-4-6', max_tokens: 900, temperature: 0,
+          messages: [{ role: 'user', content: [
+            { type: 'image', source: { type: 'base64', media_type: currentMediaType, data: currentBase64 } },
+            { type: 'text',  text: userPrompt }
+          ]}]
         })
       });
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err?.error?.message || `Server error (${res.status})`);
-      }
+      if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e?.error?.message || `HTTP ${res.status}`); }
 
       const data = await res.json();
       const text = data.content?.[0]?.text || '';
@@ -842,15 +599,26 @@ Return ONLY a valid JSON object with exactly these keys (raw JSON, no markdown f
       if (!jsonMatch) throw new Error('Could not parse AI response. Please try again.');
       const parsed = JSON.parse(jsonMatch[0]);
 
-      // Always update the regeneratable fields
-      if (parsed.description) document.getElementById('fDescription').value = parsed.description;
+      // Update only the non-confirmed (non-dirty) fields, and record new baseline
+      // for those fields so the dirty-tracking stays accurate.
+      const fieldMap = {
+        fPaintingName: parsed.paintingName || '',
+        fArtist:       parsed.artist       || '',
+        fStyle:        parsed.style        || '',
+        fMedium:       parsed.medium       || '',
+        fPeriod:       parsed.period       || '',
+        fLocation:     parsed.location     || '',
+        fCountry:      parsed.country      || '',
+        fDescription:  parsed.description  || '',
+      };
 
-      // Only fill in fields that were blank (respect user's manual edits)
-      if (!paintingName && parsed.paintingName) document.getElementById('fPaintingName').value = parsed.paintingName;
-      if (!artist       && parsed.artist)       document.getElementById('fArtist').value       = parsed.artist;
-      if (!style        && parsed.style)        document.getElementById('fStyle').value        = parsed.style;
-      if (!medium       && parsed.medium)       document.getElementById('fMedium').value       = parsed.medium;
-      if (!period       && parsed.period)       document.getElementById('fPeriod').value       = parsed.period;
+      fieldsToUpdate.forEach(id => {
+        const el = document.getElementById(id);
+        if (el && fieldMap[id]) {
+          el.value = fieldMap[id];
+          aiBaseline[id] = fieldMap[id];   // update baseline for this field
+        }
+      });
 
       // Update confidence bar
       if (typeof parsed.confidence === 'number') {
@@ -859,8 +627,11 @@ Return ONLY a valid JSON object with exactly these keys (raw JSON, no markdown f
         document.getElementById('confNum').textContent = conf + '%';
       }
 
-      status.style.color  = '#3a7d44';
-      status.textContent  = '✓ Description updated — review and submit when ready.';
+      const lockedCount = confirmedFacts.length;
+      status.style.color = '#3a7d44';
+      status.textContent = lockedCount > 0
+        ? `✓ Updated ${fieldsToUpdate.length} field${fieldsToUpdate.length !== 1 ? 's' : ''} — ${lockedCount} field${lockedCount !== 1 ? 's' : ''} kept as you edited them.`
+        : '✓ All fields updated based on the image.';
 
     } catch (err) {
       status.style.color = '#c0392b';
@@ -869,38 +640,22 @@ Return ONLY a valid JSON object with exactly these keys (raw JSON, no markdown f
 
     btn.disabled  = false;
     btn.innerHTML = '↻ Re-analyse';
-    // Re-arm the submit timer after re-analyse (counts as a new review moment)
     armSubmitTimer();
   }
 
-  // ── Submit ─────────────────────────────────────────────────────────────────
+  // ── Submit ────────────────────────────────────────────────────────────────────
   async function submitPhoto() {
     clearError();
-
     const name  = document.getElementById('fName').value.trim();
     const email = document.getElementById('fEmail').value.trim();
-    if (!name || !email) {
-      showError('Please fill in your name and email before submitting.');
-      document.getElementById('fName').focus();
-      return;
-    }
-    if (!email.includes('@')) {
-      showError('Please enter a valid email address.');
-      document.getElementById('fEmail').focus();
-      return;
-    }
-    if (!currentBase64) {
-      showError('No image data found. Please start over.');
-      return;
-    }
+    if (!name || !email) { showError('Please fill in your name and email before submitting.'); document.getElementById('fName').focus(); return; }
+    if (!email.includes('@')) { showError('Please enter a valid email address.'); document.getElementById('fEmail').focus(); return; }
+    if (!currentBase64) { showError('No image data found. Please start over.'); return; }
 
     showState('Submitting');
-
     try {
       const payload = {
-        id:           currentId,
-        name:         currentFile ? currentFile.name : 'photo.jpg',
-        thumbnail:    currentBase64,
+        id: currentId, name: currentFile ? currentFile.name : 'photo.jpg', thumbnail: currentBase64,
         paintingName: document.getElementById('fPaintingName').value.trim(),
         artist:       document.getElementById('fArtist').value.trim(),
         location:     document.getElementById('fLocation').value.trim(),
@@ -910,82 +665,38 @@ Return ONLY a valid JSON object with exactly these keys (raw JSON, no markdown f
         period:       document.getElementById('fPeriod').value.trim(),
         confidence:   parseInt(document.getElementById('confNum').textContent) || null,
         description:  document.getElementById('fDescription').value.trim(),
-        artistHint:   '',
-        submitterName:  name,
-        submitterEmail: email,
-        note:           document.getElementById('fNote').value.trim(),
-        // Spam-protection fields (checked server-side)
-        _hp:          document.getElementById('fWebsite').value,       // honeypot
-        _t:           Date.now() - PAGE_LOAD_TIME                      // ms since page load
+        artistHint:   '', submitterName: name, submitterEmail: email,
+        note:         document.getElementById('fNote').value.trim(),
+        _hp:          document.getElementById('fWebsite').value,
+        _t:           Date.now() - PAGE_LOAD_TIME,
       };
-
       const res = await fetch(`${SERVER_URL}/api/submit`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
       });
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err?.error || `Server error (${res.status})`);
-      }
-
+      if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e?.error || `Server error (${res.status})`); }
       showState('Success');
-
     } catch (err) {
-      showState('Review');
-      showError('Submission failed: ' + err.message);
+      showState('Review'); showError('Submission failed: ' + err.message);
     }
   }
 
-  // ── Start over ─────────────────────────────────────────────────────────────
+  // ── Start over ────────────────────────────────────────────────────────────────
   function startOver() {
-    currentFile      = null;
-    currentBase64    = null;
-    currentId        = null;
-    currentMediaType = 'image/jpeg';
-    fileInput.value  = '';
+    currentFile = null; currentBase64 = null; currentId = null; currentMediaType = 'image/jpeg';
+    fileInput.value = '';
+    aiBaseline  = {}; dirtyFields = new Set();
+    AI_FIELDS.forEach(id => { const w = document.getElementById('wrap-' + id); if (w) w.classList.remove('dirty'); });
     clearTimeout(submitUnlockTimer);
-    // Re-lock button for next submission
-    const btn   = document.getElementById('submitBtn');
-    const label = document.getElementById('submitBtnLabel');
-    if (btn)   btn.disabled = true;
-    if (label) label.textContent = 'Submit for Final Review';
+    const btn = document.getElementById('submitBtn'); const label = document.getElementById('submitBtnLabel');
+    if (btn) btn.disabled = true; if (label) label.textContent = 'Submit for Final Review';
     document.getElementById('submitReadyHint').style.display = 'none';
+    document.getElementById('reanalyzeStatus').style.display = 'none';
     clearError();
     showState('Upload');
   }
 
-  // ── Utility: file to base64 ────────────────────────────────────────────────
-  function fileToBase64(file) {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload  = () => resolve(reader.result.split(',')[1]);
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
-  }
-
-  // ── Utility: reverse geocode via server proxy ──────────────────────────────
-  async function reverseGeocode(lat, lng) {
-    try {
-      const res  = await fetch(`${SERVER_URL}/api/reverse-geocode?lat=${encodeURIComponent(lat)}&lng=${encodeURIComponent(lng)}`);
-      const data = await res.json();
-      if (data && data.address) {
-        const a = data.address;
-        const name = a.museum || a.attraction || a.building || a.amenity ||
-                     a.historic || a.tourism ||
-                     [a.city || a.town || a.village, a.country].filter(Boolean).join(', ');
-        return { name: name || data.display_name || 'Unknown Location', country: a.country || '' };
-      }
-    } catch (_) {}
-    return null;
-  }
-
-  // ── Google Places autocomplete ─────────────────────────────────────────────
-  let placesDebounce    = null;
-  let placesActiveIdx   = -1;
-  let placesSuggestions = [];
+  // ── Google Places autocomplete ────────────────────────────────────────────────
+  let placesDebounce = null, placesActiveIdx = -1, placesSuggestions = [];
   let placesSessionToken = crypto.randomUUID ? crypto.randomUUID() : String(Math.random());
 
   function onPlacesInput() {
@@ -994,7 +705,6 @@ Return ONLY a valid JSON object with exactly these keys (raw JSON, no markdown f
     if (val.length < 2) { closePlacesDropdown(); return; }
     placesDebounce = setTimeout(() => fetchPlacesSuggestions(val), 300);
   }
-
   async function fetchPlacesSuggestions(input) {
     try {
       const res  = await fetch(`${SERVER_URL}/api/places?input=${encodeURIComponent(input)}&sessiontoken=${encodeURIComponent(placesSessionToken)}`);
@@ -1003,80 +713,69 @@ Return ONLY a valid JSON object with exactly these keys (raw JSON, no markdown f
       renderPlacesDropdown();
     } catch { closePlacesDropdown(); }
   }
-
   function renderPlacesDropdown() {
-    const dropdown = document.getElementById('placesDropdown');
+    const dd = document.getElementById('placesDropdown');
     if (!placesSuggestions.length) { closePlacesDropdown(); return; }
-    dropdown.innerHTML = placesSuggestions.map((s, i) => {
-      const pred  = s.placePrediction || {};
-      const text  = pred.text?.text || '';
-      const parts = text.split(',');
-      const main  = parts[0] || text;
-      const sub   = parts.slice(1).join(',').trim();
+    dd.innerHTML = placesSuggestions.map((s, i) => {
+      const pred = s.placePrediction || {}, text = pred.text?.text || '', parts = text.split(',');
+      const main = parts[0] || text, sub = parts.slice(1).join(',').trim();
       return `<div class="places-option" data-idx="${i}" onmousedown="selectPlace(${i})">
-        <div class="places-main">${escHtmlLocal(main)}</div>
-        ${sub ? `<div class="places-sub">${escHtmlLocal(sub)}</div>` : ''}
+        <div class="places-main">${esc(main)}</div>
+        ${sub ? `<div class="places-sub">${esc(sub)}</div>` : ''}
       </div>`;
     }).join('');
-    placesActiveIdx = -1;
-    dropdown.classList.add('open');
+    placesActiveIdx = -1; dd.classList.add('open');
   }
-
   async function selectPlace(idx) {
-    const s    = placesSuggestions[idx];
-    const pred = s?.placePrediction;
+    const s = placesSuggestions[idx], pred = s?.placePrediction;
     if (!pred) return;
-
     const fullText = pred.text?.text || '';
     document.getElementById('fLocation').value = fullText;
+    markDirty('fLocation');
     closePlacesDropdown();
-
-    // Fetch place details to auto-fill country
     if (!pred.placeId) return;
     try {
       const res  = await fetch(`${SERVER_URL}/api/place-details?place_id=${encodeURIComponent(pred.placeId)}&sessiontoken=${encodeURIComponent(placesSessionToken)}`);
       const data = await res.json();
-      const countryComp = (data.addressComponents || []).find(c => c.types?.includes('country'));
-      if (countryComp) document.getElementById('fCountry').value = countryComp.longText || '';
+      const cc = (data.addressComponents || []).find(c => c.types?.includes('country'));
+      if (cc) { document.getElementById('fCountry').value = cc.longText || ''; markDirty('fCountry'); }
     } catch { /* non-critical */ }
-
-    // Rotate session token after a complete session
     placesSessionToken = crypto.randomUUID ? crypto.randomUUID() : String(Math.random());
   }
-
   function onPlacesKeydown(e) {
-    const dropdown = document.getElementById('placesDropdown');
-    const options  = dropdown.querySelectorAll('.places-option');
-    if (!options.length) return;
-    if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      placesActiveIdx = Math.min(placesActiveIdx + 1, options.length - 1);
-      options.forEach((o, i) => o.classList.toggle('active', i === placesActiveIdx));
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      placesActiveIdx = Math.max(placesActiveIdx - 1, 0);
-      options.forEach((o, i) => o.classList.toggle('active', i === placesActiveIdx));
-    } else if (e.key === 'Enter' && placesActiveIdx >= 0) {
-      e.preventDefault();
-      selectPlace(placesActiveIdx);
-    } else if (e.key === 'Escape') {
-      closePlacesDropdown();
-    }
+    const opts = document.getElementById('placesDropdown').querySelectorAll('.places-option');
+    if (!opts.length) return;
+    if (e.key === 'ArrowDown') { e.preventDefault(); placesActiveIdx = Math.min(placesActiveIdx + 1, opts.length - 1); opts.forEach((o,i) => o.classList.toggle('active', i === placesActiveIdx)); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); placesActiveIdx = Math.max(placesActiveIdx - 1, 0); opts.forEach((o,i) => o.classList.toggle('active', i === placesActiveIdx)); }
+    else if (e.key === 'Enter' && placesActiveIdx >= 0) { e.preventDefault(); selectPlace(placesActiveIdx); }
+    else if (e.key === 'Escape') { closePlacesDropdown(); }
   }
-
   function closePlacesDropdown() {
     document.getElementById('placesDropdown')?.classList.remove('open');
-    placesSuggestions = [];
-    placesActiveIdx   = -1;
+    placesSuggestions = []; placesActiveIdx = -1;
   }
+  document.addEventListener('click', e => { if (!e.target.closest('.places-wrap')) closePlacesDropdown(); });
 
-  // Close dropdown when clicking outside the location field
-  document.addEventListener('click', e => {
-    if (!e.target.closest('.places-wrap')) closePlacesDropdown();
-  });
-
-  // Local escaping helper (no dependency on index.html's escHtml)
-  function escHtmlLocal(str) {
+  // ── Utilities ────────────────────────────────────────────────────────────────
+  function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+      const r = new FileReader(); r.onload = () => resolve(r.result.split(',')[1]); r.onerror = reject; r.readAsDataURL(file);
+    });
+  }
+  async function reverseGeocode(lat, lng) {
+    try {
+      const res  = await fetch(`${SERVER_URL}/api/reverse-geocode?lat=${encodeURIComponent(lat)}&lng=${encodeURIComponent(lng)}`);
+      const data = await res.json();
+      if (data?.address) {
+        const a = data.address;
+        const name = a.museum || a.attraction || a.building || a.amenity || a.historic || a.tourism
+                  || [a.city || a.town || a.village, a.country].filter(Boolean).join(', ');
+        return { name: name || data.display_name || 'Unknown Location', country: a.country || '' };
+      }
+    } catch (_) {}
+    return null;
+  }
+  function esc(str) {
     return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
 </script>
