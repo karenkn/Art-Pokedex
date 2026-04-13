@@ -263,6 +263,17 @@
     }
     .success-sub { font-size: 14px; color: #666; line-height: 1.6; margin-bottom: 28px; }
 
+    /* ── Honeypot: visually hidden from humans, but reachable by bots ── */
+    .hp-field {
+      position: absolute;
+      left: -9999px;
+      top: -9999px;
+      width: 1px; height: 1px;
+      opacity: 0;
+      pointer-events: none;
+      tab-index: -1;
+    }
+
     /* ── Submit button ── */
     .btn-submit {
       display: block; width: 100%;
@@ -446,6 +457,11 @@
             placeholder="Anything you'd like to tell the curator about this photo…"></textarea>
         </div>
       </div>
+      <!-- Honeypot: hidden from real users; bots that fill all fields get silently rejected -->
+      <div class="hp-field" aria-hidden="true">
+        <label for="fWebsite">Website</label>
+        <input type="text" id="fWebsite" name="website" autocomplete="off" tabindex="-1" />
+      </div>
     </div>
 
     <!-- Actions -->
@@ -453,10 +469,13 @@
       <div class="bottom-left">
         <button class="btn-ghost" onclick="startOver()">← Start Over</button>
       </div>
-      <button class="btn-submit" onclick="submitPhoto()">
-        Submit for Final Review
+      <button class="btn-submit" id="submitBtn" onclick="submitPhoto()" disabled>
+        <span id="submitBtnLabel">Submit for Final Review</span>
       </button>
     </div>
+    <p id="submitReadyHint" style="text-align:right; font-size:11px; color:#bbb; margin-top:6px; display:none;">
+      Please review the details above before submitting.
+    </p>
   </div>
 
   <!-- State: submitting -->
@@ -507,6 +526,37 @@
   let currentBase64 = null;   // raw base64 (no data: prefix)
   let currentMediaType = 'image/jpeg';
   let currentId     = null;   // unique id for this submission
+  const PAGE_LOAD_TIME = Date.now();  // used for timing gate
+
+  // ── Timing gate: unlock submit button 5 s after the review form is shown ──
+  // This prevents bots that instantly POST after parsing the form.
+  let submitUnlockTimer = null;
+
+  function armSubmitTimer() {
+    const btn   = document.getElementById('submitBtn');
+    const label = document.getElementById('submitBtnLabel');
+    const hint  = document.getElementById('submitReadyHint');
+    if (!btn) return;
+    btn.disabled = true;
+    clearTimeout(submitUnlockTimer);
+
+    let remaining = 5;
+    label.textContent = `Please wait… (${remaining}s)`;
+    hint.style.display = 'none';
+
+    const tick = () => {
+      remaining--;
+      if (remaining > 0) {
+        label.textContent = `Please wait… (${remaining}s)`;
+        submitUnlockTimer = setTimeout(tick, 1000);
+      } else {
+        btn.disabled = false;
+        label.textContent = 'Submit for Final Review';
+        hint.style.display = 'block';
+      }
+    };
+    submitUnlockTimer = setTimeout(tick, 1000);
+  }
 
   // ── UI helpers ─────────────────────────────────────────────────────────────
   function showState(name) {
@@ -658,6 +708,7 @@ Return a JSON object with EXACTLY these fields (no markdown, raw JSON only):
       document.getElementById('reviewPreviewImg').src = objectUrl;
 
       showState('Review');
+      armSubmitTimer();
 
     } catch (err) {
       // Return to review state if we were re-analysing, or back to upload
@@ -728,7 +779,10 @@ Return a JSON object with EXACTLY these fields (no markdown, raw JSON only):
         artistHint:   '',
         submitterName:  name,
         submitterEmail: email,
-        note:           document.getElementById('fNote').value.trim()
+        note:           document.getElementById('fNote').value.trim(),
+        // Spam-protection fields (checked server-side)
+        _hp:          document.getElementById('fWebsite').value,       // honeypot
+        _t:           Date.now() - PAGE_LOAD_TIME                      // ms since page load
       };
 
       const res = await fetch(`${SERVER_URL}/api/submit`, {
@@ -757,6 +811,13 @@ Return a JSON object with EXACTLY these fields (no markdown, raw JSON only):
     currentId        = null;
     currentMediaType = 'image/jpeg';
     fileInput.value  = '';
+    clearTimeout(submitUnlockTimer);
+    // Re-lock button for next submission
+    const btn   = document.getElementById('submitBtn');
+    const label = document.getElementById('submitBtnLabel');
+    if (btn)   btn.disabled = true;
+    if (label) label.textContent = 'Submit for Final Review';
+    document.getElementById('submitReadyHint').style.display = 'none';
     clearError();
     showState('Upload');
   }

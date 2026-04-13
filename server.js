@@ -330,8 +330,25 @@ app.post('/api/submit', publicRateLimit(submitLimit), async (req, res) => {
     id, name, thumbnail,
     paintingName, artist, location, country, style, medium, period,
     confidence, description, artistHint,
-    submitterName, submitterEmail, note
+    submitterName, submitterEmail, note,
+    _hp, _t   // spam-protection fields
   } = req.body;
+
+  // ── Spam protection ────────────────────────────────────────────────────────
+  // Honeypot: a hidden field that only bots fill in.
+  // Respond with 200 (fake success) so the bot doesn't know it was rejected.
+  if (_hp) {
+    console.warn('Spam blocked (honeypot):', submitterEmail || '(no email)');
+    return res.json({ ok: true });
+  }
+  // Timing gate: real users take at least 4 seconds to read the form.
+  // Allow a generous margin (3 s) in case of slow connections / fast readers.
+  const MIN_MS = 3000;
+  if (typeof _t === 'number' && _t < MIN_MS) {
+    console.warn('Spam blocked (too fast):', _t + 'ms', submitterEmail || '(no email)');
+    return res.json({ ok: true });
+  }
+  // ──────────────────────────────────────────────────────────────────────────
 
   if (!submitterName || !submitterEmail) {
     return res.status(400).json({ error: 'Name and email are required.' });
