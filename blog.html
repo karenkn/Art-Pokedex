@@ -571,7 +571,11 @@ function renderPostList() {
 async function openPost(id) {
   try {
     const res  = await fetch(`${serverUrl}/api/posts/${id}`, { headers: authHeaders() });
-    if (!res.ok) return;
+    if (!res.ok) {
+      // Post not found or not accessible — fall back to the list
+      showList();
+      return;
+    }
     const post = await res.json();
     currentPostId = id;
     // Update URL so this post has a shareable link
@@ -789,12 +793,23 @@ function formatDate(iso) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Init — load posts, then open direct-link post if hash present
+// Init — handle direct-link hash immediately, load list in background
 // ─────────────────────────────────────────────────────────────────────────────
 (async () => {
-  await loadPosts();
-  const match = location.hash.match(/^#post-(\d+)$/);
-  if (match) openPost(match[1]);
+  const hashMatch = location.hash.match(/^#post-(\d+)$/);
+  if (hashMatch) {
+    // Direct link: show post view with a loading placeholder right away,
+    // then load the post and the full list in parallel.
+    showView('post');
+    document.getElementById('postFullTitle').textContent = 'Loading…';
+    document.getElementById('postFullDate').textContent  = '';
+    document.getElementById('postFullContent').innerHTML  = '';
+    await Promise.all([loadPosts(), openPost(hashMatch[1])]);
+  } else {
+    // Normal load: fetch posts then show list
+    await loadPosts();
+    showView('list');
+  }
 })();
 
 // Close mobile menu when tapping outside
