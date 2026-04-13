@@ -770,7 +770,7 @@ function copyPostLink() {
 
 // Handle browser back/forward
 window.addEventListener('popstate', () => {
-  const match = location.hash.match(/^#post-(\d+)$/);
+  const match = location.hash.match(/^#post-([a-zA-Z0-9_-]+)$/);
   if (match) {
     openPost(match[1]);
   } else {
@@ -796,7 +796,7 @@ function formatDate(iso) {
 // Init — handle direct-link hash immediately, load list in background
 // ─────────────────────────────────────────────────────────────────────────────
 (async () => {
-  const hashMatch = location.hash.match(/^#post-(\d+)$/);
+  const hashMatch = location.hash.match(/^#post-([a-zA-Z0-9_-]+)$/);
   if (hashMatch) {
     // Direct link: show post view with a loading placeholder right away,
     // then load the post and the full list in parallel.
