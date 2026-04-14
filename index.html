@@ -1675,11 +1675,11 @@ async function consolidateStyles() {
       headers: authHeaders(),
       body: JSON.stringify({
         model: 'claude-opus-4-6',
-        max_tokens: 2000,
+        max_tokens: 1000,
         temperature: 0,
         messages: [{
           role: 'user',
-          content: `You are an art historian. The following style tags were auto-generated and are far too specific — many use a compound "Primary / Secondary" format. Your job is to map every tag to one concise, well-known canonical art movement name, reducing the full list down to roughly 15–20 core movements.
+          content: [{ type: 'text', text: `You are an art historian. The following style tags were auto-generated and are far too specific — many use a compound "Primary / Secondary" format. Your job is to map every tag to one concise, well-known canonical art movement name, reducing the full list down to roughly 15–20 core movements.
 
 Rules:
 1. For compound "X / Y" tags, pick the most historically significant primary movement (e.g. "Mexican Muralism / Social Realism" → "Mexican Muralism").
@@ -1690,7 +1690,7 @@ Rules:
 
 Return ONLY a valid JSON object mapping every input tag to its canonical name. Raw JSON only — no markdown fences, no explanation, no extra keys.
 
-Tags: ${JSON.stringify(uniqueStyles)}`
+Tags: ${JSON.stringify(uniqueStyles)}` }]
         }]
       })
     });
