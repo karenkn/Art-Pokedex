@@ -1818,7 +1818,7 @@ async function compressAndConvert(file, { maxDimension = 1920, quality = 0.85 } 
       const url = URL.createObjectURL(file);
       img.onload  = () => { URL.revokeObjectURL(url); resolve(img); };
       img.onerror = () => { URL.revokeObjectURL(url); reject(new Error(
-        'Could not decode image. On Windows/Android, please save HEIC as JPEG first.'
+        'Could not decode this image format. Please try saving it as JPEG and uploading again.'
       )); };
       img.src = url;
     });

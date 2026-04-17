@@ -436,7 +436,7 @@
     }
     currentFile = file;
     currentId   = crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(36).slice(2);
-    currentMediaType = file.type || 'image/jpeg';
+    currentMediaType = 'image/jpeg'; // always JPEG after compressAndConvert runs
     // Show a preview while analysing — works for JPEG/PNG/WebP on all browsers,
     // and for HEIC on iOS/macOS Safari where those files originate.
     document.getElementById('analyzePreviewImg').src = URL.createObjectURL(file);
@@ -501,7 +501,7 @@ Return a JSON object with EXACTLY these fields (no markdown, raw JSON only):
           model: 'claude-opus-4-6', max_tokens: 800, temperature: 0,
           system: systemPrompt,
           messages: [{ role: 'user', content: [
-            { type: 'image', source: { type: 'base64', media_type: currentMediaType, data: base64 } },
+            { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } },
             { type: 'text',  text: userPrompt }
           ]}]
         })
@@ -811,12 +811,12 @@ Return ONLY a valid JSON object with ALL of these keys (raw JSON, no markdown fe
       // Fallback: load via <img> (handles formats createImageBitmap can't)
       source = await new Promise((resolve, reject) => {
         const img = new Image();
-        img.onload  = () => resolve(img);
-        img.onerror = () => reject(new Error(
-          'Could not read this image file. ' +
-          'If you are on a Windows or Android device, please save it as JPEG first.'
-        ));
-        img.src = URL.createObjectURL(file);
+        const blobUrl = URL.createObjectURL(file);
+        img.onload  = () => { URL.revokeObjectURL(blobUrl); resolve(img); };
+        img.onerror = () => { URL.revokeObjectURL(blobUrl); reject(new Error(
+          'Could not decode this image format. Please try saving it as JPEG and uploading again.'
+        )); };
+        img.src = blobUrl;
       });
     }
 
