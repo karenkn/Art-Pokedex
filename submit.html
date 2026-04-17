@@ -178,10 +178,10 @@
   <!-- State: upload -->
   <div id="stateUpload" class="state active">
     <div id="uploadZone">
-      <input type="file" id="fileInput" accept="image/*" />
+      <input type="file" id="fileInput" accept="image/*,.heic,.heif" />
       <div class="upload-icon">🖼️</div>
       <div class="upload-label">Drop a photo here, or click to browse</div>
-      <div class="upload-hint">JPEG, PNG, HEIC · max 20 MB</div>
+      <div class="upload-hint">JPEG, PNG, HEIC, HEIF · any size · auto-optimised before upload</div>
     </div>
   </div>
 
@@ -419,15 +419,26 @@
   uploadZone.addEventListener('drop', e => {
     e.preventDefault(); uploadZone.classList.remove('drag-over');
     const f = e.dataTransfer.files[0];
-    if (f && f.type.startsWith('image/')) handleFile(f);
+    if (f && isImageFile(f)) handleFile(f);
   });
   fileInput.addEventListener('change', () => { if (fileInput.files[0]) handleFile(fileInput.files[0]); });
 
+  function isImageFile(file) {
+    return file.type.startsWith('image/') || /\.(heic|heif)$/i.test(file.name);
+  }
+
   async function handleFile(file) {
-    if (file.size > 20 * 1024 * 1024) { alert('File is too large. Please use an image under 20 MB.'); return; }
+    // No hard size cap — compressAndConvert resizes before upload.
+    // Warn only for extreme files (>150 MB) that could stall the browser.
+    if (file.size > 150 * 1024 * 1024) {
+      alert('That file is very large (over 150 MB). Please try a smaller photo.');
+      return;
+    }
     currentFile = file;
     currentId   = crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(36).slice(2);
     currentMediaType = file.type || 'image/jpeg';
+    // Show a preview while analysing — works for JPEG/PNG/WebP on all browsers,
+    // and for HEIC on iOS/macOS Safari where those files originate.
     document.getElementById('analyzePreviewImg').src = URL.createObjectURL(file);
     showState('Analyzing');
     await runAnalysis(file, /* isFirstRun */ true);
@@ -450,8 +461,12 @@
         }
       } catch (_) {}
 
-      const base64 = await fileToBase64(file);
-      currentBase64 = base64;
+      const { base64, mediaType, previewUrl } = await compressAndConvert(file);
+      currentBase64     = base64;
+      currentMediaType  = mediaType;   // always 'image/jpeg' after conversion
+      // Update both preview images to the compressed JPEG (works on all browsers)
+      document.getElementById('analyzePreviewImg').src = previewUrl;
+      document.getElementById('reviewPreviewImg').src  = previewUrl;
 
       const systemPrompt = `Act as a museum curator interested in identifying paintings. For each painting fed into the API, try to identify the artist that most closely matches the style of the painting, the name of the painting, and the location where the painting was taken.
 
@@ -520,7 +535,6 @@ Return a JSON object with EXACTLY these fields (no markdown, raw JSON only):
       document.getElementById('confBar').style.width = conf + '%';
       document.getElementById('confNum').textContent = conf + '%';
 
-      document.getElementById('reviewPreviewImg').src = URL.createObjectURL(file);
       const statusEl = document.getElementById('reanalyzeStatus');
       statusEl.style.display = 'none';
       showState('Review');
@@ -784,11 +798,55 @@ Return ONLY a valid JSON object with ALL of these keys (raw JSON, no markdown fe
   }
   document.addEventListener('click', e => { if (!e.target.closest('.places-wrap')) closePlacesDropdown(); });
 
-  // ── Utilities ────────────────────────────────────────────────────────────────
-  function fileToBase64(file) {
-    return new Promise((resolve, reject) => {
-      const r = new FileReader(); r.onload = () => resolve(r.result.split(',')[1]); r.onerror = reject; r.readAsDataURL(file);
+  // ── Image compression & conversion ───────────────────────────────────────────
+  // Resizes to ≤1920 px on the longest side and exports as JPEG.
+  // Uses createImageBitmap() which decodes HEIC natively on iOS/macOS Safari.
+  // Falls back to an <img> element for other formats/browsers.
+  async function compressAndConvert(file, { maxDimension = 1920, quality = 0.85 } = {}) {
+    // 1. Decode the image
+    let source;
+    try {
+      source = await createImageBitmap(file);
+    } catch (_) {
+      // Fallback: load via <img> (handles formats createImageBitmap can't)
+      source = await new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload  = () => resolve(img);
+        img.onerror = () => reject(new Error(
+          'Could not read this image file. ' +
+          'If you are on a Windows or Android device, please save it as JPEG first.'
+        ));
+        img.src = URL.createObjectURL(file);
+      });
+    }
+
+    // 2. Calculate output size (preserve aspect ratio)
+    const srcW = source.width  || source.naturalWidth;
+    const srcH = source.height || source.naturalHeight;
+    const scale = Math.min(1, maxDimension / Math.max(srcW, srcH));
+    const outW  = Math.round(srcW * scale);
+    const outH  = Math.round(srcH * scale);
+
+    // 3. Draw onto an off-screen canvas
+    const canvas = document.createElement('canvas');
+    canvas.width  = outW;
+    canvas.height = outH;
+    canvas.getContext('2d').drawImage(source, 0, 0, outW, outH);
+    if (source.close) source.close();   // free ImageBitmap memory
+
+    // 4. Export as JPEG blob
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', quality));
+    if (!blob) throw new Error('Image export failed — please try a different photo.');
+
+    // 5. Convert blob to base64 string and a preview URL
+    const base64 = await new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload  = () => resolve(r.result.split(',')[1]);
+      r.onerror = reject;
+      r.readAsDataURL(blob);
     });
+
+    return { base64, mediaType: 'image/jpeg', previewUrl: URL.createObjectURL(blob) };
   }
   async function reverseGeocode(lat, lng) {
     try {

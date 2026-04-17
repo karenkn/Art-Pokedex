@@ -453,9 +453,10 @@ app.post('/api/submit', publicRateLimit(submitLimit), async (req, res) => {
   if (!id || !thumbnail) {
     return res.status(400).json({ error: 'Photo data is required.' });
   }
-  // Thumbnail size cap: base64 of a ~1.5 MB image is ~2 MB of characters
-  if (typeof thumbnail !== 'string' || thumbnail.length > 2_200_000) {
-    return res.status(400).json({ error: 'Thumbnail is too large. Please use a smaller image.' });
+  // Thumbnail size cap: client now compresses to ≤1920 px JPEG before upload,
+  // so worst-case base64 is ~2.7 MB. Cap at 3.5 MB to give a comfortable margin.
+  if (typeof thumbnail !== 'string' || thumbnail.length > 3_500_000) {
+    return res.status(400).json({ error: 'Thumbnail is too large. Please try a different photo.' });
   }
   // Field length caps (prevents oversized payloads that slip under the 25 MB JSON limit)
   const clean = s => (typeof s === 'string' ? s : '');
