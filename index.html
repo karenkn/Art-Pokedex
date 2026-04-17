@@ -6,6 +6,7 @@
   <title>Art Pokédex, Powered by AI</title>
   <!-- Google Maps loaded dynamically after fetching API key from server -->
   <script src="https://cdn.jsdelivr.net/npm/exifr/dist/lite.umd.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
@@ -1806,8 +1807,20 @@ async function loadSavedPhotos() {
 }
 
 // Shared image decode → resize → JPEG export pipeline.
-// Uses createImageBitmap() which natively handles HEIC on iOS/macOS Safari.
+// heic2any handles HEIC/HEIF in all browsers; createImageBitmap handles everything else.
 async function compressAndConvert(file, { maxDimension = 1920, quality = 0.85 } = {}) {
+  // 0. Pre-convert HEIC/HEIF → JPEG blob using heic2any (works in Chrome, Firefox, Edge, Safari)
+  const isHeic = file.type === 'image/heic' || file.type === 'image/heif' ||
+                 /\.(heic|heif)$/i.test(file.name);
+  if (isHeic) {
+    try {
+      const converted = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.95 });
+      file = Array.isArray(converted) ? converted[0] : converted;
+    } catch (e) {
+      throw new Error('Could not decode this HEIC file. Please try saving it as JPEG and uploading again.');
+    }
+  }
+
   // 1. Decode
   let source;
   try {
