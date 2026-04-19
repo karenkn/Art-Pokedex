@@ -8,8 +8,7 @@ Inspired by my travels and love for visiting museums, I decided to combine my in
 
 Additional Features to come:
 
-- The ability to add, delete individual photos added to the app/website
-- The ability to rate and like works of art added to the database
-- Improved prompts to help refine the art identification process and enhance the descriptions
-- Auto-suggest fields for artist name, museum locations, styles
-- The ability to consolidate artworks from similar locations automatically (for example, the AI currently generates inconsistent labels, e.g., MOMA vs. Museum of Modern Art)
+- The ability to rate works of art from a 1-5 scale
+- Using these ratings, recommend museums, exhibitions, or new art / artists to explore
+- Create art using AI, to match the aesthetic of some of the most favorite artists, or create collage posters of art submitted
+- Stability and bug fixes (ongoing0
