@@ -206,6 +206,23 @@
       .sub-card { grid-template-columns: 1fr !important; }
       .sub-card-thumb { max-height: 200px !important; min-height: 140px !important; }
     }
+    /* ── All-view grouping toggle ── */
+    .grouping-toggle {
+      display: flex; align-items: center; gap: 0;
+      margin-left: 8px;
+      border: 1px solid #ddd; border-radius: 5px; overflow: hidden;
+      flex-shrink: 0;
+    }
+    .group-btn {
+      padding: 4px 11px; border: none; background: none;
+      font-size: 11px; color: #888; cursor: pointer;
+      font-family: inherit; white-space: nowrap;
+      transition: background 0.15s, color 0.15s;
+    }
+    .group-btn + .group-btn { border-left: 1px solid #ddd; }
+    .group-btn:hover { background: #f5f2ef; color: #444; }
+    .group-btn.active { background: #1a1a1a; color: #fff; }
+
     .sort-wrap {
       display: flex;
       align-items: center;
@@ -1030,6 +1047,12 @@
     <button class="filter-btn admin-only" id="submissionsFilterBtn" onclick="setFilter('submissions', this)" style="display:none">📬 Submissions<span id="submissionsBadge" class="sub-badge" style="display:none"></span></button>
   </div>
 
+  <!-- Grouping toggle — only visible when "All" is selected -->
+  <div class="grouping-toggle" id="groupingToggle">
+    <button class="group-btn active" id="groupedBtn" onclick="setAllMode('grouped')">📍 Grouped</button>
+    <button class="group-btn" id="flatBtn" onclick="setAllMode('flat')">⊞ Ungrouped</button>
+  </div>
+
   <div class="sort-wrap">
     <span class="sort-label">Sort</span>
     <select class="sort-select" id="sortSelect" onchange="setSort(this.value)">
@@ -1380,6 +1403,7 @@ let currentSort   = 'title';
 let serverUrl = '';
 let analysisQueue = Promise.resolve();  // serialise API calls
 let recentlyAddedIds = new Set();       // IDs of photos that finished analysis this session
+let currentAllMode  = 'grouped';        // 'grouped' | 'flat' — only applies when currentFilter === 'all'
 let adminToken = null;  // set on successful login; null = view-only mode
 const likedIds = new Set(); // track photos liked this session to prevent duplicates
 let isLoading = true;  // true while initial DB fetch is in flight
@@ -2317,6 +2341,8 @@ function render() {
       renderGrouped(content, 'style', '🎨', p => p.aiData.style);
     } else if (currentFilter === 'artist') {
       renderGrouped(content, 'artist', '🖌️', p => p.aiData.artist || 'Unknown Artist');
+    } else if (currentFilter === 'all' && currentAllMode === 'flat') {
+      renderFlat(content);
     } else {
       renderGrouped(content, 'location', '📍', p => p.aiData.location);
     }
@@ -2679,6 +2705,82 @@ function dismissJustAdded() {
   render();
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Flat (ungrouped) renderer — used by "All › Ungrouped"
+// ─────────────────────────────────────────────────────────────────────────────
+function sortAllPhotos(arr) {
+  const a = [...arr];
+  switch (currentSort) {
+    case 'oldest':     return a.reverse();
+    case 'liked':      return a.sort((x, y) => (y.likes || 0) - (x.likes || 0));
+    case 'confidence': return a.sort((x, y) => (y.aiData?.confidence || 0) - (x.aiData?.confidence || 0));
+    case 'title':      return a.sort((x, y) => (x.aiData?.paintingName || x.name).localeCompare(y.aiData?.paintingName || y.name));
+    case 'artist':     return a.sort((x, y) => (x.aiData?.artist || '').localeCompare(y.aiData?.artist || ''));
+    default:           return a; // newest — DB already returns newest first
+  }
+}
+
+function renderFlat(container) {
+  const analyzing = photos.filter(p => p.status === 'analyzing');
+  const queued    = photos.filter(p => p.status === 'queue');
+  const errors    = photos.filter(p => p.status === 'error');
+  const done      = photos.filter(p => p.status === 'done');
+
+  let html = '';
+
+  // Just Added spotlight
+  const justAdded = done.filter(p => recentlyAddedIds.has(p.id));
+  if (justAdded.length > 0) {
+    const sub = justAdded.length === 1 ? '1 photo · freshly processed' : `${justAdded.length} photos · freshly processed`;
+    html += `<div class="just-added-section">
+      <div class="just-added-header">
+        <span class="just-added-header-icon">✨</span>
+        <span class="just-added-header-title">Just Added</span>
+        <span class="just-added-header-sub">${sub}</span>
+        <button class="just-added-dismiss" onclick="dismissJustAdded()" title="Dismiss">×</button>
+      </div>
+      <div class="just-added-grid-wrap">
+        <div class="photo-grid">
+          ${justAdded.map(p => photoCard(p, false, true)).join('')}
+        </div>
+      </div>
+    </div>`;
+  }
+
+  // Analyzing / queued
+  if (analyzing.length || queued.length) {
+    const pending = [...analyzing, ...queued];
+    html += `<div class="location-group">
+      <div class="location-header">
+        <span class="location-icon">⏳</span>
+        <span class="location-name">Analyzing with Claude AI</span>
+        <span class="location-sub">${pending.length} photo${pending.length > 1 ? 's' : ''}</span>
+      </div>
+      <div class="photo-grid">${pending.map(photoCard).join('')}</div>
+    </div>`;
+  }
+
+  // Errors
+  if (errors.length) {
+    html += `<div class="location-group">
+      <div class="location-header">
+        <span class="location-icon">⚠️</span>
+        <span class="location-name" style="color:#c0392b">Analysis Failed</span>
+        <span class="location-sub">${errors.length} photo${errors.length > 1 ? 's' : ''}</span>
+      </div>
+      <div class="photo-grid">${errors.map(photoCard).join('')}</div>
+    </div>`;
+  }
+
+  // Flat grid — all done photos sorted by current sort option
+  const sorted = sortAllPhotos(done);
+  if (sorted.length) {
+    html += `<div class="photo-grid">${sorted.map((p, i) => photoCard(p, i === 0)).join('')}</div>`;
+  }
+
+  container.innerHTML = html;
+}
+
 function photoCard(p, featured = false, isNew = false) {
   let overlay = '';
   if (p.status === 'analyzing') {
@@ -2764,10 +2866,20 @@ function setFilter(filter, btn) {
   currentFilter = filter;
   document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
+  // Show the grouped/ungrouped toggle only for the "All" view
+  const toggle = document.getElementById('groupingToggle');
+  if (toggle) toggle.style.display = (filter === 'all') ? '' : 'none';
   render();
   if (filter === 'location' && googleMap) {
     setTimeout(() => google.maps.event.trigger(googleMap, 'resize'), 50);
   }
+}
+
+function setAllMode(mode) {
+  currentAllMode = mode;
+  document.getElementById('groupedBtn').classList.toggle('active', mode === 'grouped');
+  document.getElementById('flatBtn').classList.toggle('active', mode === 'flat');
+  render();
 }
 
 function setSort(value) {
