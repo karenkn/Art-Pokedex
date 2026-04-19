@@ -508,7 +508,15 @@ Return a JSON object with EXACTLY these fields (no markdown, raw JSON only):
           ]}]
         })
       });
-      if (!response.ok) { const e = await response.json().catch(() => ({})); throw new Error(e?.error?.message || `HTTP ${response.status}`); }
+      if (!response.ok) {
+        const e = await response.json().catch(() => ({}));
+        const msg = e?.error?.message || `HTTP ${response.status}`;
+        // Give a friendly hint for transient overload errors
+        if (response.status === 529 || response.status === 429) {
+          throw new Error('The AI is busy right now. Please wait a moment and tap Reanalyze to try again.');
+        }
+        throw new Error(msg);
+      }
 
       const data = await response.json();
       const text = data.content?.[0]?.text || '';

@@ -132,7 +132,7 @@ function authenticate(req, res, next) {
 // ── Rate limiting ─────────────────────────────────────────────────────────────
 const analyzeLimit = rateLimit({
   windowMs: 15 * 60 * 1000,   // 15 minutes
-  max: 5,
+  max: 20,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: { message: 'Too many analysis requests. Please try again in 15 minutes.' } }
