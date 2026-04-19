@@ -837,6 +837,43 @@
     .places-option .places-main { font-weight: 600; }
     .places-option .places-sub  { font-size: 11px; color: #999; }
 
+    /* ── Just Added spotlight section ── */
+    .just-added-section { margin-bottom: 44px; }
+    .just-added-header {
+      display: flex; align-items: center; gap: 12px;
+      padding: 13px 18px;
+      background: linear-gradient(135deg, #8f0101 0%, #b52020 100%);
+      border-radius: 10px 10px 0 0;
+      color: #fff;
+      margin-bottom: 0;
+    }
+    .just-added-header-icon { font-size: 18px; flex-shrink: 0; }
+    .just-added-header-title {
+      font-family: 'Playfair Display', serif; font-size: 16px; font-weight: 600;
+      letter-spacing: 0.2px; flex: 1;
+    }
+    .just-added-header-sub { font-size: 12px; opacity: 0.75; white-space: nowrap; }
+    .just-added-dismiss {
+      background: rgba(255,255,255,0.18); border: none; color: #fff;
+      border-radius: 50%; width: 26px; height: 26px; font-size: 15px; line-height: 1;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; transition: background 0.15s;
+    }
+    .just-added-dismiss:hover { background: rgba(255,255,255,0.35); }
+    .just-added-grid-wrap {
+      border: 2px solid #8f0101; border-top: none;
+      border-radius: 0 0 10px 10px; padding: 16px; background: rgba(143,1,1,0.04);
+    }
+    /* NEW badge — rendered inside card-img-wrap, bottom-right corner */
+    .new-badge {
+      position: absolute; bottom: 8px; right: 8px; z-index: 3;
+      background: #8f0101; color: #fff;
+      font-size: 9px; font-weight: 700; letter-spacing: 0.8px;
+      padding: 3px 8px; border-radius: 20px; text-transform: uppercase;
+      pointer-events: none; white-space: nowrap;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.35);
+    }
+
     /* ── Admin login button in header ── */
     .admin-btn {
       padding: 5px 13px;
@@ -1336,6 +1373,7 @@ let currentFilter = 'all';
 let currentSort   = 'title';
 let serverUrl = '';
 let analysisQueue = Promise.resolve();  // serialise API calls
+let recentlyAddedIds = new Set();       // IDs of photos that finished analysis this session
 let adminToken = null;  // set on successful login; null = view-only mode
 const likedIds = new Set(); // track photos liked this session to prevent duplicates
 let isLoading = true;  // true while initial DB fetch is in flight
@@ -2057,6 +2095,7 @@ Return a JSON object with EXACTLY these fields (no markdown, raw JSON only):
       locationSource: photo.locationSource || 'ai'
     };
     photo.status = 'done';
+    recentlyAddedIds.add(photo.id); // spotlight it at the top of the gallery
     savePhotoToDB(photo); // persist asynchronously — don't block the UI
 
   } catch (err) {
@@ -2548,6 +2587,27 @@ function renderGrouped(container, _key, icon, keyFn) {
 
   let html = '';
 
+  // ── Just Added spotlight (photos that finished analysis this session) ────────
+  const justAdded = done.filter(p => recentlyAddedIds.has(p.id));
+  if (justAdded.length > 0) {
+    const sub = justAdded.length === 1
+      ? '1 photo · freshly processed'
+      : `${justAdded.length} photos · freshly processed`;
+    html += `<div class="just-added-section">
+      <div class="just-added-header">
+        <span class="just-added-header-icon">✨</span>
+        <span class="just-added-header-title">Just Added</span>
+        <span class="just-added-header-sub">${sub}</span>
+        <button class="just-added-dismiss" onclick="dismissJustAdded()" title="Dismiss">×</button>
+      </div>
+      <div class="just-added-grid-wrap">
+        <div class="photo-grid">
+          ${justAdded.map(p => photoCard(p, false, true)).join('')}
+        </div>
+      </div>
+    </div>`;
+  }
+
   if (analyzing.length || queued.length) {
     const pending = [...analyzing, ...queued];
     html += `<div class="location-group">
@@ -2608,7 +2668,12 @@ function renderGrouped(container, _key, icon, keyFn) {
   container.innerHTML = html;
 }
 
-function photoCard(p, featured = false) {
+function dismissJustAdded() {
+  recentlyAddedIds.clear();
+  render();
+}
+
+function photoCard(p, featured = false, isNew = false) {
   let overlay = '';
   if (p.status === 'analyzing') {
     overlay = `<div class="status-overlay overlay-analyzing"><div class="spinner"></div><span>Claude is analyzing…</span></div>`;
@@ -2621,6 +2686,7 @@ function photoCard(p, featured = false) {
   // GPS overlay badge — appears on the photo image
   const gpsBadge = (p.status === 'done' && p.locationSource === 'gps')
     ? `<div class="card-gps-badge">GPS</div>` : '';
+  const newBadge = isNew ? `<div class="new-badge">NEW</div>` : '';
 
   const cardTitle = (p.status === 'done' && p.aiData?.paintingName) ? p.aiData.paintingName : p.name;
   let infoHtml = `<div class="photo-info"><div class="photo-title">${escHtml(cardTitle)}</div>`;
@@ -2665,6 +2731,7 @@ function photoCard(p, featured = false) {
       <img src="${p.url}" alt="${escHtml(p.name)}" loading="lazy" />
       ${p.pinned ? `<div class="pinned-badge">★ FEATURED</div>` : ''}
       ${gpsBadge}
+      ${newBadge}
       ${overlay}
     </div>
     ${infoHtml}
