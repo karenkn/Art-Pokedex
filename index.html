@@ -474,10 +474,16 @@
     .photo-card.featured .card-artist { font-size: 10px; }
     .card-movement {
       font-size: 9px; color: #a8906a;
-      font-style: italic; margin-bottom: 4px; line-height: 1.25;
+      font-style: italic; margin-bottom: 2px; line-height: 1.25;
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
     .photo-card.featured .card-movement { font-size: 10px; }
+    .card-location {
+      font-size: 9px; color: #999; margin-bottom: 4px; line-height: 1.25;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .card-location::before { content: '📍'; font-size: 8px; margin-right: 3px; }
+    .photo-card.featured .card-location { font-size: 10px; }
     .photo-meta {
       display: flex; justify-content: space-between; align-items: center;
       padding-top: 5px; border-top: 1px solid #eee9e3;
@@ -2698,9 +2704,11 @@ function photoCard(p, featured = false, isNew = false) {
     const artistHtml = d.artist ? `<div class="card-artist">${escHtml(d.artist)}</div>` : '';
     // Movement · medium on one italic line
     const movementHtml = d.style ? `<div class="card-movement">${escHtml(d.style)}${d.medium ? ' · ' + escHtml(d.medium) : ''}</div>` : '';
+    const locationHtml = d.location ? `<div class="card-location">${escHtml(d.location)}</div>` : '';
     infoHtml += `
       ${artistHtml}
       ${movementHtml}
+      ${locationHtml}
       <div class="photo-meta">
         <div class="photo-meta-left">
           <span>${escHtml(d.period)}${editedBadge}</span>
