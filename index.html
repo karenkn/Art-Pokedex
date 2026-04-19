@@ -437,6 +437,18 @@
     /* Keep backward-compat for any bare img inside a card (shouldn't exist after rewrite) */
     .photo-card > img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
+    /* Community-submitted badge on card image */
+    .card-community-badge {
+      position: absolute; top: 8px; left: 8px;
+      background: rgba(30, 100, 180, 0.82); color: #fff;
+      font-size: 9px; font-weight: 600; letter-spacing: 0.3px;
+      padding: 3px 7px; border-radius: 3px;
+      display: flex; align-items: center; gap: 3px;
+      backdrop-filter: blur(4px);
+      pointer-events: none; white-space: nowrap; z-index: 2;
+    }
+    .card-community-badge::before { content: '👤'; font-size: 9px; }
+
     /* GPS overlay badge on card image */
     .card-gps-badge {
       position: absolute; top: 8px; right: 8px;
@@ -1847,6 +1859,7 @@ async function loadSavedPhotos() {
         fromDB:         true,
         likes:          row.likes || 0,
         pinned:         row.pinned || false,
+        userSubmitted:  row.user_submitted || false,
         aiData: {
           paintingName:   row.painting_name  || '',
           artist:         row.artist         || '',
@@ -2794,7 +2807,8 @@ function photoCard(p, featured = false, isNew = false) {
   // GPS overlay badge — appears on the photo image
   const gpsBadge = (p.status === 'done' && p.locationSource === 'gps')
     ? `<div class="card-gps-badge">GPS</div>` : '';
-  const newBadge = isNew ? `<div class="new-badge">NEW</div>` : '';
+  const newBadge       = isNew          ? `<div class="new-badge">NEW</div>` : '';
+  const communityBadge = p.userSubmitted ? `<div class="card-community-badge">Community</div>` : '';
 
   const cardTitle = (p.status === 'done' && p.aiData?.paintingName) ? p.aiData.paintingName : p.name;
   let infoHtml = `<div class="photo-info"><div class="photo-title">${escHtml(cardTitle)}</div>`;
@@ -2840,6 +2854,7 @@ function photoCard(p, featured = false, isNew = false) {
     <div class="card-img-wrap">
       <img src="${p.url}" alt="${escHtml(p.name)}" loading="lazy" />
       ${p.pinned ? `<div class="pinned-badge">★ FEATURED</div>` : ''}
+      ${communityBadge}
       ${gpsBadge}
       ${newBadge}
       ${overlay}

@@ -67,6 +67,9 @@ pool.query(`
 }).then(() => {
   // Add pinned column if it doesn't exist yet (for existing databases)
   return pool.query(`ALTER TABLE photos ADD COLUMN IF NOT EXISTS pinned BOOLEAN DEFAULT FALSE`);
+}).then(() => {
+  // Add user_submitted column if it doesn't exist yet (for existing databases)
+  return pool.query(`ALTER TABLE photos ADD COLUMN IF NOT EXISTS user_submitted BOOLEAN DEFAULT FALSE`);
 }).catch(err => console.error('Database init error:', err.message));
 
 pool.query(`
@@ -517,8 +520,8 @@ app.patch('/api/submissions/:id', authenticate, async (req, res) => {
         `INSERT INTO photos
            (id, name, thumbnail, painting_name, artist, location, country,
             style, medium, period, confidence, description, artist_hint,
-            manually_edited, location_source)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,FALSE,'ai')
+            manually_edited, location_source, user_submitted)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,FALSE,'ai',TRUE)
          ON CONFLICT (id) DO NOTHING`,
         [
           s.id, s.name, s.thumbnail,
