@@ -462,9 +462,10 @@
         }
       } catch (_) {}
 
-      const { base64, mediaType, previewUrl } = await compressAndConvert(file);
+      const { base64, mediaType, previewUrl, _blob } = await compressAndConvert(file);
       currentBase64     = base64;
       currentMediaType  = mediaType;   // always 'image/jpeg' after conversion
+      window.__previewBlob = _blob;    // keep blob alive so iOS doesn't GC it before preview loads
       // Update both preview images to the compressed JPEG (works on all browsers)
       document.getElementById('analyzePreviewImg').src = previewUrl;
       document.getElementById('reviewPreviewImg').src  = previewUrl;
@@ -809,25 +810,40 @@ Return ONLY a valid JSON object with ALL of these keys (raw JSON, no markdown fe
     if (isHeic) {
       try {
         const converted = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.95 });
-        file = Array.isArray(converted) ? converted[0] : converted;
+        // Validate the conversion result before using it
+        const result = Array.isArray(converted) ? converted[0] : converted;
+        if (!result || !(result instanceof Blob) || result.size === 0) {
+          throw new Error('HEIC conversion returned empty data.');
+        }
+        file = result;
       } catch (e) {
-        throw new Error('Could not decode this HEIC file. Please try saving it as JPEG and uploading again.');
+        throw new Error('Could not convert this HEIC photo. Please try saving it as JPEG and uploading again.');
       }
     }
 
-    // 1. Decode the image
+    // 1. Decode the image — try createImageBitmap first, fall back to <img>
+    // Both paths have timeouts to prevent silent hangs on iOS (large photos can stall).
     let source;
     try {
-      source = await createImageBitmap(file);
+      source = await Promise.race([
+        createImageBitmap(file),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('createImageBitmap timed out')), 20000)
+        )
+      ]);
     } catch (_) {
-      // Fallback: load via <img> element
+      // Fallback: <img> element decode
       source = await new Promise((resolve, reject) => {
         const img = new Image();
         const blobUrl = URL.createObjectURL(file);
-        img.onload  = () => { URL.revokeObjectURL(blobUrl); resolve(img); };
-        img.onerror = () => { URL.revokeObjectURL(blobUrl); reject(new Error(
-          'Could not decode this image format. Please try saving it as JPEG and uploading again.'
-        )); };
+        const timer = setTimeout(() => {
+          URL.revokeObjectURL(blobUrl);
+          reject(new Error('Image decode timed out. The photo may be too large — please try a smaller one.'));
+        }, 30000);
+        img.onload  = () => { clearTimeout(timer); URL.revokeObjectURL(blobUrl); resolve(img); };
+        img.onerror = () => { clearTimeout(timer); URL.revokeObjectURL(blobUrl);
+          reject(new Error('Could not decode this image. Please try saving it as JPEG and uploading again.'));
+        };
         img.src = blobUrl;
       });
     }
@@ -835,6 +851,7 @@ Return ONLY a valid JSON object with ALL of these keys (raw JSON, no markdown fe
     // 2. Calculate output size (preserve aspect ratio)
     const srcW = source.width  || source.naturalWidth;
     const srcH = source.height || source.naturalHeight;
+    if (!srcW || !srcH) throw new Error('Could not read image dimensions. Please try a different photo.');
     const scale = Math.min(1, maxDimension / Math.max(srcW, srcH));
     const outW  = Math.round(srcW * scale);
     const outH  = Math.round(srcH * scale);
@@ -843,22 +860,40 @@ Return ONLY a valid JSON object with ALL of these keys (raw JSON, no markdown fe
     const canvas = document.createElement('canvas');
     canvas.width  = outW;
     canvas.height = outH;
-    canvas.getContext('2d').drawImage(source, 0, 0, outW, outH);
-    if (source.close) source.close();   // free ImageBitmap memory
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('Could not create canvas — please try a different photo or browser.');
+    ctx.drawImage(source, 0, 0, outW, outH);
+    if (source.close) source.close();   // free ImageBitmap GPU memory
 
-    // 4. Export as JPEG blob
-    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', quality));
-    if (!blob) throw new Error('Image export failed — please try a different photo.');
+    // 4. Export as JPEG blob — iOS Safari can silently never call the callback
+    //    on very large canvases, so we race against a 20-second timeout.
+    const blob = await Promise.race([
+      new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', quality)),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Image export timed out. Please try a smaller photo.')), 20000)
+      )
+    ]);
+    if (!blob || blob.size === 0) throw new Error('Image export failed — please try a different photo.');
 
-    // 5. Convert blob to base64 string and a preview URL
+    // 5. Convert blob to base64 + create a preview URL
+    //    Keep a reference to the blob so iOS doesn't garbage-collect it before
+    //    the FileReader and the preview <img> have finished using it.
     const base64 = await new Promise((resolve, reject) => {
       const r = new FileReader();
-      r.onload  = () => resolve(r.result.split(',')[1]);
-      r.onerror = reject;
+      const timer = setTimeout(() =>
+        reject(new Error('Image encoding timed out. Please try again.')), 20000
+      );
+      r.onload = () => {
+        clearTimeout(timer);
+        const b64 = r.result.split(',')[1];
+        if (!b64) reject(new Error('Image encoding produced no data. Please try again.'));
+        else resolve(b64);
+      };
+      r.onerror = () => { clearTimeout(timer); reject(new Error('Image encoding failed: ' + r.error?.message)); };
       r.readAsDataURL(blob);
     });
 
-    return { base64, mediaType: 'image/jpeg', previewUrl: URL.createObjectURL(blob) };
+    return { base64, mediaType: 'image/jpeg', previewUrl: URL.createObjectURL(blob), _blob: blob };
   }
   async function reverseGeocode(lat, lng) {
     try {
