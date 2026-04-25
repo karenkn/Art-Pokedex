@@ -2055,29 +2055,29 @@ async function analysePhoto(photo) {
     // ── 2. Build Claude prompts ────────────────────────────────────────────
     const { base64, mediaType } = await compressAndConvert(photo.file, { maxDimension: 1920 });
 
-    const systemPrompt = `Act as a museum curator interested in identifying paintings. For each painting fed into the API, try to identify the artist that most closely matches the style of the painting, the name of the painting, and the location where the painting was taken.
+    const systemPrompt = `Act as a museum curator interested in identifying art, which can include paintings, sculptures, art installations, murals, and street art. For each artwork fed into the API, try to identify the artist that most closely matches the style of the art, the name of the artwork, and the location where the artwork was taken.
 
 Before drawing any conclusions, reason carefully about the visual evidence: examine the brushwork, color palette, composition, subject matter, architectural surroundings, frame style, gallery wall treatment, any visible signage or labels, and stylistic hallmarks of specific artists or movements. Prioritize evidence you can actually see over general assumptions.
 
-Express genuine uncertainty when the evidence is ambiguous — never fabricate a specific artist name or painting title without strong visual justification. If you cannot identify the specific painting or artist, describe the style and the closest likely school or movement instead.`;
+Express genuine uncertainty when the evidence is ambiguous — never fabricate a specific artist name or art title without strong visual justification. If you cannot identify the specific artwork or artist, describe the style and the closest likely school or movement instead.`;
 
     // Build a location instruction for Claude
     const locationInstruction = gpsCoords
       ? `This photo contains GPS metadata: latitude ${gpsCoords[0].toFixed(6)}, longitude ${gpsCoords[1].toFixed(6)}. Using your knowledge of museums, galleries, and art institutions worldwide, determine the most specific and accurate venue name for these coordinates (e.g. "Rijksmuseum, Amsterdam" rather than just "Amsterdam"). A nearby reverse-geocode hint is: "${gpsLocation ? gpsLocation.name : 'unavailable'}". Populate the location and country fields based on your best identification of these GPS coordinates.`
       : `Identify the location from visual clues in the image (gallery architecture, signage, frame styles, wall treatment, etc.).`;
 
-    const userPrompt = `Analyze this painting photo. ${locationInstruction}
+    const userPrompt = `Analyze this artwork photo. ${locationInstruction}
 
 Return a JSON object with EXACTLY these fields (no markdown, raw JSON only):
 {
-  "paintingName": "The specific title of the painting if identifiable, or a descriptive title like 'Unknown portrait' if not",
+  "paintingName": "The specific title of the artwork if identifiable, or a descriptive title like 'Unknown portrait' if not",
   "artist": "The artist's full name if identifiable, or the closest matching school/movement, e.g. 'Rembrandt van Rijn' or 'School of Caravaggio'",
   "location": "The most specific venue name you can determine — for GPS photos use the coordinates to identify the museum/gallery; for non-GPS photos infer from visual clues. Format: 'Venue Name, City'",
   "country": "Country name",
   "style": "Art style/movement, e.g. 'Dutch Golden Age', 'Impressionism', 'Baroque'",
   "medium": "Medium used, e.g. 'Oil on Canvas', 'Watercolor', 'Bronze Sculpture'",
   "period": "Time period or century, e.g. '17th century', 'Late 19th c.', 'Contemporary'",
-  "confidence": <integer 0-100 for confidence in the painting/artist identification only>,
+  "confidence": <integer 0-100 for confidence in the artwork/artist identification only>,
   "description": "3-4 sentences: (1) key visual clues observed, (2) why this artist/style matches, (3) notable features of the work.",
   "artistHint": "Additional context about the artist — nationality, active period, signature techniques"
 }`;
