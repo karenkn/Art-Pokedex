@@ -751,102 +751,121 @@
     /* ── Map view ── */
     #mapView {
       display: none;
-      flex-direction: column;
+      flex-direction: row;
+      min-height: 520px;
     }
     #mapView.active { display: flex; }
 
-    /* Chip rail */
-    #locationChips {
+    /* Left sidebar */
+    #mapSidebar {
+      width: 240px;
+      flex-shrink: 0;
       display: flex;
-      align-items: center;
-      gap: 6px;
-      padding: 8px 16px;
-      overflow-x: auto;
-      background: #fff;
+      flex-direction: column;
+      background: #f7f4f0;
+      border-right: 1px solid #e0dbd5;
+      overflow: hidden;
+    }
+    #sidebarHeader {
+      padding: 14px 16px 10px;
       border-bottom: 1px solid #e0dbd5;
       flex-shrink: 0;
-      scrollbar-width: none;
     }
-    #locationChips::-webkit-scrollbar { display: none; }
-    .loc-chip {
-      border-radius: 20px;
-      padding: 5px 13px;
-      font-size: 12px;
-      font-weight: 500;
-      white-space: nowrap;
+    #sidebarTitle {
+      font-size: 11px;
+      font-weight: 600;
+      color: #1a1a1a;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    #sidebarSub {
+      font-size: 11px;
+      color: #aaa;
+      margin-top: 2px;
+    }
+    #sidebarList {
+      overflow-y: auto;
+      flex: 1;
+      scrollbar-width: thin;
+      scrollbar-color: #ddd8d0 transparent;
+    }
+    #sidebarList::-webkit-scrollbar { width: 4px; }
+    #sidebarList::-webkit-scrollbar-thumb { background: #ddd8d0; border-radius: 2px; }
+    .sidebar-loc-row {
+      padding: 10px 14px;
+      border-bottom: 1px solid #ece8e2;
       cursor: pointer;
-      border: 1px solid #ddd8d0;
-      background: #f7f4f0;
-      color: #555;
-      font-family: inherit;
-      transition: all 0.15s;
-      flex-shrink: 0;
+      border-left: 3px solid transparent;
+      transition: background 0.15s;
     }
-    .loc-chip:hover { border-color: #8f0101; color: #8f0101; }
-    .loc-chip.active { background: #8f0101; color: #fff; border-color: #8f0101; }
+    .sidebar-loc-row:hover { background: #fff; }
+    .sidebar-loc-row.active { background: #fff; border-left-color: #8f0101; }
+    .sidebar-loc-name {
+      font-size: 12px;
+      font-weight: 600;
+      color: #1a1a1a;
+      margin-bottom: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .sidebar-loc-row.active .sidebar-loc-name { color: #8f0101; }
+    .sidebar-loc-meta {
+      font-size: 11px;
+      color: #aaa;
+      margin-bottom: 7px;
+    }
+    .sidebar-loc-thumbs {
+      display: flex;
+      gap: 4px;
+    }
+    .sidebar-loc-thumb {
+      width: 46px;
+      height: 38px;
+      border-radius: 2px;
+      object-fit: cover;
+      flex-shrink: 0;
+      background: #ece8e2;
+      display: block;
+    }
+    .sidebar-loc-more {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      color: #999;
+      background: rgba(0,0,0,0.06);
+    }
+    .sidebar-empty-msg {
+      padding: 32px 16px;
+      text-align: center;
+      color: #bbb;
+      font-size: 12px;
+      line-height: 1.6;
+    }
 
     #mapPane {
-      width: 100%;
-      height: 400px;
-      flex-shrink: 0;
+      flex: 1;
       position: relative;
       z-index: 0;
+      min-width: 0;
     }
     #map {
       width: 100%;
       height: 100%;
     }
 
-    /* Bottom location card */
-    #locationCard {
-      background: #fff;
-      border-top: 1px solid #e0dbd5;
-      padding: 12px 16px 14px;
-      flex-shrink: 0;
-      min-height: 88px;
-    }
-    #locationCardEmpty {
-      color: #bbb;
-      font-size: 13px;
-      text-align: center;
-      padding: 18px 0 6px;
-    }
-    #locationCardName {
-      font-family: 'Playfair Display', serif;
-      font-size: 15px;
-      font-weight: 600;
-      color: #1a1a1a;
-      margin-bottom: 2px;
-    }
-    #locationCardMeta {
-      font-size: 11px;
-      color: #aaa;
-      margin-bottom: 8px;
-    }
-    #locationCardStrip {
-      display: flex;
-      gap: 6px;
-      overflow-x: auto;
-      scrollbar-width: none;
-    }
-    #locationCardStrip::-webkit-scrollbar { display: none; }
-    .strip-thumb {
-      width: 68px;
-      height: 68px;
-      flex-shrink: 0;
-      border-radius: 4px;
-      overflow: hidden;
-      cursor: pointer;
-      background: #ece8e2;
-      border: 1.5px solid transparent;
-      transition: border-color 0.15s;
-    }
-    .strip-thumb:hover { border-color: #8f0101; }
-    .strip-thumb img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      display: block;
+    /* Mobile: map on top, list below */
+    @media (max-width: 767px) {
+      #mapView { flex-direction: column; min-height: 0; }
+      #mapPane  { height: 260px; flex: none; order: -1; }
+      #mapSidebar {
+        width: 100%;
+        border-right: none;
+        border-top: 1px solid #e0dbd5;
+        max-height: 320px;
+        order: 1;
+      }
     }
     /* Google Maps custom marker */
     .gmap-marker {
@@ -990,19 +1009,18 @@
     @media (max-width: 600px) {
       .main { padding: 14px 16px; }
       .modal-detail-grid { grid-template-columns: 1fr; }
-      #mapPane { height: 260px; }
     }
 
     /* ── Map Gallery Noir tints ── */
-    #locationChips { background: #f7f4f0; border-bottom: 1px solid #ddd8d0; }
-    .loc-chip { background: #ede9e3; border-color: #ddd8d0; color: #555; }
-    .loc-chip:hover { border-color: #8f0101; color: #8f0101; }
-    .loc-chip.active { background: #8f0101; color: #fff; border-color: #8f0101; }
-    #locationCard { background: #f7f4f0; border-top: 1px solid #ddd8d0; }
-    #locationCardName { font-family: 'Playfair Display', serif; font-size: 15px; font-weight: 600; color: #1a1a1a; }
-    #locationCardMeta { font-size: 11px; color: #aaa; }
-    .strip-thumb { background: #ece8e2; border-radius: 0; border: 1px solid transparent; }
-    .strip-thumb:hover { border-color: #8f0101; }
+    #mapSidebar { background: #f7f4f0; border-right: 1px solid #ddd8d0; }
+    #sidebarHeader { border-bottom: 1px solid #ddd8d0; }
+    #sidebarTitle { color: #1a1a1a; }
+    #sidebarSub { color: #aaa; }
+    .sidebar-loc-row { border-bottom-color: #ece8e2; }
+    .sidebar-loc-row:hover { background: #fff; }
+    .sidebar-loc-row.active { background: #fff; border-left-color: #8f0101; }
+    .sidebar-loc-row.active .sidebar-loc-name { color: #8f0101; }
+    .sidebar-loc-thumb { background: #ece8e2; }
     .gmap-marker { background: #8f0101; }
     .gmap-marker.selected { background: #111; }
     .map-popup strong { color: #8f0101; }
@@ -1115,11 +1133,16 @@
 
 <!-- Map view (shown when Location filter is active) -->
   <div id="mapView">
-    <div id="locationChips"></div>
-    <div id="mapPane"><div id="map"></div></div>
-    <div id="locationCard">
-      <div id="locationCardEmpty">Tap a pin or chip to browse photos</div>
+    <div id="mapSidebar">
+      <div id="sidebarHeader">
+        <div id="sidebarTitle">Nearby locations</div>
+        <div id="sidebarSub">5 closest to map view</div>
+      </div>
+      <div id="sidebarList">
+        <div class="sidebar-empty-msg">Pan the map to see nearby locations</div>
+      </div>
     </div>
+    <div id="mapPane"><div id="map"></div></div>
   </div>
 
   <div id="content"></div>
@@ -1663,7 +1686,7 @@ function clearAll() {
   selectedLocation = null;
   Object.values(mapMarkers).forEach(({ marker, infoWindow }) => { marker.setMap(null); infoWindow?.close(); });
   mapMarkers = {};
-  renderLocationCard(null, []);
+  renderSidebarList([]);
   render();
 }
 
@@ -1837,12 +1860,8 @@ function deletePhoto(id) {
   // If the deleted photo was selected in the sidebar, clear it
   if (selectedLocation) {
     const remaining = photos.filter(p => p.status === 'done' && p.aiData.location === selectedLocation);
-    if (!remaining.length) {
-      selectedLocation = null;
-      renderLocationCard(null, []);
-    } else {
-      renderLocationCard(selectedLocation, remaining);
-    }
+    if (!remaining.length) selectedLocation = null;
+    updateLocationList();
   }
   render();
 }
@@ -3175,8 +3194,9 @@ document.addEventListener('click', e => {
 // Map
 // ─────────────────────────────────────────────────────────────────────────────
 let googleMap = null;
-let mapMarkers = {};       // loc → { marker (OverlayView), coords, infoWindow }
+let mapMarkers = {};       // loc → { marker, coords, infoWindow }
 let selectedLocation = null;
+let _mapFitDone = false;
 const geocodeCache = {};
 
 // Coordinate lookup for 60+ known venues (no API call needed for these)
@@ -3325,12 +3345,14 @@ function loadGoogleMaps() {
 function initMap() {
   if (googleMap || !window.google?.maps) return;
   googleMap = new google.maps.Map(document.getElementById('map'), {
-    center: { lat: 30, lng: 10 },
-    zoom: 2,
+    center: { lat: 40.7831, lng: -73.9712 },
+    zoom: 13,
     mapTypeControl: false,
     streetViewControl: false,
     fullscreenControl: false,
   });
+  // Refresh sidebar list whenever the map is panned or zoomed
+  googleMap.addListener('idle', updateLocationList);
 }
 
 async function updateMap() {
@@ -3413,25 +3435,29 @@ async function updateMap() {
     }
   }
 
-  // Fit the map to all markers (only on first load, not when a location is already selected)
-  if (hasCoords && !selectedLocation) {
-    if (Object.keys(groups).length === 1) {
-      const only = Object.values(mapMarkers)[0];
-      googleMap.setCenter({ lat: only.coords[0], lng: only.coords[1] });
-      googleMap.setZoom(10);
-    } else {
-      googleMap.fitBounds(bounds, { top: 40, right: 40, bottom: 40, left: 40 });
-    }
-  }
-
   // Clear selected location if it was deleted
   if (selectedLocation && !groups[selectedLocation]) {
     selectedLocation = null;
-    renderLocationCard(null, []);
   }
 
-  // Render chip rail
-  renderChips(groups);
+  // updateLocationList is triggered by the map 'idle' event after markers are placed.
+  // On first load, if all markers are far from the default Manhattan view, fit to them.
+  if (hasCoords && !selectedLocation && !_mapFitDone) {
+    _mapFitDone = true;
+    const manhatLat = 40.7831, manhatLng = -73.9712;
+    const anyNearManhattan = Object.values(mapMarkers).some(({ coords }) =>
+      coords && Math.abs(coords[0] - manhatLat) < 5 && Math.abs(coords[1] - manhatLng) < 10
+    );
+    if (!anyNearManhattan) {
+      if (Object.keys(groups).length === 1) {
+        const only = Object.values(mapMarkers)[0];
+        googleMap.setCenter({ lat: only.coords[0], lng: only.coords[1] });
+        googleMap.setZoom(12);
+      } else {
+        googleMap.fitBounds(bounds, { top: 40, right: 40, bottom: 40, left: 40 });
+      }
+    }
+  }
 }
 
 function selectLocation(loc, marker, infoWindow) {
@@ -3449,16 +3475,8 @@ function selectLocation(loc, marker, infoWindow) {
   marker.setZIndex(10);
   infoWindow.open({ map: googleMap, anchor: marker });
 
-  const items = photos.filter(p => p.status === 'done' && p.aiData.location === loc);
-  renderLocationCard(loc, items);
-
-  // Sync chip active state
-  document.querySelectorAll('.loc-chip').forEach(chip => {
-    chip.classList.toggle('active', chip.dataset.loc === loc);
-  });
-  // Scroll active chip into view
-  const activeChip = document.querySelector(`.loc-chip[data-loc="${CSS.escape(loc)}"]`);
-  if (activeChip) activeChip.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+  // Refresh sidebar list with updated active state
+  updateLocationList();
 
   const coords = mapMarkers[loc]?.coords;
   if (coords) {
@@ -3467,41 +3485,65 @@ function selectLocation(loc, marker, infoWindow) {
   }
 }
 
-function renderLocationCard(loc, items) {
-  const card = document.getElementById('locationCard');
-  if (!card) return;
+function updateLocationList() {
+  if (!googleMap) return;
+  const bounds = googleMap.getBounds();
+  const center = googleMap.getCenter();
+  if (!bounds || !center) return;
 
-  if (!loc) {
-    card.innerHTML = '<div id="locationCardEmpty">Tap a pin or chip to browse photos</div>';
+  // Build groups from done photos
+  const done = photos.filter(p => p.status === 'done' && p.aiData?.location);
+  const groups = {};
+  done.forEach(p => {
+    const loc = p.aiData.location;
+    if (!groups[loc]) groups[loc] = [];
+    groups[loc].push(p);
+  });
+
+  // Keep only locations whose marker is within the current map bounds
+  const visible = Object.entries(groups).filter(([loc]) => {
+    const coords = mapMarkers[loc]?.coords;
+    return coords && bounds.contains({ lat: coords[0], lng: coords[1] });
+  });
+
+  // Sort by distance from map center (Euclidean — fine for city-scale)
+  const clat = center.lat(), clng = center.lng();
+  visible.sort(([locA], [locB]) => {
+    const cA = mapMarkers[locA].coords;
+    const cB = mapMarkers[locB].coords;
+    const dA = (cA[0] - clat) ** 2 + (cA[1] - clng) ** 2;
+    const dB = (cB[0] - clat) ** 2 + (cB[1] - clng) ** 2;
+    return dA - dB;
+  });
+
+  renderSidebarList(visible.slice(0, 5));
+}
+
+function renderSidebarList(entries) {
+  const list = document.getElementById('sidebarList');
+  if (!list) return;
+
+  if (!entries.length) {
+    list.innerHTML = '<div class="sidebar-empty-msg">No locations visible<br>in current map view.<br>Try zooming out.</div>';
     return;
   }
 
-  const country = items[0]?.aiData?.country || '';
-  const meta = `${country}${country ? ' · ' : ''}${items.length} photo${items.length > 1 ? 's' : ''}`;
-
-  card.innerHTML = `
-    <div id="locationCardName">${escHtml(loc)}</div>
-    <div id="locationCardMeta">${escHtml(meta)}</div>
-    <div id="locationCardStrip">
-      ${items.map(p => `
-        <div class="strip-thumb" onclick="openModal('${p.id}')" title="${escHtml(p.aiData?.paintingName || p.name)}">
-          <img src="${p.url}" alt="${escHtml(p.aiData?.paintingName || p.name)}" loading="lazy" />
-        </div>
-      `).join('')}
-    </div>
-  `;
-}
-
-function renderChips(groups) {
-  const container = document.getElementById('locationChips');
-  if (!container) return;
-
-  // Sort locations by photo count descending
-  const locs = Object.keys(groups).sort((a, b) => groups[b].length - groups[a].length);
-
-  container.innerHTML = locs.map(loc => {
+  list.innerHTML = entries.map(([loc, items]) => {
     const isActive = selectedLocation === loc;
-    return `<button class="loc-chip${isActive ? ' active' : ''}" data-loc="${escHtml(loc)}" onclick="selectLocationByName(${JSON.stringify(loc)})">${escHtml(loc)} <span style="opacity:0.65;font-size:10px;font-weight:400">${groups[loc].length}</span></button>`;
+    const country = items[0]?.aiData?.country || '';
+    const meta = `${country}${country ? ' · ' : ''}${items.length} photo${items.length > 1 ? 's' : ''}`;
+    const thumbsHtml = items.slice(0, 3).map(p =>
+      `<img class="sidebar-loc-thumb" src="${p.url}" alt="${escHtml(p.aiData?.paintingName || p.name)}" loading="lazy" />`
+    ).join('');
+    const moreHtml = items.length > 3
+      ? `<div class="sidebar-loc-thumb sidebar-loc-more">+${items.length - 3}</div>` : '';
+
+    return `
+      <div class="sidebar-loc-row${isActive ? ' active' : ''}" onclick="selectLocationByName(${JSON.stringify(loc)})">
+        <div class="sidebar-loc-name">${escHtml(loc)}</div>
+        <div class="sidebar-loc-meta">${escHtml(meta)}</div>
+        <div class="sidebar-loc-thumbs">${thumbsHtml}${moreHtml}</div>
+      </div>`;
   }).join('');
 }
 
