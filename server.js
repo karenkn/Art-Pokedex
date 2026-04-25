@@ -1,11 +1,13 @@
-const express   = require('express');
-const cors      = require('cors');
-const bcrypt    = require('bcryptjs');
-const jwt       = require('jsonwebtoken');
-const rateLimit = require('express-rate-limit');
-const { Pool }  = require('pg');
+const express     = require('express');
+const cors        = require('cors');
+const bcrypt      = require('bcryptjs');
+const jwt         = require('jsonwebtoken');
+const rateLimit   = require('express-rate-limit');
+const compression = require('compression');
+const { Pool }    = require('pg');
 
 const app = express();
+app.use(compression()); // gzip all responses — cuts JSON payload by ~70%
 
 // ── Middleware ────────────────────────────────────────────────────────────────
 // Restrict CORS to the declared frontend origin(s).
@@ -541,6 +543,9 @@ app.patch('/api/submissions/:id', authenticate, async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// ── GET /health — lightweight keep-alive ping (use with UptimeRobot etc.) ─────
+app.get('/health', (_req, res) => res.json({ ok: true }));
 
 // ── GET /api/photos — public: anyone can view ─────────────────────────────────
 app.get('/api/photos', async (_req, res) => {
