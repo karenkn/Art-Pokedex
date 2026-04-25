@@ -751,10 +751,24 @@
     /* ── Map view ── */
     #mapView {
       display: none;
+      flex-direction: column;
+    }
+    #mapView.active { display: flex; }
+
+    /* Row containing sidebar + map */
+    #mapTop {
+      display: flex;
       flex-direction: row;
       min-height: 520px;
     }
-    #mapView.active { display: flex; }
+
+    /* Gallery below the map */
+    #mapGallery {
+      padding: clamp(24px, 3vw, 44px) clamp(16px, 4vw, 48px) clamp(32px, 4vw, 52px);
+      border-top: 2px solid #e0dbd5;
+      background: #f0ede8;
+    }
+    #mapGallery .location-group { margin-bottom: 0; }
 
     /* Left sidebar */
     #mapSidebar {
@@ -857,7 +871,7 @@
 
     /* Mobile: map on top, list below */
     @media (max-width: 767px) {
-      #mapView { flex-direction: column; min-height: 0; }
+      #mapTop   { flex-direction: column; min-height: 0; }
       #mapPane  { height: 260px; flex: none; order: -1; }
       #mapSidebar {
         width: 100%;
@@ -866,6 +880,7 @@
         max-height: 320px;
         order: 1;
       }
+      #mapGallery { padding: 20px 16px 32px; }
     }
     /* Google Maps custom marker */
     .gmap-marker {
@@ -1133,16 +1148,19 @@
 
 <!-- Map view (shown when Location filter is active) -->
   <div id="mapView">
-    <div id="mapSidebar">
-      <div id="sidebarHeader">
-        <div id="sidebarTitle">Nearby locations</div>
-        <div id="sidebarSub">5 closest to map view</div>
+    <div id="mapTop">
+      <div id="mapSidebar">
+        <div id="sidebarHeader">
+          <div id="sidebarTitle">Nearby locations</div>
+          <div id="sidebarSub">5 closest to map view</div>
+        </div>
+        <div id="sidebarList">
+          <div class="sidebar-empty-msg">Pan the map to see nearby locations</div>
+        </div>
       </div>
-      <div id="sidebarList">
-        <div class="sidebar-empty-msg">Pan the map to see nearby locations</div>
-      </div>
+      <div id="mapPane"><div id="map"></div></div>
     </div>
-    <div id="mapPane"><div id="map"></div></div>
+    <div id="mapGallery" style="display:none"></div>
   </div>
 
   <div id="content"></div>
@@ -1687,6 +1705,7 @@ function clearAll() {
   Object.values(mapMarkers).forEach(({ marker, infoWindow }) => { marker.setMap(null); infoWindow?.close(); });
   mapMarkers = {};
   renderSidebarList([]);
+  renderMapGallery(null, []);
   render();
 }
 
@@ -3440,7 +3459,9 @@ async function updateMap() {
     selectedLocation = null;
   }
 
-  // updateLocationList is triggered by the map 'idle' event after markers are placed.
+  // Always refresh the sidebar list after markers are updated
+  updateLocationList();
+
   // On first load, if all markers are far from the default Manhattan view, fit to them.
   if (hasCoords && !selectedLocation && !_mapFitDone) {
     _mapFitDone = true;
@@ -3478,18 +3499,31 @@ function selectLocation(loc, marker, infoWindow) {
   // Refresh sidebar list with updated active state
   updateLocationList();
 
+  // Render gallery below the map
+  const items = photos.filter(p => p.status === 'done' && p.aiData.location === loc);
+  renderMapGallery(loc, items);
+
   const coords = mapMarkers[loc]?.coords;
   if (coords) {
     googleMap.panTo({ lat: coords[0], lng: coords[1] });
     if (googleMap.getZoom() < 12) googleMap.setZoom(12);
   }
+
+  // Scroll gallery into view smoothly
+  setTimeout(() => {
+    document.getElementById('mapGallery')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 350);
 }
 
 function updateLocationList() {
   if (!googleMap) return;
   const bounds = googleMap.getBounds();
   const center = googleMap.getCenter();
-  if (!bounds || !center) return;
+  // Bounds can be null before tiles finish loading — retry once after a tick
+  if (!bounds || !center) {
+    setTimeout(updateLocationList, 200);
+    return;
+  }
 
   // Build groups from done photos
   const done = photos.filter(p => p.status === 'done' && p.aiData?.location);
@@ -3551,6 +3585,39 @@ function selectLocationByName(loc) {
   const entry = mapMarkers[loc];
   if (!entry) return;
   selectLocation(loc, entry.marker, entry.infoWindow);
+}
+
+function renderMapGallery(loc, items) {
+  const gallery = document.getElementById('mapGallery');
+  if (!gallery) return;
+
+  if (!loc || !items.length) {
+    gallery.style.display = 'none';
+    return;
+  }
+
+  const country = items[0]?.aiData?.country || '';
+  const sub = `${country}${country ? ' · ' : ''}${items.length} photo${items.length > 1 ? 's' : ''}`;
+
+  // Pinned first, then by likes descending
+  const sorted = [...items].sort((a, b) => {
+    if (a.pinned && !b.pinned) return -1;
+    if (!a.pinned && b.pinned) return 1;
+    return (b.likes || 0) - (a.likes || 0);
+  });
+
+  gallery.innerHTML = `
+    <div class="location-group" style="margin-bottom:0">
+      <div class="location-header">
+        <span class="location-icon">📍</span>
+        <span class="location-name">${escHtml(loc)}</span>
+        <span class="location-sub">${escHtml(sub)}</span>
+      </div>
+      <div class="photo-grid">
+        ${sorted.map((p, i) => photoCard(p, i === 0 && sorted.length >= 3)).join('')}
+      </div>
+    </div>`;
+  gallery.style.display = '';
 }
 
 window.addEventListener('dragover', e => e.preventDefault());
