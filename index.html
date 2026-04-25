@@ -754,9 +754,40 @@
       flex-direction: column;
     }
     #mapView.active { display: flex; }
+
+    /* Chip rail */
+    #locationChips {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      overflow-x: auto;
+      background: #fff;
+      border-bottom: 1px solid #e0dbd5;
+      flex-shrink: 0;
+      scrollbar-width: none;
+    }
+    #locationChips::-webkit-scrollbar { display: none; }
+    .loc-chip {
+      border-radius: 20px;
+      padding: 5px 13px;
+      font-size: 12px;
+      font-weight: 500;
+      white-space: nowrap;
+      cursor: pointer;
+      border: 1px solid #ddd8d0;
+      background: #f7f4f0;
+      color: #555;
+      font-family: inherit;
+      transition: all 0.15s;
+      flex-shrink: 0;
+    }
+    .loc-chip:hover { border-color: #8f0101; color: #8f0101; }
+    .loc-chip.active { background: #8f0101; color: #fff; border-color: #8f0101; }
+
     #mapPane {
       width: 100%;
-      height: 420px;
+      height: 400px;
       flex-shrink: 0;
       position: relative;
       z-index: 0;
@@ -765,69 +796,57 @@
       width: 100%;
       height: 100%;
     }
-    #mapSidebar {
-      width: 100%;
-      display: flex;
-      flex-direction: column;
+
+    /* Bottom location card */
+    #locationCard {
       background: #fff;
       border-top: 1px solid #e0dbd5;
-    }
-    #sidebarHeader {
-      padding: 14px 20px 12px;
-      border-bottom: 1px solid #e8e2da;
+      padding: 12px 16px 14px;
       flex-shrink: 0;
+      min-height: 88px;
     }
-    #sidebarTitle {
-      font-size: 15px;
-      font-weight: 700;
-      color: #8f0101;
-      margin-bottom: 3px;
-    }
-    #sidebarSub {
-      font-size: 12px;
-      color: #999;
-    }
-    #sidebarPhotos {
-      padding: 16px 20px;
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-      gap: 14px;
-      align-content: start;
-    }
-    .sidebar-thumb {
-      border-radius: 8px;
-      overflow: hidden;
-      cursor: pointer;
-      background: #f5f0eb;
-      border: 2px solid transparent;
-      transition: border-color 0.15s, transform 0.15s;
-      position: relative;
-    }
-    .sidebar-thumb:hover {
-      border-color: #e05c2e;
-      transform: scale(1.03);
-    }
-    .sidebar-thumb img {
-      width: 100%;
-      height: 130px;
-      object-fit: cover;
-      display: block;
-    }
-    .sidebar-thumb-label {
-      font-size: 11px;
-      padding: 5px 7px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      color: #555;
-      background: #fff;
-    }
-    .sidebar-empty {
-      grid-column: 1/-1;
-      text-align: center;
+    #locationCardEmpty {
       color: #bbb;
       font-size: 13px;
-      padding: 40px 0;
+      text-align: center;
+      padding: 18px 0 6px;
+    }
+    #locationCardName {
+      font-family: 'Playfair Display', serif;
+      font-size: 15px;
+      font-weight: 600;
+      color: #1a1a1a;
+      margin-bottom: 2px;
+    }
+    #locationCardMeta {
+      font-size: 11px;
+      color: #aaa;
+      margin-bottom: 8px;
+    }
+    #locationCardStrip {
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    #locationCardStrip::-webkit-scrollbar { display: none; }
+    .strip-thumb {
+      width: 68px;
+      height: 68px;
+      flex-shrink: 0;
+      border-radius: 4px;
+      overflow: hidden;
+      cursor: pointer;
+      background: #ece8e2;
+      border: 1.5px solid transparent;
+      transition: border-color 0.15s;
+    }
+    .strip-thumb:hover { border-color: #8f0101; }
+    .strip-thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
     }
     /* Google Maps custom marker */
     .gmap-marker {
@@ -971,20 +990,19 @@
     @media (max-width: 600px) {
       .main { padding: 14px 16px; }
       .modal-detail-grid { grid-template-columns: 1fr; }
-      #mapPane { height: 240px; }
+      #mapPane { height: 260px; }
     }
 
-    /* ── Map sidebar Gallery Noir tints ── */
-    #mapSidebar { background: #f7f4f0; border-top: 1px solid #ddd8d0; }
-    #sidebarHeader { background: #f7f4f0; border-bottom: 1px solid #e4dfd8; }
-    #sidebarTitle {
-      font-family: 'Playfair Display', serif;
-      font-size: 15px; font-weight: 600; color: #1a1a1a; margin-bottom: 3px;
-    }
-    #sidebarSub { font-size: 11px; color: #aaa; }
-    .sidebar-thumb { background: #ece8e2; border-radius: 0; border: 1px solid transparent; }
-    .sidebar-thumb:hover { border-color: #8f0101; }
-    .sidebar-thumb-label { color: #555; background: #fff; font-size: 10px; }
+    /* ── Map Gallery Noir tints ── */
+    #locationChips { background: #f7f4f0; border-bottom: 1px solid #ddd8d0; }
+    .loc-chip { background: #ede9e3; border-color: #ddd8d0; color: #555; }
+    .loc-chip:hover { border-color: #8f0101; color: #8f0101; }
+    .loc-chip.active { background: #8f0101; color: #fff; border-color: #8f0101; }
+    #locationCard { background: #f7f4f0; border-top: 1px solid #ddd8d0; }
+    #locationCardName { font-family: 'Playfair Display', serif; font-size: 15px; font-weight: 600; color: #1a1a1a; }
+    #locationCardMeta { font-size: 11px; color: #aaa; }
+    .strip-thumb { background: #ece8e2; border-radius: 0; border: 1px solid transparent; }
+    .strip-thumb:hover { border-color: #8f0101; }
     .gmap-marker { background: #8f0101; }
     .gmap-marker.selected { background: #111; }
     .map-popup strong { color: #8f0101; }
@@ -1097,15 +1115,10 @@
 
 <!-- Map view (shown when Location filter is active) -->
   <div id="mapView">
+    <div id="locationChips"></div>
     <div id="mapPane"><div id="map"></div></div>
-    <div id="mapSidebar">
-      <div id="sidebarHeader">
-        <div id="sidebarTitle">📍 Click a pin to see photos</div>
-        <div id="sidebarSub">Select a location on the map</div>
-      </div>
-      <div id="sidebarPhotos">
-        <div class="sidebar-empty">Click a map pin<br>to browse photos</div>
-      </div>
+    <div id="locationCard">
+      <div id="locationCardEmpty">Tap a pin or chip to browse photos</div>
     </div>
   </div>
 
@@ -1650,7 +1663,7 @@ function clearAll() {
   selectedLocation = null;
   Object.values(mapMarkers).forEach(({ marker, infoWindow }) => { marker.setMap(null); infoWindow?.close(); });
   mapMarkers = {};
-  renderSidebar(null, []);
+  renderLocationCard(null, []);
   render();
 }
 
@@ -1826,9 +1839,9 @@ function deletePhoto(id) {
     const remaining = photos.filter(p => p.status === 'done' && p.aiData.location === selectedLocation);
     if (!remaining.length) {
       selectedLocation = null;
-      renderSidebar(null, []);
+      renderLocationCard(null, []);
     } else {
-      renderSidebar(selectedLocation, remaining);
+      renderLocationCard(selectedLocation, remaining);
     }
   }
   render();
@@ -3414,8 +3427,11 @@ async function updateMap() {
   // Clear selected location if it was deleted
   if (selectedLocation && !groups[selectedLocation]) {
     selectedLocation = null;
-    renderSidebar(null, []);
+    renderLocationCard(null, []);
   }
+
+  // Render chip rail
+  renderChips(groups);
 }
 
 function selectLocation(loc, marker, infoWindow) {
@@ -3428,13 +3444,21 @@ function selectLocation(loc, marker, infoWindow) {
 
   selectedLocation = loc;
 
-  // Highlight selected marker (navy)
+  // Highlight selected marker (dark red)
   marker.setIcon({ ...marker.getIcon(), fillColor: '#8f0101', scale: 21 });
   marker.setZIndex(10);
   infoWindow.open({ map: googleMap, anchor: marker });
 
   const items = photos.filter(p => p.status === 'done' && p.aiData.location === loc);
-  renderSidebar(loc, items);
+  renderLocationCard(loc, items);
+
+  // Sync chip active state
+  document.querySelectorAll('.loc-chip').forEach(chip => {
+    chip.classList.toggle('active', chip.dataset.loc === loc);
+  });
+  // Scroll active chip into view
+  const activeChip = document.querySelector(`.loc-chip[data-loc="${CSS.escape(loc)}"]`);
+  if (activeChip) activeChip.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
 
   const coords = mapMarkers[loc]?.coords;
   if (coords) {
@@ -3443,30 +3467,48 @@ function selectLocation(loc, marker, infoWindow) {
   }
 }
 
-function renderSidebar(loc, items) {
-  const title = document.getElementById('sidebarTitle');
-  const sub   = document.getElementById('sidebarSub');
-  const grid  = document.getElementById('sidebarPhotos');
+function renderLocationCard(loc, items) {
+  const card = document.getElementById('locationCard');
+  if (!card) return;
 
   if (!loc) {
-    title.textContent = '📍 Click a pin to see photos';
-    sub.textContent   = 'Select a location on the map';
-    grid.innerHTML    = '<div class="sidebar-empty">Click a map pin<br>to browse photos</div>';
+    card.innerHTML = '<div id="locationCardEmpty">Tap a pin or chip to browse photos</div>';
     return;
   }
 
   const country = items[0]?.aiData?.country || '';
-  title.textContent = loc;
-  sub.textContent   = `${country}${country ? ' · ' : ''}${items.length} photo${items.length>1?'s':''}`;
+  const meta = `${country}${country ? ' · ' : ''}${items.length} photo${items.length > 1 ? 's' : ''}`;
 
-  grid.innerHTML = items.map(p => `
-    <div class="sidebar-thumb" onclick="openModal('${p.id}')">
-      <img src="${p.url}" alt="${escHtml(p.name)}" loading="lazy" />
-      <div class="sidebar-thumb-label">
-        ${p.locationSource === 'gps' ? '<span class="gps-badge" style="font-size:10px">🛰 GPS</span> ' : ''}${escHtml(p.aiData?.paintingName || p.name)}
-      </div>
+  card.innerHTML = `
+    <div id="locationCardName">${escHtml(loc)}</div>
+    <div id="locationCardMeta">${escHtml(meta)}</div>
+    <div id="locationCardStrip">
+      ${items.map(p => `
+        <div class="strip-thumb" onclick="openModal('${p.id}')" title="${escHtml(p.aiData?.paintingName || p.name)}">
+          <img src="${p.url}" alt="${escHtml(p.aiData?.paintingName || p.name)}" loading="lazy" />
+        </div>
+      `).join('')}
     </div>
-  `).join('') || '<div class="sidebar-empty">No photos here</div>';
+  `;
+}
+
+function renderChips(groups) {
+  const container = document.getElementById('locationChips');
+  if (!container) return;
+
+  // Sort locations by photo count descending
+  const locs = Object.keys(groups).sort((a, b) => groups[b].length - groups[a].length);
+
+  container.innerHTML = locs.map(loc => {
+    const isActive = selectedLocation === loc;
+    return `<button class="loc-chip${isActive ? ' active' : ''}" data-loc="${escHtml(loc)}" onclick="selectLocationByName(${JSON.stringify(loc)})">${escHtml(loc)} <span style="opacity:0.65;font-size:10px;font-weight:400">${groups[loc].length}</span></button>`;
+  }).join('');
+}
+
+function selectLocationByName(loc) {
+  const entry = mapMarkers[loc];
+  if (!entry) return;
+  selectLocation(loc, entry.marker, entry.infoWindow);
 }
 
 window.addEventListener('dragover', e => e.preventDefault());
