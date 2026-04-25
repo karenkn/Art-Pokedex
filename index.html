@@ -3573,7 +3573,7 @@ function renderSidebarList(entries) {
       ? `<div class="sidebar-loc-thumb sidebar-loc-more">+${items.length - 3}</div>` : '';
 
     return `
-      <div class="sidebar-loc-row${isActive ? ' active' : ''}" onclick="selectLocationByName(${JSON.stringify(loc)})">
+      <div class="sidebar-loc-row${isActive ? ' active' : ''}" onclick="selectLocationByName(${escHtml(JSON.stringify(loc))})">
         <div class="sidebar-loc-name">${escHtml(loc)}</div>
         <div class="sidebar-loc-meta">${escHtml(meta)}</div>
         <div class="sidebar-loc-thumbs">${thumbsHtml}${moreHtml}</div>
