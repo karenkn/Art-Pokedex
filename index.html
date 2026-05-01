@@ -35,10 +35,6 @@
     .header-logo {
       display: flex; align-items: center; gap: 10px; flex-shrink: 0; text-decoration: none;
     }
-    .logo-dot {
-      width: 9px; height: 9px;
-      background: #8f0101; border-radius: 50%; flex-shrink: 0;
-    }
     .logo-text {
       font-family: 'Playfair Display', serif;
       font-size: clamp(15px, 2.5vw, 18px);
@@ -82,58 +78,6 @@
       .header-nav { display: none; }
       .header-hamburger { display: flex; align-items: center; }
     }
-    /* keep old .ai-badge in case referenced elsewhere but hide it */
-    .ai-badge { display: none; }
-
-    /* ── API Key Panel ── */
-    .api-panel {
-      background: #fff;
-      border-bottom: 1px solid #e0dbd5;
-      padding: 14px 32px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      flex-wrap: wrap;
-    }
-    .api-panel label { font-size: 13px; font-weight: 600; white-space: nowrap; color: #444; }
-    .api-input-wrap {
-      position: relative;
-      flex: 1;
-      min-width: 240px;
-      max-width: 520px;
-    }
-    .api-input {
-      width: 100%;
-      padding: 8px 38px 8px 12px;
-      border: 1.5px solid #ccc;
-      border-radius: 6px;
-      font-size: 13px;
-      font-family: monospace;
-      color: #333;
-      outline: none;
-      transition: border-color 0.2s;
-    }
-    .api-input:focus { border-color: #e05c2e; }
-    .api-input.valid  { border-color: #3a7d44; }
-    .api-toggle {
-      position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
-      background: none; border: none; cursor: pointer; font-size: 16px; color: #999;
-      padding: 2px;
-    }
-    .api-status {
-      font-size: 12px;
-      padding: 4px 10px;
-      border-radius: 12px;
-      font-weight: 600;
-    }
-    .api-status.ok  { background: #e8f7ee; color: #2a7d44; }
-    .api-status.err { background: #fde8e8; color: #c0392b; }
-    .api-hint {
-      font-size: 12px; color: #999; flex-basis: 100%;
-      padding-top: 2px;
-    }
-    .api-hint a { color: #1a6fa6; }
-
     /* ── Toolbar ── */
     .toolbar {
       display: flex;
@@ -596,8 +540,6 @@
     .modal-detail { background: #f7f4f0; border: 1px solid #ece8e2; padding: 11px 14px; }
     .modal-detail label { font-size: 10px; color: #aaa; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 3px; }
     .modal-detail span  { font-weight: 600; color: #1a1a1a; font-size: 13px; }
-    .model-note { margin-top: 16px; font-size: 11px; color: #ccc; text-align: right; }
-
     /* ── Edit mode / modal action buttons ── */
     .modal-edit-btn {
       margin-top: 14px;
@@ -731,23 +673,6 @@
       font-weight: 600;
       letter-spacing: 0.3px;
     }
-    .ai-loc-badge {
-      font-size: 9px;
-      border: 1px solid #e8ddd0;
-      color: #a8906a;
-      padding: 1px 6px;
-      font-weight: 600;
-      letter-spacing: 0.3px;
-    }
-
-    /* No-key notice */
-    .notice {
-      background: #fff8e1; border: 1.5px solid #f0c040; border-radius: 10px;
-      padding: 18px 22px; font-size: 14px; color: #7a5700;
-      margin-bottom: 24px; display: flex; gap: 12px; align-items: flex-start;
-    }
-    .notice .icon { font-size: 22px; flex-shrink: 0; }
-
     /* ── Map view ── */
     #mapView {
       display: none;
@@ -882,21 +807,6 @@
       }
       #mapGallery { padding: 20px 16px 32px; }
     }
-    /* Google Maps custom marker */
-    .gmap-marker {
-      background: #e05c2e;
-      color: #fff;
-      border-radius: 50% 50% 50% 0;
-      transform: rotate(-45deg);
-      width: 34px; height: 34px;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 12px; font-weight: 700;
-      border: 2px solid #fff;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-      cursor: pointer;
-    }
-    .gmap-marker.selected { background: #8f0101; transform: rotate(-45deg) scale(1.2); }
-    .gmap-marker-inner { transform: rotate(45deg); }
     #map { width: 100%; height: 100%; }
     .map-popup {
       padding: 10px 12px;
@@ -1036,17 +946,10 @@
     .sidebar-loc-row.active { background: #fff; border-left-color: #8f0101; }
     .sidebar-loc-row.active .sidebar-loc-name { color: #8f0101; }
     .sidebar-loc-thumb { background: #ece8e2; }
-    .gmap-marker { background: #8f0101; }
-    .gmap-marker.selected { background: #111; }
     .map-popup strong { color: #8f0101; }
-    /* Notice box */
-    .notice { background: #faf7f0; border-color: #e4c87a; border-radius: 0; color: #7a5700; }
     /* Loading screen */
     .loading-screen { background: #faf7f0; border-radius: 0; }
     .loading-screen .load-spinner { border-color: #ddd8d0; border-top-color: #8f0101; }
-    /* API panel */
-    .api-panel { background: #f7f4f0; border-bottom: 1px solid #ddd8d0; padding: 12px clamp(16px,4vw,48px); }
-    .api-input:focus { border-color: #8f0101; }
     .edit-field input:focus, .edit-field textarea:focus { border-color: #8f0101; }
     .edit-confidence input[type=range] { accent-color: #8f0101; }
     .places-option:hover, .places-option.active { background: #faf5f0; color: #8f0101; }
@@ -1189,115 +1092,6 @@
 
       <!-- Edit mode -->
       <div id="editMode" style="display:none">
-        <!-- Datalists for autocomplete -->
-        <datalist id="dl-location">
-          <option value="Louvre Museum, Paris">
-          <option value="Musée d'Orsay, Paris">
-          <option value="Centre Pompidou, Paris">
-          <option value="Palace of Versailles, France">
-          <option value="Musée de l'Orangerie, Paris">
-          <option value="The Metropolitan Museum of Art, New York">
-          <option value="MoMA (Museum of Modern Art), New York">
-          <option value="Guggenheim Museum, New York">
-          <option value="Whitney Museum of American Art, New York">
-          <option value="The Frick Collection, New York">
-          <option value="Brooklyn Museum, New York">
-          <option value="The Art Institute of Chicago">
-          <option value="National Gallery of Art, Washington D.C.">
-          <option value="Smithsonian American Art Museum, Washington D.C.">
-          <option value="Getty Center, Los Angeles">
-          <option value="LACMA (LA County Museum of Art), Los Angeles">
-          <option value="San Francisco Museum of Modern Art (SFMOMA)">
-          <option value="National Gallery, London">
-          <option value="Tate Modern, London">
-          <option value="Tate Britain, London">
-          <option value="Victoria and Albert Museum, London">
-          <option value="The British Museum, London">
-          <option value="Courtauld Gallery, London">
-          <option value="Wallace Collection, London">
-          <option value="Serpentine Gallery, London">
-          <option value="Uffizi Gallery, Florence">
-          <option value="Accademia Gallery, Florence">
-          <option value="Palatine Gallery (Palazzo Pitti), Florence">
-          <option value="Vatican Museums, Rome">
-          <option value="Borghese Gallery, Rome">
-          <option value="Pinacoteca di Brera, Milan">
-          <option value="National Museum of Capodimonte, Naples">
-          <option value="Prado Museum, Madrid">
-          <option value="Reina Sofía Museum, Madrid">
-          <option value="Thyssen-Bornemisza Museum, Madrid">
-          <option value="Guggenheim Museum Bilbao">
-          <option value="Rijksmuseum, Amsterdam">
-          <option value="Van Gogh Museum, Amsterdam">
-          <option value="Stedelijk Museum, Amsterdam">
-          <option value="Mauritshuis, The Hague">
-          <option value="Alte Pinakothek, Munich">
-          <option value="Neue Pinakothek, Munich">
-          <option value="Pinakothek der Moderne, Munich">
-          <option value="Gemäldegalerie, Berlin">
-          <option value="Hamburger Bahnhof, Berlin">
-          <option value="Pergamon Museum, Berlin">
-          <option value="Kunsthistorisches Museum, Vienna">
-          <option value="Belvedere Museum, Vienna">
-          <option value="Albertina Museum, Vienna">
-          <option value="Musée des Beaux-Arts, Brussels">
-          <option value="Hermitage Museum, St. Petersburg">
-          <option value="Tretyakov Gallery, Moscow">
-          <option value="Pushkin State Museum of Fine Arts, Moscow">
-          <option value="Museo Nacional de Antropología, Mexico City">
-          <option value="Museo Frida Kahlo, Mexico City">
-          <option value="São Paulo Museum of Art (MASP)">
-          <option value="National Museum of Fine Arts, Buenos Aires">
-          <option value="National Palace Museum, Taipei">
-          <option value="Tokyo National Museum">
-          <option value="Mori Art Museum, Tokyo">
-          <option value="National Museum of Modern Art, Tokyo">
-          <option value="Shanghai Museum">
-          <option value="National Museum of China, Beijing">
-          <option value="National Museum of Korea, Seoul">
-          <option value="Leeum Samsung Museum of Art, Seoul">
-          <option value="National Gallery of Australia, Canberra">
-          <option value="Art Gallery of New South Wales, Sydney">
-          <option value="Street Art, Berlin">
-          <option value="Street Art, Bristol">
-          <option value="Street Art, New York">
-          <option value="Street Art, Los Angeles">
-          <option value="Street Art, Melbourne">
-          <option value="Private Collection">
-          <option value="Unknown Location">
-        </datalist>
-
-        <datalist id="dl-country">
-          <option value="France">
-          <option value="United States">
-          <option value="United Kingdom">
-          <option value="Italy">
-          <option value="Spain">
-          <option value="Netherlands">
-          <option value="Germany">
-          <option value="Austria">
-          <option value="Belgium">
-          <option value="Russia">
-          <option value="Japan">
-          <option value="China">
-          <option value="South Korea">
-          <option value="Mexico">
-          <option value="Brazil">
-          <option value="Argentina">
-          <option value="Australia">
-          <option value="Taiwan">
-          <option value="Portugal">
-          <option value="Switzerland">
-          <option value="Denmark">
-          <option value="Sweden">
-          <option value="Norway">
-          <option value="Greece">
-          <option value="Turkey">
-          <option value="Egypt">
-          <option value="India">
-          <option value="Canada">
-        </datalist>
-
         <datalist id="dl-style">
           <option value="Abstract Art">
           <option value="Abstract Expressionism">
@@ -1648,34 +1442,6 @@ function closePlacesDropdown() {
 document.addEventListener('click', e => {
   if (!e.target.closest('.places-wrap')) closePlacesDropdown();
 });
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Server URL management
-// ─────────────────────────────────────────────────────────────────────────────
-function onServerUrlInput() {
-  serverUrl = document.getElementById('serverUrlInput').value.trim().replace(/\/$/, '');
-  // Persist so submit.html (and other pages) can auto-read the same URL
-  try { if (serverUrl) localStorage.setItem('artpokemon_server_url', serverUrl); } catch (_) {}
-  const valid  = serverUrl.startsWith('http');
-  const btn    = document.getElementById('uploadBtn');
-  const st     = document.getElementById('apiStatus');
-  const notice = document.getElementById('noServerNotice');
-
-  btn.disabled = !valid;
-  if (!serverUrl) {
-    st.textContent = '';
-    st.className = 'api-status';
-    notice.style.display = 'flex';
-  } else if (valid) {
-    st.textContent = '✓ Server URL set';
-    st.className = 'api-status ok';
-    notice.style.display = 'none';
-  } else {
-    st.textContent = '⚠ URL should start with https://';
-    st.className = 'api-status err';
-    notice.style.display = 'none';
-  }
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // File handling
@@ -3635,15 +3401,6 @@ function escHtml(str) {
 
 // Proxy server URL — update this if you redeploy to a new Railway URL
 serverUrl = 'https://art-pokedex-production.up.railway.app';
-
-// Pre-populate server URL input from localStorage if available
-try {
-  const saved = localStorage.getItem('artpokemon_server_url');
-  if (saved) {
-    const input = document.getElementById('serverUrlInput');
-    if (input && !input.value) { input.value = saved; serverUrl = saved; }
-  }
-} catch (_) {}
 
 // Load any previously saved photos from the database
 loadSavedPhotos();
