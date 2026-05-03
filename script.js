@@ -4,7 +4,7 @@
 let photos = [];
 let submissions = [];
 let currentFilter = 'all';
-let currentSort   = 'title';
+let currentSort   = 'newest';
 let serverUrl = '';
 let analysisQueue = Promise.resolve();  // serialise API calls
 let recentlyAddedIds = new Set();       // IDs of photos that finished analysis this session
