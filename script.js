@@ -565,6 +565,31 @@ async function extractGPS(file) {
   return null;
 }
 
+// Cache device location for the session — only show the permission prompt once.
+// undefined = not yet requested  |  null = denied/unavailable  |  [lat, lng] = success
+let _deviceLocationCache;
+
+async function getDeviceLocation() {
+  if (_deviceLocationCache !== undefined) return _deviceLocationCache;
+  if (!navigator.geolocation) { _deviceLocationCache = null; return null; }
+  try {
+    const pos = await Promise.race([
+      new Promise((resolve, reject) =>
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 300000   // reuse a cached fix up to 5 min old
+        })
+      ),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 12000))
+    ]);
+    _deviceLocationCache = [pos.coords.latitude, pos.coords.longitude];
+  } catch (_) {
+    _deviceLocationCache = null;
+  }
+  return _deviceLocationCache;
+}
+
 const reverseGeocodeCache = {};
 async function reverseGeocode(lat, lng) {
   const key = `${lat.toFixed(5)},${lng.toFixed(5)}`;
@@ -603,9 +628,14 @@ async function analysePhoto(photo) {
   render();
 
   try {
-    // ── 1. Extract GPS metadata first ─────────────────────────────────────
-    const gpsCoords = await extractGPS(photo.file);
+    // ── 1. Extract GPS — EXIF first, then live device location as fallback ──
+    let gpsCoords = await extractGPS(photo.file);
     let gpsLocation = null;
+    if (!gpsCoords) {
+      // No EXIF GPS (common when using the browser camera directly).
+      // Ask the browser for the device's current position instead.
+      gpsCoords = await getDeviceLocation();
+    }
     if (gpsCoords) {
       photo.gpsCoords = gpsCoords;
       photo.locationSource = 'gps';

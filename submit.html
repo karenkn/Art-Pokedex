@@ -452,15 +452,22 @@
     if (reBtn) reBtn.disabled = true;
 
     try {
-      // Extract GPS
+      // Extract GPS — EXIF first, then live device location as fallback
       let gpsCoords = null, gpsLocation = null;
       try {
         const gps = await exifr.gps(file);
         if (gps && typeof gps.latitude === 'number') {
-          gpsCoords   = [gps.latitude, gps.longitude];
-          gpsLocation = await reverseGeocode(gpsCoords[0], gpsCoords[1]);
+          gpsCoords = [gps.latitude, gps.longitude];
         }
       } catch (_) {}
+      if (!gpsCoords) {
+        // No EXIF GPS (common when using the browser camera directly).
+        // Ask the browser for the device's current position instead.
+        gpsCoords = await getDeviceLocation();
+      }
+      if (gpsCoords) {
+        gpsLocation = await reverseGeocode(gpsCoords[0], gpsCoords[1]);
+      }
 
       const { base64, mediaType, previewUrl, _blob } = await compressAndConvert(file);
       currentBase64     = base64;
@@ -916,6 +923,31 @@ Return ONLY a valid JSON object with ALL of these keys (raw JSON, no markdown fe
     } catch (_) {}
     return null;
   }
+
+  // Cache device location for the session — only show the permission prompt once.
+  // undefined = not yet requested  |  null = denied/unavailable  |  [lat, lng] = success
+  let _deviceLocationCache;
+  async function getDeviceLocation() {
+    if (_deviceLocationCache !== undefined) return _deviceLocationCache;
+    if (!navigator.geolocation) { _deviceLocationCache = null; return null; }
+    try {
+      const pos = await Promise.race([
+        new Promise((resolve, reject) =>
+          navigator.geolocation.getCurrentPosition(resolve, reject, {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 300000
+          })
+        ),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 12000))
+      ]);
+      _deviceLocationCache = [pos.coords.latitude, pos.coords.longitude];
+    } catch (_) {
+      _deviceLocationCache = null;
+    }
+    return _deviceLocationCache;
+  }
+
   function esc(str) {
     return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
