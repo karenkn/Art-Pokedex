@@ -1760,103 +1760,8 @@ let _mapFitDone = false;
 const geocodeCache = {};
 
 // Coordinate lookup for 60+ known venues (no API call needed for these)
-const KNOWN_COORDS = {
-  'louvre museum':               [48.8606,   2.3376],
-  'musée d\'orsay':              [48.8600,   2.3266],
-  'centre pompidou':             [48.8607,   2.3522],
-  'palace of versailles':        [48.8049,   2.1204],
-  'musée de l\'orangerie':       [48.8638,   2.3221],
-  'metropolitan museum of art':  [40.7794,  -73.9632],
-  'the met':                     [40.7794,  -73.9632],
-  'moma':                        [40.7614,  -73.9776],
-  'museum of modern art':        [40.7614,  -73.9776],
-  'guggenheim museum new york':  [40.7830,  -73.9590],
-  'guggenheim new york':         [40.7830,  -73.9590],
-  'whitney museum':              [40.7396,  -74.0089],
-  'frick collection':            [40.7713,  -73.9670],
-  'brooklyn museum':             [40.6712,  -73.9636],
-  'art institute of chicago':    [41.8796,  -87.6237],
-  'national gallery of art':     [38.8913,  -77.0199],
-  'smithsonian american art':    [38.8978,  -77.0229],
-  'getty center':                [34.0780, -118.4741],
-  'lacma':                       [34.0639, -118.3592],
-  'los angeles county museum':   [34.0639, -118.3592],
-  'sfmoma':                      [37.7857, -122.4011],
-  'san francisco museum of modern art': [37.7857, -122.4011],
-  'national gallery london':     [51.5088,  -0.1281],
-  'tate modern':                 [51.5076,  -0.0994],
-  'tate britain':                [51.4913,  -0.1276],
-  'victoria and albert museum':  [51.4966,  -0.1722],
-  'british museum':              [51.5194,  -0.1270],
-  'courtauld gallery':           [51.5113,  -0.1168],
-  'wallace collection':          [51.5157,  -0.1527],
-  'serpentine gallery':          [51.5047,  -0.1752],
-  'uffizi gallery':              [43.7678,  11.2553],
-  'accademia gallery':           [43.7769,  11.2588],
-  'palatine gallery':            [43.7654,  11.2499],
-  'vatican museums':             [41.9065,  12.4536],
-  'borghese gallery':            [41.9143,  12.4924],
-  'pinacoteca di brera':         [45.4724,   9.1867],
-  'national museum of capodimonte': [40.8709, 14.2498],
-  'prado museum':                [40.4138,  -3.6922],
-  'reina sofía':                 [40.4085,  -3.6940],
-  'reina sofia':                 [40.4085,  -3.6940],
-  'thyssen-bornemisza':          [40.4162,  -3.6941],
-  'guggenheim bilbao':           [43.2686,  -2.9340],
-  'guggenheim museum bilbao':    [43.2686,  -2.9340],
-  'rijksmuseum':                 [52.3600,   4.8852],
-  'van gogh museum':             [52.3584,   4.8811],
-  'stedelijk museum':            [52.3600,   4.8796],
-  'mauritshuis':                 [52.0800,   4.3151],
-  'alte pinakothek':             [48.1484,  11.5698],
-  'neue pinakothek':             [48.1497,  11.5694],
-  'pinakothek der moderne':      [48.1471,  11.5720],
-  'gemäldegalerie':              [52.5081,  13.3647],
-  'gemaldegalerie':              [52.5081,  13.3647],
-  'hamburger bahnhof':           [52.5262,  13.3693],
-  'pergamon museum':             [52.5216,  13.3985],
-  'kunsthistorisches museum':    [48.2034,  16.3615],
-  'belvedere museum':            [48.1908,  16.3807],
-  'albertina museum':            [48.2045,  16.3683],
-  'hermitage museum':            [59.9399,  30.3146],
-  'tretyakov gallery':           [55.7415,  37.6207],
-  'pushkin state museum':        [55.7449,  37.6049],
-  'museo nacional de antropología': [19.4261, -99.1866],
-  'museo frida kahlo':           [19.3559,  -99.1626],
-  'são paulo museum of art':     [-23.5613, -46.6561],
-  'masp':                        [-23.5613, -46.6561],
-  'national museum of fine arts buenos aires': [-34.6045, -58.3702],
-  'national palace museum':      [25.1025,  121.5482],
-  'tokyo national museum':       [35.7188,  139.7745],
-  'mori art museum':             [35.6604,  139.7292],
-  'shanghai museum':             [31.2299,  121.4737],
-  'national museum of china':    [39.9042,  116.4074],
-  'national museum of korea':    [37.5236,  126.9808],
-  'leeum samsung museum':        [37.5382,  126.9993],
-  'national gallery of australia': [-35.2963, 149.1316],
-  'art gallery of new south wales': [-33.8688, 151.2241],
-  'street art berlin':           [52.4965,  13.4288],
-  'street art bristol':          [51.4545,  -2.5879],
-  'street art new york':         [40.7282,  -73.9942],
-  'street art los angeles':      [34.0457, -118.2469],
-  'street art melbourne':        [-37.8136, 144.9631],
-};
-
-function coordsForLocation(locationStr) {
-  if (!locationStr) return null;
-  const lower = locationStr.toLowerCase();
-  // Try progressively shorter key matches
-  for (const [key, coords] of Object.entries(KNOWN_COORDS)) {
-    if (lower.includes(key)) return coords;
-  }
-  return null;
-}
-
 async function geocodeLocation(locationStr) {
   if (geocodeCache[locationStr]) return geocodeCache[locationStr];
-  const known = coordsForLocation(locationStr);
-  if (known) { geocodeCache[locationStr] = known; return known; }
-  // Fallback: Google Geocoding via the Places API (text search)
   if (!serverUrl) return null;
   try {
     const res  = await fetch(`${serverUrl}/api/places?input=${encodeURIComponent(locationStr)}&sessiontoken=geocode`);
@@ -1950,7 +1855,7 @@ async function updateMap() {
       const photoWithGPS = items.find(p => p.gpsCoords);
       coords = photoWithGPS
         ? photoWithGPS.gpsCoords
-        : await geocodeLocation(loc);   // KNOWN_COORDS → Places API fallback
+        : await geocodeLocation(loc);
     }
     if (!coords) continue;
 
