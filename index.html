@@ -61,6 +61,7 @@
   <button class="clear-btn admin-only" onclick="clearAll()" style="display:none">🗑 Clear All</button>
   <button class="clear-btn admin-only" id="normalizeBtn" onclick="normalizeAllLocations()" style="display:none">🔧 Normalize Locations</button>
   <button class="clear-btn admin-only" id="consolidateStylesBtn" onclick="consolidateStyles()" style="display:none">🎨 Consolidate Styles</button>
+  <button class="clear-btn admin-only select-mode-btn" id="selectModeBtn" onclick="toggleSelectMode()" style="display:none">☑ Select</button>
 
   <div class="filter-group">
     <button class="filter-btn active" onclick="setFilter('all', this)">All</button>
@@ -305,6 +306,39 @@
         </button>
         <div id="reanalyzeStatus" style="margin-top:8px;font-size:12px;color:#888;display:none"></div>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- Selection bar (fixed bottom, shown when photos are selected) -->
+<div class="selection-bar" id="selectionBar">
+  <span class="selection-bar-count" id="selectionCount">0 selected</span>
+  <button type="button" class="selection-bar-edit" onclick="openBulkEditModal()">✏️ Edit Location</button>
+  <button type="button" class="selection-bar-clear" onclick="clearSelection()">✕ Clear</button>
+</div>
+
+<!-- Bulk edit modal -->
+<div class="modal-bg" id="bulkEditModalBg" onclick="bulkBgClick(event)">
+  <div class="modal bulk-edit-modal">
+    <div class="modal-body">
+      <div class="modal-title bulk-edit-title">Edit Location</div>
+      <p class="bulk-edit-subtitle">Updating <strong id="bulkEditCount"></strong> — leave a field blank to keep each photo's existing value.</p>
+      <div class="edit-grid bulk-edit-grid">
+        <div class="edit-field full">
+          <label>Location</label>
+          <div class="places-wrap">
+            <input type="text" id="bulkLocation" placeholder="Search museum, gallery, or place…"
+                   autocomplete="off" oninput="onBulkPlacesInput()" onkeydown="onBulkPlacesKeydown(event)" />
+            <div class="places-dropdown" id="bulkPlacesDropdown"></div>
+          </div>
+        </div>
+        <div class="edit-field full">
+          <label>Country</label>
+          <input type="text" id="bulkCountry" placeholder="e.g. France" autocomplete="off" />
+        </div>
+      </div>
+      <button type="button" class="modal-save-btn" id="bulkSaveBtn" onclick="saveBulkEdit()">Save Changes</button>
+      <button type="button" class="modal-cancel-btn" onclick="closeBulkEditModal()">Cancel</button>
     </div>
   </div>
 </div>

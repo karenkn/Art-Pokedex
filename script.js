@@ -12,6 +12,8 @@ let currentAllMode  = 'grouped';        // 'grouped' | 'flat' — only applies w
 let adminToken = null;  // set on successful login; null = view-only mode
 const likedIds = new Set(); // track photos liked this session to prevent duplicates
 let isLoading = true;  // true while initial DB fetch is in flight
+let selectMode = false;
+const selectedPhotoIds = new Set();
 
 function authHeaders(extra) {
   const h = Object.assign({ 'content-type': 'application/json' }, extra || {});
@@ -92,6 +94,11 @@ let placesDebounce = null;
 let placesActiveIdx = -1;
 let placesSuggestions = [];
 let placesSessionToken = crypto.randomUUID ? crypto.randomUUID() : String(Math.random());
+
+let bulkPlacesDebounce = null;
+let bulkPlacesActiveIdx = -1;
+let bulkPlacesSuggestions = [];
+let bulkPlacesSessionToken = crypto.randomUUID ? crypto.randomUUID() : String(Math.random());
 
 function onPlacesInput() {
   const val = document.getElementById('editLocation').value.trim();
@@ -185,8 +192,96 @@ function closePlacesDropdown() {
 
 // Close dropdown when clicking outside
 document.addEventListener('click', e => {
-  if (!e.target.closest('.places-wrap')) closePlacesDropdown();
+  if (!e.target.closest('.places-wrap')) {
+    closePlacesDropdown();
+    closeBulkPlacesDropdown();
+  }
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Bulk edit — Places autocomplete (mirrors the single-edit version)
+// ─────────────────────────────────────────────────────────────────────────────
+function onBulkPlacesInput() {
+  const val = document.getElementById('bulkLocation').value.trim();
+  clearTimeout(bulkPlacesDebounce);
+  if (val.length < 2) { closeBulkPlacesDropdown(); return; }
+  bulkPlacesDebounce = setTimeout(() => fetchBulkPlacesSuggestions(val), 300);
+}
+
+async function fetchBulkPlacesSuggestions(input) {
+  if (!serverUrl) return;
+  try {
+    const res  = await fetch(`${serverUrl}/api/places?input=${encodeURIComponent(input)}&sessiontoken=${encodeURIComponent(bulkPlacesSessionToken)}`);
+    const data = await res.json();
+    bulkPlacesSuggestions = data.suggestions || [];
+    renderBulkPlacesDropdown();
+  } catch { closeBulkPlacesDropdown(); }
+}
+
+function renderBulkPlacesDropdown() {
+  const dropdown = document.getElementById('bulkPlacesDropdown');
+  if (!bulkPlacesSuggestions.length) { closeBulkPlacesDropdown(); return; }
+  dropdown.innerHTML = bulkPlacesSuggestions.map((s, i) => {
+    const pred  = s.placePrediction || {};
+    const text  = pred.text?.text || '';
+    const parts = text.split(',');
+    const main  = parts[0] || text;
+    const sub   = parts.slice(1).join(',').trim();
+    return `<div class="places-option" data-idx="${i}" onmousedown="selectBulkPlace(${i})">
+      <div class="places-main">${escHtml(main)}</div>
+      ${sub ? `<div class="places-sub">${escHtml(sub)}</div>` : ''}
+    </div>`;
+  }).join('');
+  bulkPlacesActiveIdx = -1;
+  dropdown.classList.add('open');
+}
+
+async function selectBulkPlace(idx) {
+  const s    = bulkPlacesSuggestions[idx];
+  const pred = s?.placePrediction;
+  if (!pred) return;
+
+  const fullText = pred.text?.text || '';
+  document.getElementById('bulkLocation').value = fullText;
+  closeBulkPlacesDropdown();
+
+  if (!pred.placeId) return;
+  try {
+    const res  = await fetch(`${serverUrl}/api/place-details?place_id=${encodeURIComponent(pred.placeId)}&sessiontoken=${encodeURIComponent(bulkPlacesSessionToken)}`);
+    const data = await res.json();
+    const countryComp = (data.addressComponents || []).find(c => c.types?.includes('country'));
+    if (countryComp) document.getElementById('bulkCountry').value = countryComp.longText || '';
+    if (data.location) geocodeCache[fullText] = [data.location.latitude, data.location.longitude];
+  } catch { /* non-critical */ }
+
+  bulkPlacesSessionToken = crypto.randomUUID ? crypto.randomUUID() : String(Math.random());
+}
+
+function onBulkPlacesKeydown(e) {
+  const dropdown = document.getElementById('bulkPlacesDropdown');
+  const options  = dropdown.querySelectorAll('.places-option');
+  if (!options.length) return;
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    bulkPlacesActiveIdx = Math.min(bulkPlacesActiveIdx + 1, options.length - 1);
+    options.forEach((o, i) => o.classList.toggle('active', i === bulkPlacesActiveIdx));
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    bulkPlacesActiveIdx = Math.max(bulkPlacesActiveIdx - 1, 0);
+    options.forEach((o, i) => o.classList.toggle('active', i === bulkPlacesActiveIdx));
+  } else if (e.key === 'Enter' && bulkPlacesActiveIdx >= 0) {
+    e.preventDefault();
+    selectBulkPlace(bulkPlacesActiveIdx);
+  } else if (e.key === 'Escape') {
+    closeBulkPlacesDropdown();
+  }
+}
+
+function closeBulkPlacesDropdown() {
+  document.getElementById('bulkPlacesDropdown')?.classList.remove('open');
+  bulkPlacesSuggestions = [];
+  bulkPlacesActiveIdx   = -1;
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // File handling
@@ -908,6 +1003,100 @@ Return ONLY a valid JSON object with exactly these keys (raw JSON, no markdown f
 
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Bulk selection
+// ─────────────────────────────────────────────────────────────────────────────
+function toggleSelectMode() {
+  selectMode = !selectMode;
+  if (!selectMode) clearSelection();
+  document.body.classList.toggle('select-mode', selectMode);
+  const btn = document.getElementById('selectModeBtn');
+  btn.textContent = selectMode ? '✕ Done' : '☑ Select';
+  btn.classList.toggle('active', selectMode);
+  render();
+}
+
+function handleCardClick(id) {
+  if (selectMode && adminToken) {
+    toggleCardSelection(id);
+  } else {
+    openModal(id);
+  }
+}
+
+function toggleCardSelection(id) {
+  if (selectedPhotoIds.has(id)) {
+    selectedPhotoIds.delete(id);
+  } else {
+    selectedPhotoIds.add(id);
+  }
+  // Update card DOM directly to avoid a full re-render
+  document.querySelectorAll(`.photo-card[data-id="${id}"]`).forEach(card => {
+    card.classList.toggle('selected', selectedPhotoIds.has(id));
+    card.querySelector('.select-checkbox')?.classList.toggle('checked', selectedPhotoIds.has(id));
+  });
+  updateSelectionBar();
+}
+
+function clearSelection() {
+  selectedPhotoIds.clear();
+  document.querySelectorAll('.photo-card.selected').forEach(c => c.classList.remove('selected'));
+  document.querySelectorAll('.select-checkbox.checked').forEach(c => c.classList.remove('checked'));
+  updateSelectionBar();
+}
+
+function updateSelectionBar() {
+  const n   = selectedPhotoIds.size;
+  const bar = document.getElementById('selectionBar');
+  bar.classList.toggle('visible', n > 0 && selectMode);
+  document.getElementById('selectionCount').textContent = `${n} photo${n === 1 ? '' : 's'} selected`;
+}
+
+function openBulkEditModal() {
+  if (!selectedPhotoIds.size) return;
+  const n = selectedPhotoIds.size;
+  document.getElementById('bulkEditCount').textContent = `${n} photo${n === 1 ? '' : 's'}`;
+  document.getElementById('bulkLocation').value = '';
+  document.getElementById('bulkCountry').value  = '';
+  closeBulkPlacesDropdown();
+  document.getElementById('bulkEditModalBg').classList.add('open');
+}
+
+function closeBulkEditModal() {
+  document.getElementById('bulkEditModalBg').classList.remove('open');
+  const btn = document.getElementById('bulkSaveBtn');
+  btn.disabled    = false;
+  btn.textContent = 'Save Changes';
+}
+
+function bulkBgClick(e) {
+  if (e.target === document.getElementById('bulkEditModalBg')) closeBulkEditModal();
+}
+
+async function saveBulkEdit() {
+  const newLocation = document.getElementById('bulkLocation').value.trim();
+  const newCountry  = document.getElementById('bulkCountry').value.trim();
+  if (!newLocation && !newCountry) { closeBulkEditModal(); return; }
+
+  const btn = document.getElementById('bulkSaveBtn');
+  btn.disabled    = true;
+  btn.textContent = 'Saving…';
+
+  await Promise.all([...selectedPhotoIds].map(id => {
+    const photo = photos.find(p => p.id === id);
+    if (!photo?.aiData) return Promise.resolve();
+    if (newLocation) photo.aiData.location = newLocation;
+    if (newCountry)  photo.aiData.country  = newCountry;
+    photo.aiData.manuallyEdited = true;
+    return updatePhotoDB(photo);
+  }));
+
+  closeBulkEditModal();
+  clearSelection();
+  toggleSelectMode();
+  render();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Rendering
 // ─────────────────────────────────────────────────────────────────────────────
 function render() {
@@ -1436,13 +1625,15 @@ function photoCard(p, featured = false, isNew = false) {
   infoHtml += '</div>';
 
   const clickable = p.status === 'done';
-  const featuredClass = featured ? ' featured' : '';
-  const pinnedClass   = p.pinned  ? ' pinned'   : '';
-  const pinLabel      = p.pinned  ? '📌' : '📍';
-  const pinTitle      = p.pinned  ? 'Unpin (restore normal order)' : 'Pin as featured card for this group';
-  return `<div class="photo-card ${p.status}${featuredClass}${pinnedClass}" ${clickable ? `onclick="openModal('${p.id}')"` : ''}>
-    ${adminToken ? `<button class="delete-btn" title="Remove photo" onclick="event.stopPropagation(); deletePhoto('${p.id}')">✕</button>` : ''}
-    ${adminToken ? `<button class="pin-btn" title="${pinTitle}" onclick="event.stopPropagation(); pinPhoto('${p.id}', ${!p.pinned})">${pinLabel}</button>` : ''}
+  const featuredClass  = featured ? ' featured' : '';
+  const pinnedClass    = p.pinned  ? ' pinned'   : '';
+  const selectedClass  = (selectMode && selectedPhotoIds.has(p.id)) ? ' selected' : '';
+  const pinLabel       = p.pinned  ? '📌' : '📍';
+  const pinTitle       = p.pinned  ? 'Unpin (restore normal order)' : 'Pin as featured card for this group';
+  return `<div class="photo-card ${p.status}${featuredClass}${pinnedClass}${selectedClass}" data-id="${p.id}" ${clickable ? `onclick="handleCardClick('${p.id}')"` : ''}>
+    ${adminToken ? `<button type="button" class="delete-btn" title="Remove photo" onclick="event.stopPropagation(); deletePhoto('${p.id}')">✕</button>` : ''}
+    ${adminToken ? `<button type="button" class="pin-btn" title="${pinTitle}" onclick="event.stopPropagation(); pinPhoto('${p.id}', ${!p.pinned})">${pinLabel}</button>` : ''}
+    ${adminToken ? `<div class="select-checkbox${selectedPhotoIds.has(p.id) ? ' checked' : ''}" onclick="event.stopPropagation(); toggleCardSelection('${p.id}')">✓</div>` : ''}
     <div class="card-img-wrap">
       <img src="${p.url}" alt="${escHtml(p.name)}" loading="lazy" />
       ${p.pinned ? `<div class="pinned-badge">★ FEATURED</div>` : ''}

@@ -940,3 +940,64 @@
     .edit-field input:focus, .edit-field textarea:focus { border-color: #8f0101; }
     .edit-confidence input[type=range] { accent-color: #8f0101; }
     .places-option:hover, .places-option.active { background: #faf5f0; color: #8f0101; }
+
+/* ── Bulk select mode ── */
+.select-mode-btn.active { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
+
+.select-checkbox {
+  position: absolute; top: 7px; left: 7px;
+  width: 22px; height: 22px;
+  background: rgba(0,0,0,0.55);
+  border: 2px solid rgba(255,255,255,0.7);
+  border-radius: 50%;
+  display: none;
+  align-items: center; justify-content: center;
+  color: transparent;
+  font-size: 12px; font-weight: 700;
+  z-index: 11; cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.select-checkbox.checked {
+  background: #8f0101; border-color: #8f0101; color: #fff;
+}
+body.select-mode .photo-card .select-checkbox { display: flex; }
+body.select-mode .photo-card .pin-btn,
+body.select-mode .photo-card .delete-btn { display: none !important; }
+body.select-mode .photo-card { cursor: pointer; }
+body.select-mode .photo-card:hover { transform: none; box-shadow: none; }
+body.select-mode .photo-card.selected {
+  border-color: #8f0101;
+  box-shadow: 0 0 0 2px #8f0101;
+}
+
+/* ── Selection bar ── */
+.selection-bar {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  background: #111; color: #fff;
+  padding: 14px clamp(16px, 4vw, 48px);
+  display: flex; align-items: center; gap: 12px;
+  z-index: 300;
+  transform: translateY(100%);
+  transition: transform 0.25s ease;
+}
+.selection-bar.visible { transform: translateY(0); }
+.selection-bar-count { flex: 1; font-size: 13px; font-weight: 600; }
+.selection-bar-edit {
+  padding: 8px 18px; border: none; border-radius: 3px;
+  background: #8f0101; color: #fff;
+  font-size: 12px; font-weight: 600; cursor: pointer;
+  transition: background 0.2s;
+}
+.selection-bar-edit:hover { background: #700101; }
+.selection-bar-clear {
+  padding: 8px 14px; border: 1px solid #444; border-radius: 3px;
+  background: transparent; color: #aaa;
+  font-size: 12px; cursor: pointer; transition: all 0.2s;
+}
+.selection-bar-clear:hover { border-color: #aaa; color: #fff; }
+
+/* ── Bulk edit modal specifics ── */
+.bulk-edit-modal { max-width: 460px; }
+.bulk-edit-title { margin-bottom: 6px; }
+.bulk-edit-subtitle { font-size: 13px; color: #888; margin-bottom: 16px; }
+.bulk-edit-grid { grid-template-columns: 1fr; }
