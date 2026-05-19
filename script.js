@@ -1710,7 +1710,7 @@ function refreshModalView(p) {
   document.getElementById('modalImg').src = p.url;
   const displayTitle = d.paintingName || p.name;
   document.getElementById('modalTitle').innerHTML =
-    escHtml(displayTitle) + (d.manuallyEdited ? ' <span class="manually-edited-badge">✎ manually edited</span>' : '');
+    escHtml(displayTitle) + (d.manuallyEdited ? ' <span class="manually-edited-badge">✎ edited</span>' : '');
 
   document.getElementById('modalTags').innerHTML = `
     <span class="tag location" style="font-size:13px">📍 ${escHtml(d.location)}</span>
@@ -1735,7 +1735,7 @@ function refreshModalView(p) {
     ? '🛰 Location from GPS metadata'
     : '✦ Location identified by Claude AI';
   const noteText = d.manuallyEdited
-    ? `Originally analyzed by ${d.model || 'Claude'} · manually edited · ${locSource}`
+    ? `Originally analyzed by ${d.model || 'Claude'} · edited · ${locSource}`
     : `Analyzed by ${d.model || 'Claude'} · ${locSource}`;
   document.getElementById('modalNote').textContent = noteText;
 
