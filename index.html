@@ -22,6 +22,7 @@
   </div>
   <nav class="header-nav">
     <a href="index.html" class="active">Collection</a>
+    <a href="top-works.html">Top Works</a>
     <a href="blog.html">Design & Process</a>
     <a href="submit.html">Submit a Photo</a>
     <button class="admin-btn" id="adminBtn" onclick="toggleAdminLogin()">🔒 Admin</button>
@@ -30,6 +31,7 @@
 </header>
 <div class="header-mobile-menu" id="headerMobileMenu">
   <a href="index.html" class="active">Collection</a>
+  <a href="top-works.html">Top Works</a>
   <a href="blog.html">Design & Process</a>
   <a href="submit.html">Submit a Photo</a>
   <button onclick="toggleAdminLogin(); document.getElementById('headerMobileMenu').classList.remove('open')">🔒 Admin Login</button>
@@ -145,6 +147,7 @@
         <p class="modal-section-title">Details</p>
         <div class="modal-detail-grid" id="modalDetails"></div>
         <p class="modal-note" id="modalNote"></p>
+        <div id="modalRating"></div>
         <span id="modalAdminActions"></span>
       </div>
 

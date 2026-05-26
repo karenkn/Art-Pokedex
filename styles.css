@@ -1001,3 +1001,40 @@ body.select-mode .photo-card.selected {
 .bulk-edit-title { margin-bottom: 6px; }
 .bulk-edit-subtitle { font-size: 13px; color: #888; margin-bottom: 16px; }
 .bulk-edit-grid { grid-template-columns: 1fr; }
+
+/* ── Rating UI (modal) ── */
+#modalRating { margin: 14px 0 6px; }
+.modal-rating-row {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; flex-wrap: wrap;
+}
+.modal-rating-label {
+  font-size: 11px; font-weight: 600; color: #888;
+  text-transform: uppercase; letter-spacing: 0.5px; flex-shrink: 0;
+}
+.modal-rating-right {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+}
+.modal-rating-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 42px; height: 42px; border-radius: 50%;
+  font-weight: 700; font-size: 15px; flex-shrink: 0;
+}
+.modal-rating-badge.rated   { background: #1a1a1a; color: #fff; }
+.modal-rating-badge.unrated {
+  width: auto; height: auto; border-radius: 4px;
+  background: none; color: #bbb;
+  font-size: 12px; font-weight: 500; padding: 0;
+}
+.modal-rating-picker {
+  display: flex; gap: 4px; flex-wrap: wrap;
+}
+.rating-pip {
+  width: 30px; height: 30px; border-radius: 50%;
+  border: 1.5px solid #d0cbc4; background: #fff;
+  font-size: 12px; font-weight: 600; color: #777;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: all 0.15s; flex-shrink: 0;
+}
+.rating-pip:hover  { border-color: #1a1a1a; color: #1a1a1a; }
+.rating-pip.active { background: #1a1a1a; border-color: #1a1a1a; color: #fff; }

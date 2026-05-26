@@ -72,6 +72,9 @@ pool.query(`
 }).then(() => {
   // Add user_submitted column if it doesn't exist yet (for existing databases)
   return pool.query(`ALTER TABLE photos ADD COLUMN IF NOT EXISTS user_submitted BOOLEAN DEFAULT FALSE`);
+}).then(() => {
+  // Add rating column (1–10 scale, nullable — null means unrated)
+  return pool.query(`ALTER TABLE photos ADD COLUMN IF NOT EXISTS rating FLOAT`);
 }).catch(err => console.error('Database init error:', err.message));
 
 pool.query(`
@@ -378,6 +381,26 @@ app.patch('/api/photos/:id/pin', authenticate, async (req, res) => {
     res.json({ ok: true, pinned: result.rows[0].pinned });
   } catch (err) {
     console.error('Pin error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── PATCH /api/photos/:id/rating — admin only: set or clear a 1–10 rating ────
+// Body: { rating: <number 1–10> }  or  { rating: null }  to clear
+app.patch('/api/photos/:id/rating', authenticate, async (req, res) => {
+  const { rating } = req.body;
+  if (rating !== null && (typeof rating !== 'number' || rating < 1 || rating > 10)) {
+    return res.status(400).json({ error: 'rating must be a number between 1 and 10, or null to clear.' });
+  }
+  try {
+    const result = await pool.query(
+      'UPDATE photos SET rating = $1 WHERE id = $2 RETURNING rating',
+      [rating ?? null, req.params.id]
+    );
+    if (result.rowCount === 0) return res.status(404).json({ error: 'Photo not found.' });
+    res.json({ ok: true, rating: result.rows[0].rating });
+  } catch (err) {
+    console.error('Rating error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });

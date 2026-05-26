@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Top Works of Art — Art Pokédex</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter', 'Segoe UI', system-ui, sans-serif; background: #f0ede8; color: #1a1a1a; min-height: 100vh; }
+
+    /* ── Header ── */
+    header { background: #111; color: #fff; padding: 0 clamp(16px,4vw,48px); height: 58px; display: flex; align-items: center; gap: 16px; position: sticky; top: 0; z-index: 200; }
+    .header-logo { display: flex; align-items: center; gap: 10px; flex-shrink: 0; text-decoration: none; cursor: pointer; }
+    .logo-text { font-family: 'Playfair Display', serif; font-size: clamp(15px,2.5vw,18px); color: #fff; font-weight: 600; letter-spacing: 0.3px; }
+    .logo-sub  { font-size: 10px; color: #4a4a4a; letter-spacing: 1px; text-transform: uppercase; }
+    @media (max-width: 639px) { .logo-sub { display: none; } }
+    .header-nav { display: flex; align-items: center; gap: 24px; margin-left: auto; }
+    .header-nav a { color: #666; text-decoration: none; font-size: 11px; letter-spacing: 1px; text-transform: uppercase; font-weight: 500; transition: color 0.2s; }
+    .header-nav a:hover { color: #fff; }
+    .header-nav a.active { color: #fff; }
+    .admin-btn { background: none; border: 1px solid #333; color: #666; padding: 5px 12px; border-radius: 3px; font-size: 11px; font-family: inherit; font-weight: 500; letter-spacing: 0.5px; cursor: pointer; transition: all 0.2s; }
+    .admin-btn:hover { border-color: #888; color: #ccc; }
+    .admin-btn.logged-in { border-color: #3a7d44; color: #3a7d44; }
+    .header-hamburger { display: none; background: none; border: none; cursor: pointer; color: #aaa; font-size: 20px; padding: 4px; margin-left: auto; line-height: 1; }
+    .header-mobile-menu { display: none; background: #0d0d0d; border-bottom: 1px solid #1a1a1a; position: sticky; top: 58px; z-index: 199; }
+    .header-mobile-menu.open { display: block; }
+    .header-mobile-menu a, .header-mobile-menu button { display: block; width: 100%; text-align: left; padding: 13px 24px; color: #777; background: none; border: none; font-size: 12px; letter-spacing: 0.8px; text-transform: uppercase; font-family: inherit; cursor: pointer; border-bottom: 1px solid #191919; }
+    .header-mobile-menu a.active { color: #fff; }
+    @media (max-width: 767px) { .header-nav { display: none; } .header-hamburger { display: flex; align-items: center; } }
+
+    /* ── Login Modal ── */
+    .login-modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 9000; align-items: center; justify-content: center; }
+    .login-modal-bg.open { display: flex; }
+    .login-modal { background: #fff; border-radius: 10px; padding: 32px 28px; width: 340px; max-width: 94vw; }
+    .login-modal h2 { font-family: 'Playfair Display', serif; font-size: 20px; margin-bottom: 8px; }
+    .login-modal p { font-size: 13px; color: #666; margin-bottom: 18px; line-height: 1.5; }
+    .login-error { color: #c0392b; font-size: 13px; margin-bottom: 10px; display: none; }
+    .login-modal input[type=password] { width: 100%; padding: 9px 12px; border: 1.5px solid #ccc; border-radius: 6px; font-size: 14px; font-family: inherit; outline: none; margin-bottom: 14px; }
+    .login-modal input[type=password]:focus { border-color: #8f0101; }
+    .login-modal-actions { display: flex; gap: 10px; }
+    .login-submit-btn { flex: 1; padding: 9px; background: #8f0101; color: #fff; border: none; border-radius: 6px; font-size: 14px; font-weight: 600; font-family: inherit; cursor: pointer; }
+    .login-submit-btn:hover { background: #7a0101; }
+    .login-cancel-btn { padding: 9px 16px; border: 1px solid #ccc; background: none; border-radius: 6px; font-size: 14px; font-family: inherit; cursor: pointer; color: #666; }
+
+    /* ── Hero ── */
+    .hero { padding: clamp(32px,5vw,56px) clamp(16px,4vw,48px) 0; max-width: 860px; }
+    .hero-title { font-family: 'Playfair Display', serif; font-size: clamp(26px,5vw,42px); font-weight: 600; color: #111; line-height: 1.15; margin-bottom: 10px; }
+    .hero-sub   { font-size: 14px; color: #888; line-height: 1.6; max-width: 540px; }
+
+    /* ── Ranked list ── */
+    .ranked-wrap { max-width: 860px; padding: clamp(24px,4vw,40px) clamp(16px,4vw,48px) 80px; }
+
+    .rank-row {
+      display: flex; align-items: center; gap: 16px;
+      background: #fff; border-radius: 10px; border: 1px solid #e8e3de;
+      padding: 14px 16px; margin-bottom: 10px;
+      cursor: pointer; transition: border-color 0.15s, box-shadow 0.15s;
+      text-decoration: none; color: inherit;
+    }
+    .rank-row:hover { border-color: #c8c2ba; box-shadow: 0 2px 12px rgba(0,0,0,.06); }
+
+    .rank-num {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(20px,3vw,28px); font-weight: 600;
+      color: #ccc; min-width: 36px; text-align: center; flex-shrink: 0;
+    }
+    .rank-row:hover .rank-num { color: #aaa; }
+
+    .rank-thumb {
+      width: 80px; height: 80px; border-radius: 6px; overflow: hidden; flex-shrink: 0;
+      background: #ece8e2;
+    }
+    .rank-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+    .rank-info { flex: 1; min-width: 0; }
+    .rank-title  { font-weight: 600; font-size: 15px; color: #111; margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .rank-artist { font-size: 13px; color: #555; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .rank-meta   { font-size: 12px; color: #aaa; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .rank-tags   { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+    .rank-tag    { font-size: 10px; background: #f0ede8; color: #888; padding: 2px 8px; border-radius: 20px; }
+
+    /* Rating badge */
+    .rank-score {
+      flex-shrink: 0; width: 52px; height: 52px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 17px; transition: transform 0.15s;
+    }
+    .rank-score.rated   { background: #1a1a1a; color: #fff; }
+    .rank-score.unrated { background: #ece8e2; color: #bbb; font-size: 13px; font-weight: 500; width: auto; height: auto; border-radius: 4px; padding: 4px 8px; }
+    .rank-row:hover .rank-score.rated { transform: scale(1.06); }
+
+    /* Admin: inline rate button overlay on the score badge */
+    .rank-score-wrap { position: relative; flex-shrink: 0; }
+    .rank-rate-btn {
+      display: none; position: absolute; inset: 0; background: rgba(26,26,26,.75);
+      border-radius: 50%; align-items: center; justify-content: center;
+      font-size: 10px; color: #fff; font-weight: 600; cursor: pointer;
+      border: none; font-family: inherit;
+    }
+    .rank-score-wrap:hover .rank-rate-btn { display: flex; }
+
+    /* Section divider between rated and unrated */
+    .section-divider {
+      display: flex; align-items: center; gap: 12px;
+      margin: 28px 0 16px; color: #aaa; font-size: 11px;
+      font-weight: 600; letter-spacing: 1px; text-transform: uppercase;
+    }
+    .section-divider::before, .section-divider::after {
+      content: ''; flex: 1; height: 1px; background: #e0dbd5;
+    }
+
+    /* Empty / loading states */
+    .empty-state { text-align: center; padding: 60px 24px; color: #aaa; }
+    .empty-state p { font-size: 15px; margin-bottom: 6px; color: #888; }
+    .empty-state small { font-size: 13px; }
+    .load-spinner {
+      width: 36px; height: 36px; border: 3px solid #e0dbd5; border-top-color: #8f0101;
+      border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 16px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Modal ── */
+    .modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 8000; align-items: flex-end; justify-content: center; }
+    .modal-bg.open { display: flex; }
+    @media (min-width: 600px) { .modal-bg { align-items: center; } }
+    .modal {
+      background: #fff; border-radius: 14px 14px 0 0; width: 100%; max-width: 560px;
+      max-height: 92vh; overflow-y: auto; position: relative;
+    }
+    @media (min-width: 600px) { .modal { border-radius: 14px; max-height: 88vh; } }
+    .modal-drag-handle { width: 36px; height: 4px; background: #ddd; border-radius: 2px; margin: 10px auto 0; }
+    .modal-img-wrap { position: relative; background: #111; max-height: 300px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+    .modal-img-wrap img { width: 100%; max-height: 300px; object-fit: contain; display: block; }
+    .modal-close-btn { position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,.5); color: #fff; border: none; border-radius: 50%; width: 30px; height: 30px; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    .modal-body { padding: 18px 20px 24px; }
+    .modal-title { font-family: 'Playfair Display', serif; font-size: 20px; font-weight: 600; margin-bottom: 8px; line-height: 1.3; }
+    .modal-tags  { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+    .tag { font-size: 12px; padding: 3px 10px; border-radius: 20px; font-weight: 500; }
+    .tag.location { background: #f0f7ff; color: #1a6fa6; }
+    .tag.style    { background: #fff5f0; color: #e05c2e; }
+    .tag.medium   { background: #f4f0fb; color: #7c4dbd; }
+    .modal-desc { font-size: 14px; color: #444; line-height: 1.65; margin-bottom: 16px; }
+    .modal-section-title { font-size: 11px; font-weight: 600; color: #aaa; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 10px; }
+    .modal-detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+    .modal-detail { background: #faf8f5; border-radius: 6px; padding: 8px 10px; }
+    .modal-detail label { display: block; font-size: 10px; color: #aaa; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; margin-bottom: 3px; }
+    .modal-detail span  { font-size: 13px; color: #222; font-weight: 500; }
+    .confidence-high { color: #3a7d44 !important; }
+    .confidence-med  { color: #c87d00 !important; }
+    .confidence-low  { color: #c0392b !important; }
+    .modal-note { font-size: 11px; color: #bbb; margin-bottom: 14px; }
+    .manually-edited-badge { font-size: 9px; border: 1px solid #dce8d8; color: #3a7d44; padding: 1px 6px; font-weight: 600; margin-left: 6px; letter-spacing: 0.3px; }
+    .modal-admin-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+    .modal-like-btn { display: inline-flex; align-items: center; gap: 5px; padding: 7px 14px; border: 1.5px solid #e0dbd5; border-radius: 20px; background: #fff; font-size: 13px; font-weight: 500; color: #555; cursor: pointer; transition: all 0.18s; font-family: inherit; }
+    .modal-like-btn:hover { border-color: #8f0101; color: #8f0101; }
+    .modal-like-btn.liked { border-color: #8f0101; color: #8f0101; background: #fff7f7; }
+
+    /* Rating UI in modal */
+    #modalRating { margin: 14px 0 6px; }
+    .modal-rating-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+    .modal-rating-label { font-size: 11px; font-weight: 600; color: #888; text-transform: uppercase; letter-spacing: 0.5px; flex-shrink: 0; }
+    .modal-rating-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .modal-rating-badge { display: inline-flex; align-items: center; justify-content: center; width: 42px; height: 42px; border-radius: 50%; font-weight: 700; font-size: 15px; flex-shrink: 0; }
+    .modal-rating-badge.rated   { background: #1a1a1a; color: #fff; }
+    .modal-rating-badge.unrated { width: auto; height: auto; border-radius: 4px; background: none; color: #bbb; font-size: 12px; font-weight: 500; padding: 0; }
+    .modal-rating-picker { display: flex; gap: 4px; flex-wrap: wrap; }
+    .rating-pip { width: 30px; height: 30px; border-radius: 50%; border: 1.5px solid #d0cbc4; background: #fff; font-size: 12px; font-weight: 600; color: #777; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; flex-shrink: 0; }
+    .rating-pip:hover  { border-color: #1a1a1a; color: #1a1a1a; }
+    .rating-pip.active { background: #1a1a1a; border-color: #1a1a1a; color: #fff; }
+
+    @media (max-width: 480px) {
+      .rank-num { display: none; }
+      .rank-thumb { width: 64px; height: 64px; }
+      .rank-score.rated { width: 44px; height: 44px; font-size: 14px; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <a class="header-logo" href="index.html">
+    <img src="pokedex_pixel_art_palette_repositioned.svg" style="width:30px" alt="">
+    <span>
+      <span class="logo-text">Art Pokédex</span>
+      <span class="logo-sub" style="display:block">✦ Claude AI</span>
+    </span>
+  </a>
+  <nav class="header-nav">
+    <a href="index.html">Collection</a>
+    <a href="top-works.html" class="active">Top Works</a>
+    <a href="blog.html">Design &amp; Process</a>
+    <a href="submit.html">Submit a Photo</a>
+    <button class="admin-btn" id="adminBtn" onclick="toggleAdminLogin()">🔒 Admin</button>
+  </nav>
+  <button class="header-hamburger" onclick="document.getElementById('headerMobileMenu').classList.toggle('open')" aria-label="Menu">☰</button>
+</header>
+<div class="header-mobile-menu" id="headerMobileMenu">
+  <a href="index.html">Collection</a>
+  <a href="top-works.html" class="active">Top Works</a>
+  <a href="blog.html">Design &amp; Process</a>
+  <a href="submit.html">Submit a Photo</a>
+  <button onclick="toggleAdminLogin(); document.getElementById('headerMobileMenu').classList.remove('open')">🔒 Admin Login</button>
+</div>
+
+<!-- Login Modal -->
+<div class="login-modal-bg" id="loginModalBg">
+  <div class="login-modal">
+    <h2>Admin Login</h2>
+    <p>Log in to rate artworks and manage the collection.</p>
+    <div class="login-error" id="loginError"></div>
+    <input type="password" id="adminPasswordInput" placeholder="Admin password"
+           onkeydown="if(event.key==='Enter') submitLogin()" />
+    <div class="login-modal-actions">
+      <button class="login-submit-btn" onclick="submitLogin()">Log In</button>
+      <button class="login-cancel-btn" onclick="closeLoginModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Hero -->
+<div class="hero">
+  <h1 class="hero-title">Top Works of Art</h1>
+  <p class="hero-sub">A personal ranking of the collection — rated 1 to 10. Unrated works appear below, sorted by artist.</p>
+</div>
+
+<!-- Ranked list -->
+<div class="ranked-wrap">
+  <div id="listWrap">
+    <div class="empty-state">
+      <div class="load-spinner"></div>
+      <p>Loading collection…</p>
+    </div>
+  </div>
+</div>
+
+<!-- Detail Modal -->
+<div class="modal-bg" id="modalBg" onclick="bgClick(event)">
+  <div class="modal" id="modal">
+    <div class="modal-drag-handle"></div>
+    <div class="modal-img-wrap">
+      <img id="modalImg" src="" alt="" />
+      <button class="modal-close-btn" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-title" id="modalTitle"></div>
+      <div class="modal-tags"  id="modalTags"></div>
+      <p class="modal-desc"    id="modalDesc"></p>
+      <p class="modal-section-title">Details</p>
+      <div class="modal-detail-grid" id="modalDetails"></div>
+      <p class="modal-note" id="modalNote"></p>
+      <div id="modalRating"></div>
+      <div class="modal-admin-actions" id="modalActions"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ── Config ──────────────────────────────────────────────────────────────────
+  const SERVER_URL = (() => {
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+      return 'http://localhost:3000';
+    return 'https://art-pokedex-production.up.railway.app';
+  })();
+
+  // ── State ───────────────────────────────────────────────────────────────────
+  let photos     = [];
+  let adminToken = null;
+  let activeId   = null;
+  const likedIds = new Set();
+
+  function authHeaders() {
+    const h = { 'content-type': 'application/json' };
+    if (adminToken) h['Authorization'] = `Bearer ${adminToken}`;
+    return h;
+  }
+
+  // ── Admin login ──────────────────────────────────────────────────────────────
+  function toggleAdminLogin() {
+    if (adminToken) {
+      adminToken = null;
+      updateAdminUI();
+    } else {
+      document.getElementById('loginModalBg').classList.add('open');
+      document.getElementById('adminPasswordInput').value = '';
+      document.getElementById('loginError').style.display = 'none';
+      setTimeout(() => document.getElementById('adminPasswordInput').focus(), 50);
+    }
+  }
+  function closeLoginModal() {
+    document.getElementById('loginModalBg').classList.remove('open');
+  }
+  async function submitLogin() {
+    const password = document.getElementById('adminPasswordInput').value;
+    const errEl    = document.getElementById('loginError');
+    errEl.style.display = 'none';
+    try {
+      const res  = await fetch(`${SERVER_URL}/api/login`, {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ password })
+      });
+      const data = await res.json();
+      if (!res.ok) { errEl.textContent = data.error || 'Login failed.'; errEl.style.display = 'block'; return; }
+      adminToken = data.token;
+      closeLoginModal();
+      updateAdminUI();
+    } catch {
+      errEl.textContent = 'Could not reach server.'; errEl.style.display = 'block';
+    }
+  }
+  function updateAdminUI() {
+    const btn = document.getElementById('adminBtn');
+    btn.textContent = adminToken ? '🔓 Logged In (Logout)' : '🔒 Admin';
+    btn.classList.toggle('logged-in', !!adminToken);
+    renderList();
+    if (activeId) {
+      const p = photos.find(x => x.id === activeId);
+      if (p) renderModal(p);
+    }
+  }
+
+  // ── Data loading ─────────────────────────────────────────────────────────────
+  async function loadPhotos() {
+    try {
+      const res  = await fetch(`${SERVER_URL}/api/photos`);
+      const rows = await res.json();
+      if (!Array.isArray(rows)) return;
+      photos = rows
+        .filter(r => r.id && r.thumbnail)
+        .map(r => ({
+          id:             r.id,
+          name:           r.name,
+          url:            `data:image/jpeg;base64,${r.thumbnail}`,
+          rating:         r.rating ?? null,
+          likes:          r.likes  || 0,
+          locationSource: r.location_source || 'ai',
+          aiData: {
+            paintingName:   r.painting_name  || '',
+            artist:         r.artist         || '',
+            location:       r.location       || '',
+            country:        r.country        || '',
+            style:          r.style          || '',
+            medium:         r.medium         || '',
+            period:         r.period         || '',
+            confidence:     r.confidence     ?? 75,
+            description:    r.description    || '',
+            artistHint:     r.artist_hint    || '',
+            manuallyEdited: r.manually_edited || false,
+            model:          r.ai_model       || 'Claude'
+          }
+        }));
+      renderList();
+    } catch (err) {
+      document.getElementById('listWrap').innerHTML =
+        `<div class="empty-state"><p>Could not load photos.</p><small>${esc(err.message)}</small></div>`;
+    }
+  }
+
+  // ── Sort & render list ───────────────────────────────────────────────────────
+  function sortedPhotos() {
+    const rated   = photos.filter(p => p.rating != null).sort((a,b) => b.rating - a.rating);
+    const unrated = photos.filter(p => p.rating == null).sort((a,b) =>
+      (a.aiData.artist || '').localeCompare(b.aiData.artist || '')
+    );
+    return { rated, unrated };
+  }
+
+  function renderList() {
+    const { rated, unrated } = sortedPhotos();
+    const wrap = document.getElementById('listWrap');
+    if (!rated.length && !unrated.length) {
+      wrap.innerHTML = `<div class="empty-state"><p>No artworks in the collection yet.</p></div>`;
+      return;
+    }
+
+    let html = '';
+
+    // Rated section
+    rated.forEach((p, i) => { html += rowHtml(p, i + 1); });
+
+    // Unrated section
+    if (unrated.length) {
+      html += `<div class="section-divider">Unrated</div>`;
+      unrated.forEach(p => { html += rowHtml(p, null); });
+    }
+
+    wrap.innerHTML = html;
+  }
+
+  function rowHtml(p, rank) {
+    const d   = p.aiData;
+    const title  = d.paintingName || p.name || 'Untitled';
+    const artist = d.artist || '—';
+    const meta   = [d.location, d.period].filter(Boolean).join(' · ');
+    const r      = p.rating;
+
+    const scorePart = r != null
+      ? `<div class="rank-score-wrap">
+           <div class="rank-score rated">${r % 1 === 0 ? r : r.toFixed(1)}</div>
+           ${adminToken ? `<button class="rank-rate-btn" onclick="event.stopPropagation(); openModal('${p.id}')">Rate</button>` : ''}
+         </div>`
+      : `<div class="rank-score-wrap">
+           <div class="rank-score unrated">Not rated</div>
+           ${adminToken ? `<button class="rank-rate-btn" onclick="event.stopPropagation(); openModal('${p.id}')" style="border-radius:4px">Rate</button>` : ''}
+         </div>`;
+
+    return `
+      <div class="rank-row" onclick="openModal('${p.id}')">
+        <div class="rank-num">${rank != null ? rank : ''}</div>
+        <div class="rank-thumb"><img src="${p.url}" alt="${esc(title)}" loading="lazy" /></div>
+        <div class="rank-info">
+          <div class="rank-title">${esc(title)}</div>
+          <div class="rank-artist">${esc(artist)}</div>
+          <div class="rank-meta">${esc(meta)}</div>
+          <div class="rank-tags">
+            ${d.style  ? `<span class="rank-tag">${esc(d.style)}</span>`  : ''}
+            ${d.medium ? `<span class="rank-tag">${esc(d.medium)}</span>` : ''}
+          </div>
+        </div>
+        ${scorePart}
+      </div>`;
+  }
+
+  // ── Modal ────────────────────────────────────────────────────────────────────
+  function openModal(id) {
+    const p = photos.find(x => x.id === id);
+    if (!p) return;
+    activeId = id;
+    renderModal(p);
+    document.getElementById('modalBg').classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeModal() {
+    document.getElementById('modalBg').classList.remove('open');
+    document.body.style.overflow = '';
+    activeId = null;
+  }
+  function bgClick(e) {
+    if (e.target === document.getElementById('modalBg')) closeModal();
+  }
+
+  function renderModal(p) {
+    const d = p.aiData;
+    document.getElementById('modalImg').src = p.url;
+    const displayTitle = d.paintingName || p.name;
+    document.getElementById('modalTitle').innerHTML =
+      esc(displayTitle) + (d.manuallyEdited ? ' <span class="manually-edited-badge">✎ edited</span>' : '');
+
+    document.getElementById('modalTags').innerHTML = `
+      <span class="tag location">📍 ${esc(d.location)}</span>
+      <span class="tag style">🎨 ${esc(d.style)}</span>
+      <span class="tag medium">🖌️ ${esc(d.medium)}</span>`;
+
+    document.getElementById('modalDesc').textContent = d.description;
+
+    const cc = d.confidence >= 80 ? 'confidence-high' : d.confidence >= 55 ? 'confidence-med' : 'confidence-low';
+    document.getElementById('modalDetails').innerHTML = `
+      ${d.paintingName ? `<div class="modal-detail" style="grid-column:1/-1"><label>Painting Name</label><span>${esc(d.paintingName)}</span></div>` : ''}
+      ${d.artist       ? `<div class="modal-detail" style="grid-column:1/-1"><label>Artist</label><span>${esc(d.artist)}</span></div>` : ''}
+      <div class="modal-detail"><label>Location</label><span>${esc(d.location)}</span></div>
+      <div class="modal-detail"><label>Country</label><span>${esc(d.country)}</span></div>
+      <div class="modal-detail"><label>Art Style</label><span>${esc(d.style)}</span></div>
+      <div class="modal-detail"><label>Medium</label><span>${esc(d.medium)}</span></div>
+      <div class="modal-detail"><label>Period</label><span>${esc(d.period)}</span></div>
+      <div class="modal-detail"><label>Confidence</label><span class="${cc}">${d.confidence}%</span></div>`;
+
+    const locSource = p.locationSource === 'gps' ? '🛰 GPS metadata' : '✦ Identified by Claude AI';
+    document.getElementById('modalNote').textContent =
+      `${d.manuallyEdited ? 'Originally analyzed by' : 'Analyzed by'} ${d.model || 'Claude'} · ${locSource}`;
+
+    // Rating row
+    const r = p.rating;
+    const badgeHtml = r != null
+      ? `<span class="modal-rating-badge rated">${r % 1 === 0 ? r : r.toFixed(1)}</span>`
+      : `<span class="modal-rating-badge unrated">Not rated</span>`;
+    const pickerHtml = adminToken ? `
+      <div class="modal-rating-picker">
+        ${[1,2,3,4,5,6,7,8,9,10].map(n =>
+          `<button class="rating-pip${r === n ? ' active' : ''}"
+                   onclick="ratePhoto('${p.id}', ${n})">${n}</button>`
+        ).join('')}
+      </div>` : '';
+    document.getElementById('modalRating').innerHTML = `
+      <div class="modal-rating-row">
+        <div class="modal-rating-label">My Rating</div>
+        <div class="modal-rating-right">${badgeHtml}${pickerHtml}</div>
+      </div>`;
+
+    // Like + admin actions
+    const liked = likedIds.has(p.id);
+    document.getElementById('modalActions').innerHTML =
+      `<button class="modal-like-btn${liked ? ' liked' : ''}" id="modalLikeBtn" onclick="likePhoto('${p.id}', event)">
+         ${liked ? '👍' : '👍🏻'} ${p.likes || 0} Like${(p.likes || 0) !== 1 ? 's' : ''}
+       </button>`;
+  }
+
+  // ── Rating ───────────────────────────────────────────────────────────────────
+  async function ratePhoto(id, rating) {
+    const photo = photos.find(p => p.id === id);
+    if (!photo || !adminToken) return;
+    const prev      = photo.rating;
+    const newRating = (rating === prev) ? null : rating;  // tap same value = clear
+
+    photo.rating = newRating;
+    renderModal(photo);
+    renderList();
+
+    try {
+      const res  = await fetch(`${SERVER_URL}/api/photos/${id}/rating`, {
+        method: 'PATCH', headers: authHeaders(),
+        body: JSON.stringify({ rating: newRating })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      photo.rating = data.rating ?? null;
+    } catch (err) {
+      console.warn('Rating sync failed:', err.message);
+      photo.rating = prev;
+    }
+    renderModal(photo);
+    renderList();
+  }
+
+  // ── Like ─────────────────────────────────────────────────────────────────────
+  async function likePhoto(id, event) {
+    if (event) event.stopPropagation();
+    const photo   = photos.find(p => p.id === id);
+    const isLiked = likedIds.has(id);
+    if (isLiked) { likedIds.delete(id); if (photo) photo.likes = Math.max((photo.likes || 1) - 1, 0); }
+    else         { likedIds.add(id);   if (photo) photo.likes = (photo.likes || 0) + 1; }
+    if (activeId === id && photo) renderModal(photo);
+    try {
+      const res  = await fetch(`${SERVER_URL}/api/photos/${id}/like`, { method: isLiked ? 'DELETE' : 'POST' });
+      const data = await res.json();
+      if (photo && data.likes !== undefined) { photo.likes = data.likes; if (activeId === id) renderModal(photo); }
+    } catch { /* optimistic already applied */ }
+  }
+
+  // ── Helpers ───────────────────────────────────────────────────────────────────
+  function esc(str) {
+    return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // Close mobile menu when tapping outside
+  document.addEventListener('click', e => {
+    const menu = document.getElementById('headerMobileMenu');
+    if (!menu) return;
+    if (!e.target.closest('#headerMobileMenu') && !e.target.closest('.header-hamburger'))
+      menu.classList.remove('open');
+  });
+
+  // Swipe down to close modal on mobile
+  (function() {
+    let startY = 0, active = false;
+    document.getElementById('modal').addEventListener('touchstart', e => {
+      if (!e.target.closest('.modal-img-wrap, .modal-drag-handle')) return;
+      startY = e.touches[0].clientY; active = true;
+    }, { passive: true });
+    document.getElementById('modal').addEventListener('touchend', e => {
+      if (!active) return;
+      if (e.changedTouches[0].clientY - startY > 60) closeModal();
+      active = false;
+    }, { passive: true });
+  })();
+
+  // ── Boot ──────────────────────────────────────────────────────────────────────
+  loadPhotos();
+</script>
+</body>
+</html>
