@@ -291,6 +291,12 @@ function triggerUpload() {
 }
 
 function handleFiles(files) {
+  // Kick off location permission request immediately — before analysis queues up.
+  // The browser permission prompt fires now (while the user is still looking at
+  // the UI), rather than mid-analysis. The cached promise is reused by every
+  // analysePhoto() call so there is never a second permission prompt.
+  getDeviceLocation(); // fire-and-forget — result will be cached for analysis
+
   Array.from(files).forEach(file => {
     if (!file.type.startsWith('image/') && !/\.(heic|heif)$/i.test(file.name)) return;
     const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -660,47 +666,88 @@ async function extractGPS(file) {
   return null;
 }
 
-// Cache device location for the session — only show the permission prompt once.
-// undefined = not yet requested  |  null = denied/unavailable  |  [lat, lng] = success
-let _deviceLocationCache;
+// Device location — cached as a Promise so concurrent calls share the same
+// in-flight request (no duplicate browser permission prompts).
+// After DEVICE_LOCATION_TTL milliseconds a fresh position is requested, so
+// photos taken at different venues within the same session get accurate coords.
+const DEVICE_LOCATION_TTL      = 10 * 60 * 1000;  // 10 minutes
+let   _deviceLocationPromise   = null;
+let   _deviceLocationTimestamp = 0;
 
 async function getDeviceLocation() {
-  if (_deviceLocationCache !== undefined) return _deviceLocationCache;
-  if (!navigator.geolocation) { _deviceLocationCache = null; return null; }
-  try {
-    const pos = await Promise.race([
-      new Promise((resolve, reject) =>
-        navigator.geolocation.getCurrentPosition(resolve, reject, {
+  const now = Date.now();
+  // Return the cached promise if it was created within the TTL window
+  if (_deviceLocationPromise && (now - _deviceLocationTimestamp) < DEVICE_LOCATION_TTL) {
+    return _deviceLocationPromise;
+  }
+  if (!navigator.geolocation) {
+    _deviceLocationPromise   = Promise.resolve(null);
+    _deviceLocationTimestamp = now;
+    return null;
+  }
+  // Cache the Promise immediately so any concurrent callers get the same
+  // in-flight request rather than triggering a second permission prompt.
+  _deviceLocationTimestamp = now;
+  _deviceLocationPromise   = new Promise(resolve => {
+    Promise.race([
+      new Promise((res, rej) =>
+        navigator.geolocation.getCurrentPosition(res, rej, {
           enableHighAccuracy: true,
           timeout: 10000,
-          maximumAge: 300000   // reuse a cached fix up to 5 min old
+          maximumAge: 300000   // reuse an OS-level cached fix up to 5 min old
         })
       ),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 12000))
-    ]);
-    _deviceLocationCache = [pos.coords.latitude, pos.coords.longitude];
-  } catch (_) {
-    _deviceLocationCache = null;
-  }
-  return _deviceLocationCache;
+      new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 12000))
+    ])
+    .then(pos => resolve([pos.coords.latitude, pos.coords.longitude]))
+    .catch(() => resolve(null));
+  });
+  return _deviceLocationPromise;
 }
 
 const reverseGeocodeCache = {};
 async function reverseGeocode(lat, lng) {
   const key = `${lat.toFixed(5)},${lng.toFixed(5)}`;
   if (reverseGeocodeCache[key]) return reverseGeocodeCache[key];
+
+  // ── 1. Try Google Places Nearby Search — venue-aware and accurate ─────────
+  // Searches within 100 m for museums, galleries, concert halls, auction houses,
+  // arts centres, and performing arts theatres. Falls back to Nominatim if no
+  // matching place is found (e.g. outdoor murals, street art, etc.).
+  if (serverUrl) {
+    try {
+      const res   = await fetch(`${serverUrl}/api/reverse-geocode-places?lat=${encodeURIComponent(lat)}&lng=${encodeURIComponent(lng)}`);
+      const data  = await res.json();
+      const place = data.places?.[0];
+      if (place?.displayName?.text) {
+        const countryComp = (place.addressComponents || [])
+          .find(c => c.types?.includes('country'));
+        const result = {
+          name:    place.displayName.text,
+          country: countryComp?.longText || ''
+        };
+        reverseGeocodeCache[key] = result;
+        return result;
+      }
+    } catch (_) {}
+  }
+
+  // ── 2. Fall back to Nominatim ─────────────────────────────────────────────
+  // Field priority: named cultural venues first; a.amenity covers arts_centre,
+  // concert_hall, theatre, and auction_house OSM tags; a.building is last
+  // resort before the city/country generic fallback.
   try {
     const res  = await fetch(`${serverUrl}/api/reverse-geocode?lat=${encodeURIComponent(lat)}&lng=${encodeURIComponent(lng)}`);
     const data = await res.json();
     if (data && data.address) {
       const a = data.address;
-      // Prefer specific venue names over generic city names
-      const name = a.museum || a.attraction || a.building || a.amenity ||
-                   a.historic || a.tourism ||
+      const name = a.museum || a.gallery || a.attraction ||
+                   a.amenity || a.historic || a.tourism ||
+                   a.leisure || a.building ||
                    [a.city || a.town || a.village, a.country].filter(Boolean).join(', ');
       const result = {
-        name:    name    || data.display_name || 'Unknown Location',
-        country: a.country || 'Unknown'
+        name:    name || data.display_name || 'Unknown Location',
+        country: a.country || ''
       };
       reverseGeocodeCache[key] = result;
       return result;

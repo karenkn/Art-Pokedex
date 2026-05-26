@@ -246,6 +246,50 @@ app.get('/api/reverse-geocode', async (req, res) => {
   }
 });
 
+// ── GET /api/reverse-geocode-places?lat=<lat>&lng=<lng> — Google Places Nearby ──
+// Uses the Places API (New) Nearby Search to find the closest cultural venue
+// (museum, gallery, concert hall, auction house, etc.) within 100 m.
+// Much more accurate for indoor art venues than Nominatim street-address lookup.
+app.get('/api/reverse-geocode-places', async (req, res) => {
+  const { lat, lng } = req.query;
+  if (!lat || !lng) return res.status(400).json({ error: 'lat and lng required' });
+  const key = process.env.GOOGLE_MAPS_API_KEY;
+  if (!key) return res.status(500).json({ error: 'GOOGLE_MAPS_API_KEY not set on server.' });
+  try {
+    const response = await fetch('https://places.googleapis.com/v1/places:searchNearby', {
+      method: 'POST',
+      headers: {
+        'Content-Type':    'application/json',
+        'X-Goog-Api-Key':  key,
+        'X-Goog-FieldMask': 'places.displayName,places.formattedAddress,places.addressComponents'
+      },
+      body: JSON.stringify({
+        locationRestriction: {
+          circle: {
+            center: { latitude: parseFloat(lat), longitude: parseFloat(lng) },
+            radius: 100   // metres — tight enough to pin an indoor venue
+          }
+        },
+        rankPreference:  'DISTANCE',
+        maxResultCount:  1,
+        includedTypes: [
+          'museum',
+          'art_gallery',
+          'tourist_attraction',
+          'performing_arts_theater',  // covers concert halls and opera houses
+          'cultural_center',           // covers arts centres
+          'auction_house'
+        ]
+      })
+    });
+    const data = await response.json();
+    res.json(data);
+  } catch (err) {
+    console.error('Google Places nearby error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ── POST /api/login ───────────────────────────────────────────────────────────
 // Body: { password: "..." }
 // Returns: { token: "<jwt>" }  (valid 12 hours)
