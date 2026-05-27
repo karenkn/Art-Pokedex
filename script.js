@@ -523,6 +523,7 @@ async function loadSavedPhotos() {
         likes:          row.likes || 0,
         pinned:         row.pinned || false,
         rating:         row.rating ?? null,
+        eloScore:       row.elo_score ?? 1500,
         userSubmitted:  row.user_submitted || false,
         aiData: {
           paintingName:   row.painting_name  || '',
@@ -1788,27 +1789,16 @@ function refreshModalView(p) {
   document.getElementById('modalNote').textContent = noteText;
 
   // ── Rating section ────────────────────────────────────────────────────────
-  // The score badge is visible to everyone; the 1–10 picker is admin-only.
+  // Read-only badge — score is set via ELO comparisons on the Top Works page.
   const r = p.rating;
   const ratingBadgeHtml = r != null
     ? `<span class="modal-rating-badge rated">${r % 1 === 0 ? r : r.toFixed(1)}</span>`
     : `<span class="modal-rating-badge unrated">Not rated</span>`;
 
-  const ratingPickerHtml = adminToken ? `
-    <div class="modal-rating-picker">
-      ${[1,2,3,4,5,6,7,8,9,10].map(n =>
-        `<button class="rating-pip${r === n ? ' active' : ''}"
-                 onclick="ratePhoto('${p.id}', ${n})">${n}</button>`
-      ).join('')}
-    </div>` : '';
-
   document.getElementById('modalRating').innerHTML = `
     <div class="modal-rating-row">
       <div class="modal-rating-label">My Rating</div>
-      <div class="modal-rating-right">
-        ${ratingBadgeHtml}
-        ${ratingPickerHtml}
-      </div>
+      <div class="modal-rating-right">${ratingBadgeHtml}</div>
     </div>`;
 
   // Like button + admin actions
@@ -1983,33 +1973,6 @@ function refreshModalLikeBtn(photo) {
   btn.innerHTML = `${liked ? '👍' : '👍🏻'} ${photo.likes || 0} Like${(photo.likes || 0) !== 1 ? 's' : ''}`;
 }
 
-async function ratePhoto(id, rating) {
-  const photo = photos.find(p => p.id === id);
-  if (!photo || !adminToken) return;
-
-  const prev = photo.rating;
-  // Tapping the same value again clears the rating
-  const newRating = (rating === prev) ? null : rating;
-
-  // Optimistic update
-  photo.rating = newRating;
-  refreshModalView(photo);
-
-  try {
-    const res  = await fetch(`${serverUrl}/api/photos/${id}/rating`, {
-      method:  'PATCH',
-      headers: authHeaders(),
-      body:    JSON.stringify({ rating: newRating })
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || `Server returned ${res.status}`);
-    photo.rating = data.rating ?? null;
-  } catch (err) {
-    console.warn('Rating sync failed:', err.message);
-    photo.rating = prev;  // rollback
-  }
-  refreshModalView(photo);
-}
 
 function bgClick(e) { if (e.target === document.getElementById('modalBg')) closeModal(); }
 

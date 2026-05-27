@@ -50,6 +50,27 @@
     .hero-title { font-family: 'Playfair Display', serif; font-size: clamp(26px,5vw,42px); font-weight: 600; color: #111; line-height: 1.15; margin-bottom: 10px; }
     .hero-sub   { font-size: 14px; color: #888; line-height: 1.6; max-width: 540px; }
 
+    /* ── Compare banner (admin only) ── */
+    .compare-banner {
+      display: none; /* shown by updateAdminUI() */
+      max-width: 860px;
+      margin: 24px clamp(16px,4vw,48px) 0;
+      background: #1a1a1a; color: #fff;
+      border-radius: 10px; padding: 16px 20px;
+      align-items: center; gap: 16px; flex-wrap: wrap;
+    }
+    .compare-banner.visible { display: flex; }
+    .compare-banner-text { flex: 1; }
+    .compare-banner-title { font-weight: 600; font-size: 14px; margin-bottom: 3px; }
+    .compare-banner-sub { font-size: 12px; color: #aaa; }
+    .compare-start-btn {
+      padding: 9px 20px; background: #fff; color: #111;
+      border: none; border-radius: 6px; font-size: 13px;
+      font-weight: 600; font-family: inherit; cursor: pointer;
+      flex-shrink: 0; transition: background 0.15s;
+    }
+    .compare-start-btn:hover { background: #e8e3de; }
+
     /* ── Ranked list ── */
     .ranked-wrap { max-width: 860px; padding: clamp(24px,4vw,40px) clamp(16px,4vw,48px) 80px; }
 
@@ -82,7 +103,6 @@
     .rank-tags   { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
     .rank-tag    { font-size: 10px; background: #f0ede8; color: #888; padding: 2px 8px; border-radius: 20px; }
 
-    /* Rating badge */
     .rank-score {
       flex-shrink: 0; width: 52px; height: 52px; border-radius: 50%;
       display: flex; align-items: center; justify-content: center;
@@ -92,17 +112,6 @@
     .rank-score.unrated { background: #ece8e2; color: #bbb; font-size: 13px; font-weight: 500; width: auto; height: auto; border-radius: 4px; padding: 4px 8px; }
     .rank-row:hover .rank-score.rated { transform: scale(1.06); }
 
-    /* Admin: inline rate button overlay on the score badge */
-    .rank-score-wrap { position: relative; flex-shrink: 0; }
-    .rank-rate-btn {
-      display: none; position: absolute; inset: 0; background: rgba(26,26,26,.75);
-      border-radius: 50%; align-items: center; justify-content: center;
-      font-size: 10px; color: #fff; font-weight: 600; cursor: pointer;
-      border: none; font-family: inherit;
-    }
-    .rank-score-wrap:hover .rank-rate-btn { display: flex; }
-
-    /* Section divider between rated and unrated */
     .section-divider {
       display: flex; align-items: center; gap: 12px;
       margin: 28px 0 16px; color: #aaa; font-size: 11px;
@@ -112,7 +121,6 @@
       content: ''; flex: 1; height: 1px; background: #e0dbd5;
     }
 
-    /* Empty / loading states */
     .empty-state { text-align: center; padding: 60px 24px; color: #aaa; }
     .empty-state p { font-size: 15px; margin-bottom: 6px; color: #888; }
     .empty-state small { font-size: 13px; }
@@ -158,18 +166,161 @@
     .modal-like-btn:hover { border-color: #8f0101; color: #8f0101; }
     .modal-like-btn.liked { border-color: #8f0101; color: #8f0101; background: #fff7f7; }
 
-    /* Rating UI in modal */
+    /* Rating badge in modal (read-only) */
     #modalRating { margin: 14px 0 6px; }
-    .modal-rating-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-    .modal-rating-label { font-size: 11px; font-weight: 600; color: #888; text-transform: uppercase; letter-spacing: 0.5px; flex-shrink: 0; }
-    .modal-rating-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .modal-rating-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .modal-rating-label { font-size: 11px; font-weight: 600; color: #888; text-transform: uppercase; letter-spacing: 0.5px; }
     .modal-rating-badge { display: inline-flex; align-items: center; justify-content: center; width: 42px; height: 42px; border-radius: 50%; font-weight: 700; font-size: 15px; flex-shrink: 0; }
     .modal-rating-badge.rated   { background: #1a1a1a; color: #fff; }
     .modal-rating-badge.unrated { width: auto; height: auto; border-radius: 4px; background: none; color: #bbb; font-size: 12px; font-weight: 500; padding: 0; }
-    .modal-rating-picker { display: flex; gap: 4px; flex-wrap: wrap; }
-    .rating-pip { width: 30px; height: 30px; border-radius: 50%; border: 1.5px solid #d0cbc4; background: #fff; font-size: 12px; font-weight: 600; color: #777; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; flex-shrink: 0; }
-    .rating-pip:hover  { border-color: #1a1a1a; color: #1a1a1a; }
-    .rating-pip.active { background: #1a1a1a; border-color: #1a1a1a; color: #fff; }
+
+    /* ── Compare Overlay ── */
+    .compare-overlay {
+      display: none;
+      position: fixed; inset: 0; background: #0d0d0d;
+      z-index: 9500;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      overflow-y: auto;
+    }
+    .compare-overlay.open { display: flex; }
+
+    .compare-overlay-header {
+      width: 100%; padding: 14px 20px;
+      display: flex; align-items: center; justify-content: space-between;
+      border-bottom: 1px solid #1e1e1e; flex-shrink: 0;
+    }
+    .compare-overlay-title {
+      font-size: 13px; font-weight: 600; color: #fff; letter-spacing: 0.3px;
+    }
+    .compare-overlay-progress {
+      font-size: 11px; color: #555; letter-spacing: 0.5px;
+    }
+    .compare-stop-btn {
+      background: none; border: 1px solid #333; color: #777;
+      padding: 5px 14px; border-radius: 4px; font-size: 12px;
+      font-family: inherit; cursor: pointer; transition: all 0.15s;
+    }
+    .compare-stop-btn:hover { border-color: #666; color: #aaa; }
+
+    .compare-body {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: 24px 16px 40px; width: 100%; max-width: 900px;
+    }
+
+    .compare-instruction {
+      font-size: 13px; color: #555; text-align: center;
+      margin-bottom: 24px; letter-spacing: 0.3px;
+    }
+
+    .compare-cards {
+      display: flex; gap: 16px; align-items: stretch;
+      width: 100%; justify-content: center;
+    }
+    @media (max-width: 599px) { .compare-cards { flex-direction: column; } }
+
+    .compare-card {
+      flex: 1; max-width: 340px; background: #181818; border-radius: 12px;
+      border: 2px solid #2a2a2a; overflow: hidden; cursor: pointer;
+      transition: border-color 0.15s, transform 0.15s;
+      display: flex; flex-direction: column;
+    }
+    .compare-card:hover { border-color: #fff; transform: translateY(-2px); }
+    .compare-card:focus-visible { outline: 2px solid #fff; }
+
+    /* animation states */
+    .compare-card.winner {
+      border-color: #3a7d44 !important;
+      animation: pulse-winner 0.5s ease;
+    }
+    .compare-card.loser {
+      border-color: #444 !important;
+      opacity: 0.5;
+      animation: fade-loser 0.5s ease;
+    }
+    .compare-card.tied {
+      border-color: #b8860b !important;
+      animation: pulse-tie 0.5s ease;
+    }
+    @keyframes pulse-winner { 0%,100%{ box-shadow: none; } 40%{ box-shadow: 0 0 24px rgba(58,125,68,.6); } }
+    @keyframes fade-loser   { 0%{ opacity: 1; } 100%{ opacity: 0.5; } }
+    @keyframes pulse-tie    { 0%,100%{ box-shadow: none; } 40%{ box-shadow: 0 0 24px rgba(184,134,11,.4); } }
+
+    .compare-card-img {
+      aspect-ratio: 1; overflow: hidden; background: #111;
+    }
+    .compare-card-img img {
+      width: 100%; height: 100%; object-fit: cover; display: block;
+      pointer-events: none;
+    }
+    .compare-card-body { padding: 14px; }
+    .compare-card-title { font-size: 14px; font-weight: 600; color: #f0ede8; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .compare-card-artist { font-size: 12px; color: #888; margin-bottom: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .compare-card-meta  { display: flex; gap: 6px; flex-wrap: wrap; }
+    .compare-card-tag   { font-size: 10px; background: #2a2a2a; color: #777; padding: 2px 8px; border-radius: 20px; }
+    .compare-card-elo {
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 10px; font-weight: 600; color: #555;
+      margin-top: 8px; letter-spacing: 0.3px;
+    }
+
+    /* VS divider */
+    .compare-vs {
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; gap: 12px; flex-shrink: 0; padding: 0 8px;
+    }
+    .vs-label {
+      font-family: 'Playfair Display', serif;
+      font-size: 28px; font-weight: 600; color: #333; user-select: none;
+    }
+    .same-btn {
+      background: none; border: 1px solid #333; color: #555;
+      padding: 7px 16px; border-radius: 20px; font-size: 12px;
+      font-family: inherit; cursor: pointer; transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .same-btn:hover { border-color: #b8860b; color: #b8860b; }
+    @media (max-width: 599px) {
+      .compare-vs { flex-direction: row; padding: 4px 0; }
+      .vs-label { font-size: 22px; }
+    }
+
+    /* result flash */
+    .compare-result-msg {
+      margin-top: 20px; font-size: 13px; color: #555;
+      text-align: center; height: 20px;
+    }
+    .compare-result-msg.win  { color: #3a7d44; }
+    .compare-result-msg.tie  { color: #b8860b; }
+
+    /* done state */
+    .compare-done {
+      display: none; flex-direction: column; align-items: center;
+      justify-content: center; padding: 60px 24px; text-align: center; gap: 14px;
+    }
+    .compare-done.visible { display: flex; }
+    .compare-done-icon { font-size: 40px; }
+    .compare-done-title { font-family: 'Playfair Display', serif; font-size: 22px; font-weight: 600; color: #f0ede8; }
+    .compare-done-sub { font-size: 13px; color: #555; max-width: 320px; line-height: 1.6; }
+    .compare-done-btn {
+      margin-top: 8px; padding: 10px 24px; background: #fff; color: #111;
+      border: none; border-radius: 6px; font-size: 13px; font-weight: 600;
+      font-family: inherit; cursor: pointer;
+    }
+
+    /* loading state inside overlay */
+    .compare-loading {
+      display: none; flex-direction: column; align-items: center;
+      justify-content: center; gap: 14px; padding: 60px 24px;
+    }
+    .compare-loading.visible { display: flex; }
+    .compare-loading-spinner {
+      width: 36px; height: 36px; border: 3px solid #2a2a2a; border-top-color: #fff;
+      border-radius: 50%; animation: spin 0.8s linear infinite;
+    }
+    .compare-loading-text { font-size: 13px; color: #555; }
 
     @media (max-width: 480px) {
       .rank-num { display: none; }
@@ -209,7 +360,7 @@
 <div class="login-modal-bg" id="loginModalBg">
   <div class="login-modal">
     <h2>Admin Login</h2>
-    <p>Log in to rate artworks and manage the collection.</p>
+    <p>Log in to compare and rank artworks.</p>
     <div class="login-error" id="loginError"></div>
     <input type="password" id="adminPasswordInput" placeholder="Admin password"
            onkeydown="if(event.key==='Enter') submitLogin()" />
@@ -223,7 +374,16 @@
 <!-- Hero -->
 <div class="hero">
   <h1 class="hero-title">Top Works of Art</h1>
-  <p class="hero-sub">A personal ranking of the collection — rated 1 to 10. Unrated works appear below, sorted by artist.</p>
+  <p class="hero-sub">A personal ranking of the collection, refined through head-to-head comparisons. Tap any artwork to explore it.</p>
+</div>
+
+<!-- Compare banner (admin-only, shown after login) -->
+<div class="compare-banner" id="compareBanner">
+  <div class="compare-banner-text">
+    <div class="compare-banner-title">✦ Rank by comparing</div>
+    <div class="compare-banner-sub" id="compareBannerSub">Compare artworks head-to-head to refine the rankings</div>
+  </div>
+  <button class="compare-start-btn" onclick="startComparing()">Start Comparing</button>
 </div>
 
 <!-- Ranked list -->
@@ -257,6 +417,66 @@
   </div>
 </div>
 
+<!-- Comparison Overlay -->
+<div class="compare-overlay" id="compareOverlay">
+  <!-- Header -->
+  <div class="compare-overlay-header">
+    <div>
+      <div class="compare-overlay-title">Which artwork do you prefer?</div>
+      <div class="compare-overlay-progress" id="compareProgress"></div>
+    </div>
+    <button class="compare-stop-btn" onclick="stopComparing()">✕ Stop</button>
+  </div>
+
+  <!-- Loading state -->
+  <div class="compare-loading" id="compareLoading">
+    <div class="compare-loading-spinner"></div>
+    <div class="compare-loading-text">Finding the next pair…</div>
+  </div>
+
+  <!-- All-done state -->
+  <div class="compare-done" id="compareDone">
+    <div class="compare-done-icon">✓</div>
+    <div class="compare-done-title">All pairs compared!</div>
+    <div class="compare-done-sub">Every artwork has been matched against every other — the rankings are as refined as they can be.</div>
+    <button class="compare-done-btn" onclick="stopComparing()">View Rankings</button>
+  </div>
+
+  <!-- Comparison body -->
+  <div class="compare-body" id="compareMain" style="display:none">
+    <div class="compare-instruction">Tap the artwork you prefer — or mark them as the same</div>
+    <div class="compare-cards">
+      <div class="compare-card" id="cardA" role="button" tabindex="0"
+           onclick="submitChoice('a')" onkeydown="if(event.key==='Enter'||event.key===' ')submitChoice('a')">
+        <div class="compare-card-img"><img id="cardAImg" src="" alt="" /></div>
+        <div class="compare-card-body">
+          <div class="compare-card-title" id="cardATitle"></div>
+          <div class="compare-card-artist" id="cardAArtist"></div>
+          <div class="compare-card-meta" id="cardAMeta"></div>
+          <div class="compare-card-elo" id="cardAElo"></div>
+        </div>
+      </div>
+
+      <div class="compare-vs">
+        <div class="vs-label">VS</div>
+        <button class="same-btn" onclick="submitChoice('tie')">Same / Tie</button>
+      </div>
+
+      <div class="compare-card" id="cardB" role="button" tabindex="0"
+           onclick="submitChoice('b')" onkeydown="if(event.key==='Enter'||event.key===' ')submitChoice('b')">
+        <div class="compare-card-img"><img id="cardBImg" src="" alt="" /></div>
+        <div class="compare-card-body">
+          <div class="compare-card-title" id="cardBTitle"></div>
+          <div class="compare-card-artist" id="cardBArtist"></div>
+          <div class="compare-card-meta" id="cardBMeta"></div>
+          <div class="compare-card-elo" id="cardBElo"></div>
+        </div>
+      </div>
+    </div>
+    <div class="compare-result-msg" id="compareResultMsg"></div>
+  </div>
+</div>
+
 <script>
   // ── Config ──────────────────────────────────────────────────────────────────
   const SERVER_URL = (() => {
@@ -270,6 +490,11 @@
   let adminToken = null;
   let activeId   = null;
   const likedIds = new Set();
+
+  // Compare state
+  let comparePairA = null;  // { id, thumbnail, title, artist, location, style, elo }
+  let comparePairB = null;
+  let compareInFlight = false;
 
   function authHeaders() {
     const h = { 'content-type': 'application/json' };
@@ -310,10 +535,15 @@
       errEl.textContent = 'Could not reach server.'; errEl.style.display = 'block';
     }
   }
+
   function updateAdminUI() {
     const btn = document.getElementById('adminBtn');
     btn.textContent = adminToken ? '🔓 Logged In (Logout)' : '🔒 Admin';
     btn.classList.toggle('logged-in', !!adminToken);
+
+    // Show/hide compare banner
+    document.getElementById('compareBanner').classList.toggle('visible', !!adminToken);
+
     renderList();
     if (activeId) {
       const p = photos.find(x => x.id === activeId);
@@ -333,8 +563,9 @@
           id:             r.id,
           name:           r.name,
           url:            `data:image/jpeg;base64,${r.thumbnail}`,
-          rating:         r.rating ?? null,
-          likes:          r.likes  || 0,
+          rating:         r.rating    ?? null,
+          eloScore:       r.elo_score ?? 1500,
+          likes:          r.likes     || 0,
           locationSource: r.location_source || 'ai',
           aiData: {
             paintingName:   r.painting_name  || '',
@@ -376,35 +607,24 @@
     }
 
     let html = '';
-
-    // Rated section
     rated.forEach((p, i) => { html += rowHtml(p, i + 1); });
-
-    // Unrated section
     if (unrated.length) {
       html += `<div class="section-divider">Unrated</div>`;
       unrated.forEach(p => { html += rowHtml(p, null); });
     }
-
     wrap.innerHTML = html;
   }
 
   function rowHtml(p, rank) {
-    const d   = p.aiData;
+    const d      = p.aiData;
     const title  = d.paintingName || p.name || 'Untitled';
     const artist = d.artist || '—';
     const meta   = [d.location, d.period].filter(Boolean).join(' · ');
     const r      = p.rating;
 
     const scorePart = r != null
-      ? `<div class="rank-score-wrap">
-           <div class="rank-score rated">${r % 1 === 0 ? r : r.toFixed(1)}</div>
-           ${adminToken ? `<button class="rank-rate-btn" onclick="event.stopPropagation(); openModal('${p.id}')">Rate</button>` : ''}
-         </div>`
-      : `<div class="rank-score-wrap">
-           <div class="rank-score unrated">Not rated</div>
-           ${adminToken ? `<button class="rank-rate-btn" onclick="event.stopPropagation(); openModal('${p.id}')" style="border-radius:4px">Rate</button>` : ''}
-         </div>`;
+      ? `<div class="rank-score rated">${r % 1 === 0 ? r : r.toFixed(1)}</div>`
+      : `<div class="rank-score unrated">—</div>`;
 
     return `
       <div class="rank-row" onclick="openModal('${p.id}')">
@@ -470,57 +690,23 @@
     document.getElementById('modalNote').textContent =
       `${d.manuallyEdited ? 'Originally analyzed by' : 'Analyzed by'} ${d.model || 'Claude'} · ${locSource}`;
 
-    // Rating row
+    // Rating — read-only badge (score is set via ELO comparisons)
     const r = p.rating;
     const badgeHtml = r != null
       ? `<span class="modal-rating-badge rated">${r % 1 === 0 ? r : r.toFixed(1)}</span>`
-      : `<span class="modal-rating-badge unrated">Not rated</span>`;
-    const pickerHtml = adminToken ? `
-      <div class="modal-rating-picker">
-        ${[1,2,3,4,5,6,7,8,9,10].map(n =>
-          `<button class="rating-pip${r === n ? ' active' : ''}"
-                   onclick="ratePhoto('${p.id}', ${n})">${n}</button>`
-        ).join('')}
-      </div>` : '';
+      : `<span class="modal-rating-badge unrated">Not rated yet</span>`;
     document.getElementById('modalRating').innerHTML = `
       <div class="modal-rating-row">
         <div class="modal-rating-label">My Rating</div>
-        <div class="modal-rating-right">${badgeHtml}${pickerHtml}</div>
+        <div>${badgeHtml}</div>
       </div>`;
 
-    // Like + admin actions
+    // Like button
     const liked = likedIds.has(p.id);
     document.getElementById('modalActions').innerHTML =
       `<button class="modal-like-btn${liked ? ' liked' : ''}" id="modalLikeBtn" onclick="likePhoto('${p.id}', event)">
          ${liked ? '👍' : '👍🏻'} ${p.likes || 0} Like${(p.likes || 0) !== 1 ? 's' : ''}
        </button>`;
-  }
-
-  // ── Rating ───────────────────────────────────────────────────────────────────
-  async function ratePhoto(id, rating) {
-    const photo = photos.find(p => p.id === id);
-    if (!photo || !adminToken) return;
-    const prev      = photo.rating;
-    const newRating = (rating === prev) ? null : rating;  // tap same value = clear
-
-    photo.rating = newRating;
-    renderModal(photo);
-    renderList();
-
-    try {
-      const res  = await fetch(`${SERVER_URL}/api/photos/${id}/rating`, {
-        method: 'PATCH', headers: authHeaders(),
-        body: JSON.stringify({ rating: newRating })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-      photo.rating = data.rating ?? null;
-    } catch (err) {
-      console.warn('Rating sync failed:', err.message);
-      photo.rating = prev;
-    }
-    renderModal(photo);
-    renderList();
   }
 
   // ── Like ─────────────────────────────────────────────────────────────────────
@@ -538,6 +724,140 @@
     } catch { /* optimistic already applied */ }
   }
 
+  // ── Comparison flow ───────────────────────────────────────────────────────────
+  function startComparing() {
+    if (!adminToken) return;
+    const overlay = document.getElementById('compareOverlay');
+    overlay.classList.add('open');
+    document.body.style.overflow = 'hidden';
+    showCompareState('loading');
+    loadNextPair();
+  }
+
+  function stopComparing() {
+    document.getElementById('compareOverlay').classList.remove('open');
+    document.body.style.overflow = '';
+    comparePairA = null;
+    comparePairB = null;
+    compareInFlight = false;
+    renderList(); // refresh list with latest scores
+  }
+
+  function showCompareState(state) {
+    // state: 'loading' | 'main' | 'done'
+    document.getElementById('compareLoading').classList.toggle('visible', state === 'loading');
+    document.getElementById('compareMain').style.display = state === 'main' ? 'flex' : 'none';
+    document.getElementById('compareDone').classList.toggle('visible', state === 'done');
+  }
+
+  async function loadNextPair() {
+    showCompareState('loading');
+    try {
+      const res  = await fetch(`${SERVER_URL}/api/compare/next`, { headers: authHeaders() });
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.error || `Server error ${res.status}`);
+
+      if (data.done) {
+        showCompareState('done');
+        return;
+      }
+
+      comparePairA = data.a;
+      comparePairB = data.b;
+
+      // Update progress
+      const { totalPairs, donePairs } = data.stats;
+      document.getElementById('compareProgress').textContent =
+        `${donePairs} of ${totalPairs} pairs compared`;
+
+      // Render cards
+      renderCompareCard('A', data.a);
+      renderCompareCard('B', data.b);
+      document.getElementById('compareResultMsg').textContent = '';
+      document.getElementById('compareResultMsg').className  = 'compare-result-msg';
+
+      // Reset card styles
+      document.getElementById('cardA').className = 'compare-card';
+      document.getElementById('cardB').className = 'compare-card';
+
+      showCompareState('main');
+    } catch (err) {
+      showCompareState('loading');
+      document.querySelector('.compare-loading-text').textContent = `Error: ${err.message}`;
+    }
+  }
+
+  function renderCompareCard(side, data) {
+    const s = side; // 'A' or 'B'
+    document.getElementById(`card${s}Img`).src           = `data:image/jpeg;base64,${data.thumbnail}`;
+    document.getElementById(`card${s}Title`).textContent  = data.title   || 'Untitled';
+    document.getElementById(`card${s}Artist`).textContent = data.artist  || '—';
+
+    const tags = [data.location, data.style].filter(Boolean)
+      .map(t => `<span class="compare-card-tag">${esc(t)}</span>`).join('');
+    document.getElementById(`card${s}Meta`).innerHTML = tags;
+    document.getElementById(`card${s}Elo`).textContent = `ELO ${data.elo}`;
+  }
+
+  async function submitChoice(choice) {
+    if (compareInFlight || !comparePairA || !comparePairB) return;
+    compareInFlight = true;
+
+    // Determine winnerId
+    let winnerId = null;
+    if (choice === 'a')   winnerId = comparePairA.id;
+    else if (choice === 'b') winnerId = comparePairB.id;
+    // choice === 'tie' → winnerId stays null
+
+    // Animate cards
+    if (choice === 'a') {
+      document.getElementById('cardA').className = 'compare-card winner';
+      document.getElementById('cardB').className = 'compare-card loser';
+    } else if (choice === 'b') {
+      document.getElementById('cardA').className = 'compare-card loser';
+      document.getElementById('cardB').className = 'compare-card winner';
+    } else {
+      document.getElementById('cardA').className = 'compare-card tied';
+      document.getElementById('cardB').className = 'compare-card tied';
+    }
+
+    const msgEl = document.getElementById('compareResultMsg');
+    msgEl.textContent = choice === 'tie' ? '↔ Tie recorded' : '✓ Preference recorded';
+    msgEl.className   = `compare-result-msg ${choice === 'tie' ? 'tie' : 'win'}`;
+
+    try {
+      const res  = await fetch(`${SERVER_URL}/api/compare`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({
+          photoAId: comparePairA.id,
+          photoBId: comparePairB.id,
+          winnerId
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `Server error ${res.status}`);
+
+      // Update local photo objects with new ELO & rating
+      const updatePhoto = (upd) => {
+        const p = photos.find(x => x.id === upd.id);
+        if (p) { p.rating = upd.rating; p.eloScore = upd.elo; }
+      };
+      updatePhoto(data.a);
+      updatePhoto(data.b);
+
+    } catch (err) {
+      console.warn('Compare submit error:', err.message);
+    }
+
+    // Brief pause to let the animation play, then load next
+    setTimeout(() => {
+      compareInFlight = false;
+      loadNextPair();
+    }, 520);
+  }
+
   // ── Helpers ───────────────────────────────────────────────────────────────────
   function esc(str) {
     return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -551,7 +871,16 @@
       menu.classList.remove('open');
   });
 
-  // Swipe down to close modal on mobile
+  // Keyboard shortcuts in compare mode
+  document.addEventListener('keydown', e => {
+    if (!document.getElementById('compareOverlay').classList.contains('open')) return;
+    if (e.key === 'ArrowLeft'  || e.key === '1') submitChoice('a');
+    if (e.key === 'ArrowRight' || e.key === '2') submitChoice('b');
+    if (e.key === 'Enter'      || e.key === ' ') submitChoice('tie');
+    if (e.key === 'Escape') stopComparing();
+  });
+
+  // Swipe down to close detail modal on mobile
   (function() {
     let startY = 0, active = false;
     document.getElementById('modal').addEventListener('touchstart', e => {

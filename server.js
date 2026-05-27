@@ -73,9 +73,34 @@ pool.query(`
   // Add user_submitted column if it doesn't exist yet (for existing databases)
   return pool.query(`ALTER TABLE photos ADD COLUMN IF NOT EXISTS user_submitted BOOLEAN DEFAULT FALSE`);
 }).then(() => {
-  // Add rating column (1–10 scale, nullable — null means unrated)
+  // Add rating column — stores the ELO-derived 1–10 score (null = unrated/uncompared)
   return pool.query(`ALTER TABLE photos ADD COLUMN IF NOT EXISTS rating FLOAT`);
+}).then(() => {
+  // Add raw ELO score column (default 1500 = mid-point)
+  return pool.query(`ALTER TABLE photos ADD COLUMN IF NOT EXISTS elo_score INTEGER DEFAULT 1500`);
+}).then(() => {
+  // Back-fill any NULL elo_score rows (existing photos before this migration)
+  return pool.query(`UPDATE photos SET elo_score = 1500 WHERE elo_score IS NULL`);
 }).catch(err => console.error('Database init error:', err.message));
+
+// Comparisons log — one row per head-to-head decision
+pool.query(`
+  CREATE TABLE IF NOT EXISTS comparisons (
+    id          SERIAL PRIMARY KEY,
+    photo_a_id  TEXT NOT NULL,
+    photo_b_id  TEXT NOT NULL,
+    winner_id   TEXT,             -- NULL means "same / tie"
+    created_at  TIMESTAMPTZ DEFAULT NOW()
+  )
+`).then(() => {
+  return pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_comparisons_a ON comparisons(photo_a_id);
+  `);
+}).then(() => {
+  return pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_comparisons_b ON comparisons(photo_b_id);
+  `);
+}).catch(err => console.error('Comparisons table init error:', err.message));
 
 pool.query(`
   CREATE TABLE IF NOT EXISTS submissions (
@@ -818,6 +843,153 @@ app.delete('/api/posts/:id', authenticate, async (req, res) => {
     res.json({ ok: true });
   } catch (err) {
     console.error('Delete post error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── GET /api/compare/next — admin only: next uncompared pair ─────────────────
+// Returns two photos whose ELO scores are closest and haven't been compared yet.
+// Also returns a "stats" object so the client can show progress.
+app.get('/api/compare/next', authenticate, async (_req, res) => {
+  try {
+    // Find the pair with the smallest ELO gap that hasn't been compared yet.
+    // We canonicalise the pair so a.id < b.id, matching the insert convention.
+    const pairRes = await pool.query(`
+      SELECT a.id          AS a_id,
+             a.thumbnail   AS a_thumb,
+             a.painting_name AS a_title,
+             a.artist      AS a_artist,
+             a.location    AS a_location,
+             a.style       AS a_style,
+             a.elo_score   AS a_elo,
+             b.id          AS b_id,
+             b.thumbnail   AS b_thumb,
+             b.painting_name AS b_title,
+             b.artist      AS b_artist,
+             b.location    AS b_location,
+             b.style       AS b_style,
+             b.elo_score   AS b_elo
+        FROM photos a
+        JOIN photos b ON a.id < b.id
+       WHERE NOT EXISTS (
+               SELECT 1 FROM comparisons c
+                WHERE (c.photo_a_id = a.id AND c.photo_b_id = b.id)
+                   OR (c.photo_a_id = b.id AND c.photo_b_id = a.id)
+             )
+       ORDER BY ABS(a.elo_score - b.elo_score) ASC, RANDOM()
+       LIMIT 1
+    `);
+
+    if (pairRes.rowCount === 0) {
+      return res.json({ done: true });
+    }
+
+    const row = pairRes.rows[0];
+
+    // Stats: total possible pairs vs. comparisons done
+    const totalRes = await pool.query(`SELECT COUNT(*) AS n FROM photos`);
+    const n = parseInt(totalRes.rows[0].n, 10);
+    const totalPairs = n * (n - 1) / 2;
+    const doneRes = await pool.query(`SELECT COUNT(*) AS n FROM comparisons`);
+    const donePairs = parseInt(doneRes.rows[0].n, 10);
+
+    res.json({
+      done: false,
+      a: {
+        id: row.a_id, thumbnail: row.a_thumb,
+        title: row.a_title, artist: row.a_artist,
+        location: row.a_location, style: row.a_style, elo: row.a_elo
+      },
+      b: {
+        id: row.b_id, thumbnail: row.b_thumb,
+        title: row.b_title, artist: row.b_artist,
+        location: row.b_location, style: row.b_style, elo: row.b_elo
+      },
+      stats: { totalPairs, donePairs }
+    });
+  } catch (err) {
+    console.error('Compare next error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── POST /api/compare — admin only: record a comparison result ────────────────
+// Body: { photoAId, photoBId, winnerId }
+//   winnerId = photoAId  → A won
+//   winnerId = photoBId  → B won
+//   winnerId = null      → tie / same
+// Updates both photos' elo_score and derived rating, then logs the comparison.
+app.post('/api/compare', authenticate, async (req, res) => {
+  const { photoAId, photoBId, winnerId } = req.body;
+  if (!photoAId || !photoBId) {
+    return res.status(400).json({ error: 'photoAId and photoBId are required.' });
+  }
+  if (winnerId !== null && winnerId !== photoAId && winnerId !== photoBId) {
+    return res.status(400).json({ error: 'winnerId must be photoAId, photoBId, or null.' });
+  }
+
+  try {
+    // Fetch current ELO scores
+    const photosRes = await pool.query(
+      'SELECT id, elo_score FROM photos WHERE id = ANY($1)',
+      [[photoAId, photoBId]]
+    );
+    if (photosRes.rowCount !== 2) {
+      return res.status(404).json({ error: 'One or both photos not found.' });
+    }
+
+    const byId = {};
+    photosRes.rows.forEach(r => { byId[r.id] = r.elo_score; });
+    const eloA = byId[photoAId];
+    const eloB = byId[photoBId];
+
+    // ELO update — K=32
+    const K = 32;
+    const expectedA = 1 / (1 + Math.pow(10, (eloB - eloA) / 400));
+    const expectedB = 1 - expectedA;
+
+    let scoreA, scoreB;
+    if (winnerId === photoAId)    { scoreA = 1; scoreB = 0; }
+    else if (winnerId === photoBId) { scoreA = 0; scoreB = 1; }
+    else                          { scoreA = 0.5; scoreB = 0.5; }   // tie
+
+    const newEloA = Math.round(eloA + K * (scoreA - expectedA));
+    const newEloB = Math.round(eloB + K * (scoreB - expectedB));
+
+    // Map ELO → 1–10 rating (rounded to 1 decimal place)
+    const eloToRating = elo =>
+      Math.round(Math.max(1.0, Math.min(10.0, ((elo - 1000) / 1000) * 9 + 1)) * 10) / 10;
+
+    const ratingA = eloToRating(newEloA);
+    const ratingB = eloToRating(newEloB);
+
+    // Write updated scores
+    await pool.query(
+      'UPDATE photos SET elo_score = $1, rating = $2 WHERE id = $3',
+      [newEloA, ratingA, photoAId]
+    );
+    await pool.query(
+      'UPDATE photos SET elo_score = $1, rating = $2 WHERE id = $3',
+      [newEloB, ratingB, photoBId]
+    );
+
+    // Canonicalise pair order (smaller id first) for the log
+    const [canonA, canonB] = photoAId < photoBId
+      ? [photoAId, photoBId]
+      : [photoBId, photoAId];
+
+    await pool.query(
+      'INSERT INTO comparisons (photo_a_id, photo_b_id, winner_id) VALUES ($1, $2, $3)',
+      [canonA, canonB, winnerId]
+    );
+
+    res.json({
+      ok: true,
+      a: { id: photoAId, elo: newEloA, rating: ratingA },
+      b: { id: photoBId, elo: newEloB, rating: ratingB }
+    });
+  } catch (err) {
+    console.error('Compare submit error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
