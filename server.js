@@ -81,6 +81,9 @@ pool.query(`
 }).then(() => {
   // Back-fill any NULL elo_score rows (existing photos before this migration)
   return pool.query(`UPDATE photos SET elo_score = 1500 WHERE elo_score IS NULL`);
+}).then(() => {
+  // Tier column: 'like' | 'okay' | 'dislike' | NULL (untriaged)
+  return pool.query(`ALTER TABLE photos ADD COLUMN IF NOT EXISTS tier TEXT`);
 }).catch(err => console.error('Database init error:', err.message));
 
 // Comparisons log — one row per head-to-head decision
@@ -847,6 +850,82 @@ app.delete('/api/posts/:id', authenticate, async (req, res) => {
   }
 });
 
+// ── Shared: ELO → 1–10 rating clamped to tier range ──────────────────────────
+// Tier bounds:  dislike → 1.0–3.9 | okay → 4.0–6.9 | like → 7.0–10.0
+// ELO 1500 (fresh tier assignment) maps to the midpoint of each range.
+// ELO walks up/down from there via within-tier comparisons (K=32).
+const TIER_BOUNDS = { dislike: [1.0, 3.9], okay: [4.0, 6.9], like: [7.0, 10.0] };
+function eloToRating(elo, tier) {
+  const [min, max] = TIER_BOUNDS[tier] || [1.0, 10.0];
+  // map elo 1200–1800 → 0–1, then scale to [min, max]
+  const t = Math.max(0, Math.min(1, (elo - 1200) / 600));
+  return Math.round((min + t * (max - min)) * 10) / 10;
+}
+
+// ── GET /api/triage/next — admin only: next untriaged photo ──────────────────
+// Returns one photo that hasn't been assigned a tier yet, plus progress stats.
+app.get('/api/triage/next', authenticate, async (_req, res) => {
+  try {
+    const photoRes = await pool.query(`
+      SELECT id, thumbnail, painting_name, artist, location, style, elo_score
+        FROM photos
+       WHERE tier IS NULL
+       ORDER BY created_at ASC
+       LIMIT 1
+    `);
+
+    const totalRes     = await pool.query(`SELECT COUNT(*) AS n FROM photos`);
+    const untrigedRes  = await pool.query(`SELECT COUNT(*) AS n FROM photos WHERE tier IS NULL`);
+    const total        = parseInt(totalRes.rows[0].n, 10);
+    const untriaged    = parseInt(untrigedRes.rows[0].n, 10);
+
+    if (photoRes.rowCount === 0) {
+      return res.json({ done: true, stats: { total, untriaged: 0, triaged: total } });
+    }
+
+    const row = photoRes.rows[0];
+    res.json({
+      done: false,
+      photo: {
+        id:        row.id,
+        thumbnail: row.thumbnail,
+        title:     row.painting_name,
+        artist:    row.artist,
+        location:  row.location,
+        style:     row.style,
+        elo:       row.elo_score
+      },
+      stats: { total, untriaged, triaged: total - untriaged }
+    });
+  } catch (err) {
+    console.error('Triage next error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── PATCH /api/photos/:id/tier — admin only: assign a tier ───────────────────
+// Body: { tier: 'like' | 'okay' | 'dislike' }
+// Resets elo_score to 1500 (neutral start within the tier) and recalculates rating.
+app.patch('/api/photos/:id/tier', authenticate, async (req, res) => {
+  const { tier } = req.body;
+  if (!['like', 'okay', 'dislike'].includes(tier)) {
+    return res.status(400).json({ error: "tier must be 'like', 'okay', or 'dislike'." });
+  }
+  const freshElo = 1500;
+  const rating   = eloToRating(freshElo, tier);
+  try {
+    const result = await pool.query(
+      'UPDATE photos SET tier = $1, elo_score = $2, rating = $3 WHERE id = $4 RETURNING tier, elo_score, rating',
+      [tier, freshElo, rating, req.params.id]
+    );
+    if (result.rowCount === 0) return res.status(404).json({ error: 'Photo not found.' });
+    res.json({ ok: true, tier, elo: freshElo, rating });
+  } catch (err) {
+    console.error('Tier error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ── GET /api/compare/next — admin only: next uncompared pair ─────────────────
 // Returns two photos whose ELO scores are closest and haven't been compared yet.
 // Also returns a "stats" object so the client can show progress.
@@ -862,16 +941,20 @@ app.get('/api/compare/next', authenticate, async (_req, res) => {
              a.location    AS a_location,
              a.style       AS a_style,
              a.elo_score   AS a_elo,
+             a.tier        AS a_tier,
              b.id          AS b_id,
              b.thumbnail   AS b_thumb,
              b.painting_name AS b_title,
              b.artist      AS b_artist,
              b.location    AS b_location,
              b.style       AS b_style,
-             b.elo_score   AS b_elo
+             b.elo_score   AS b_elo,
+             b.tier        AS b_tier
         FROM photos a
         JOIN photos b ON a.id < b.id
-       WHERE NOT EXISTS (
+       WHERE a.tier IS NOT NULL
+         AND a.tier = b.tier
+         AND NOT EXISTS (
                SELECT 1 FROM comparisons c
                 WHERE (c.photo_a_id = a.id AND c.photo_b_id = b.id)
                    OR (c.photo_a_id = b.id AND c.photo_b_id = a.id)
@@ -898,12 +981,12 @@ app.get('/api/compare/next', authenticate, async (_req, res) => {
       a: {
         id: row.a_id, thumbnail: row.a_thumb,
         title: row.a_title, artist: row.a_artist,
-        location: row.a_location, style: row.a_style, elo: row.a_elo
+        location: row.a_location, style: row.a_style, elo: row.a_elo, tier: row.a_tier
       },
       b: {
         id: row.b_id, thumbnail: row.b_thumb,
         title: row.b_title, artist: row.b_artist,
-        location: row.b_location, style: row.b_style, elo: row.b_elo
+        location: row.b_location, style: row.b_style, elo: row.b_elo, tier: row.b_tier
       },
       stats: { totalPairs, donePairs }
     });
@@ -929,9 +1012,9 @@ app.post('/api/compare', authenticate, async (req, res) => {
   }
 
   try {
-    // Fetch current ELO scores
+    // Fetch current ELO scores and tier
     const photosRes = await pool.query(
-      'SELECT id, elo_score FROM photos WHERE id = ANY($1)',
+      'SELECT id, elo_score, tier FROM photos WHERE id = ANY($1)',
       [[photoAId, photoBId]]
     );
     if (photosRes.rowCount !== 2) {
@@ -939,9 +1022,11 @@ app.post('/api/compare', authenticate, async (req, res) => {
     }
 
     const byId = {};
-    photosRes.rows.forEach(r => { byId[r.id] = r.elo_score; });
-    const eloA = byId[photoAId];
-    const eloB = byId[photoBId];
+    photosRes.rows.forEach(r => { byId[r.id] = { elo: r.elo_score, tier: r.tier }; });
+    const eloA  = byId[photoAId].elo;
+    const eloB  = byId[photoBId].elo;
+    const tierA = byId[photoAId].tier;
+    const tierB = byId[photoBId].tier;
 
     // ELO update — K=32
     const K = 32;
@@ -956,12 +1041,9 @@ app.post('/api/compare', authenticate, async (req, res) => {
     const newEloA = Math.round(eloA + K * (scoreA - expectedA));
     const newEloB = Math.round(eloB + K * (scoreB - expectedB));
 
-    // Map ELO → 1–10 rating (rounded to 1 decimal place)
-    const eloToRating = elo =>
-      Math.round(Math.max(1.0, Math.min(10.0, ((elo - 1000) / 1000) * 9 + 1)) * 10) / 10;
-
-    const ratingA = eloToRating(newEloA);
-    const ratingB = eloToRating(newEloB);
+    // Map ELO → rating within tier range using shared helper
+    const ratingA = eloToRating(newEloA, tierA);
+    const ratingB = eloToRating(newEloB, tierB);
 
     // Write updated scores
     await pool.query(
