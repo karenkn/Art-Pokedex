@@ -926,6 +926,57 @@ app.patch('/api/photos/:id/tier', authenticate, async (req, res) => {
   }
 });
 
+// ── GET /api/triage/placement-opponents?photoId=X ────────────────────────────
+// After a photo is triaged, returns up to 3 photos from the same tier to do
+// immediate placement comparisons against. Picks photos spread across the ELO
+// range (min / median / max) so the new photo gets bracketed quickly.
+// Skips pairs already compared so re-triaging is safe.
+app.get('/api/triage/placement-opponents', authenticate, async (req, res) => {
+  const { photoId } = req.query;
+  if (!photoId) return res.status(400).json({ error: 'photoId required' });
+
+  try {
+    // Get the tier of the newly-triaged photo
+    const tierRes = await pool.query('SELECT tier FROM photos WHERE id = $1', [photoId]);
+    if (tierRes.rowCount === 0) return res.status(404).json({ error: 'Photo not found.' });
+    const tier = tierRes.rows[0].tier;
+    if (!tier) return res.json({ opponents: [] });
+
+    // All other tiered photos in the same bucket that haven't been compared yet
+    const oppsRes = await pool.query(`
+      SELECT id, thumbnail, painting_name AS title, artist, location, style, elo_score AS elo
+        FROM photos
+       WHERE tier = $1
+         AND id != $2
+         AND NOT EXISTS (
+               SELECT 1 FROM comparisons c
+                WHERE (c.photo_a_id = $2 AND c.photo_b_id = photos.id)
+                   OR (c.photo_a_id = photos.id AND c.photo_b_id = $2)
+             )
+       ORDER BY elo_score ASC
+    `, [tier, photoId]);
+
+    const all = oppsRes.rows;
+    if (all.length === 0) return res.json({ opponents: [] });
+
+    // Pick up to 3 spread evenly across the ELO range: first, middle, last
+    let picks = [];
+    if (all.length === 1) {
+      picks = [all[0]];
+    } else if (all.length === 2) {
+      picks = [all[0], all[all.length - 1]];
+    } else {
+      const mid = Math.floor((all.length - 1) / 2);
+      picks = [all[0], all[mid], all[all.length - 1]];
+    }
+
+    res.json({ opponents: picks });
+  } catch (err) {
+    console.error('Placement opponents error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ── GET /api/compare/next — admin only: next uncompared pair ─────────────────
 // Returns two photos whose ELO scores are closest and haven't been compared yet.
 // Also returns a "stats" object so the client can show progress.

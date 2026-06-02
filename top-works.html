@@ -13,18 +13,17 @@
 
     /* ── Header ── */
     header { background: #111; color: #fff; padding: 0 clamp(16px,4vw,48px); height: 58px; display: flex; align-items: center; gap: 16px; position: sticky; top: 0; z-index: 200; }
-    .header-logo { display: flex; align-items: center; gap: 10px; flex-shrink: 0; text-decoration: none; cursor: pointer; }
-    .logo-text { font-family: 'Playfair Display', serif; font-size: clamp(15px,2.5vw,18px); color: #fff; font-weight: 600; letter-spacing: 0.3px; }
+    .header-logo { display: flex; align-items: center; gap: 10px; flex-shrink: 0; text-decoration: none; }
+    .logo-text { font-family: 'Playfair Display', serif; font-size: clamp(15px,2.5vw,18px); color: #fff; font-weight: 600; }
     .logo-sub  { font-size: 10px; color: #4a4a4a; letter-spacing: 1px; text-transform: uppercase; }
     @media (max-width: 639px) { .logo-sub { display: none; } }
     .header-nav { display: flex; align-items: center; gap: 24px; margin-left: auto; }
     .header-nav a { color: #666; text-decoration: none; font-size: 11px; letter-spacing: 1px; text-transform: uppercase; font-weight: 500; transition: color 0.2s; }
-    .header-nav a:hover { color: #fff; }
-    .header-nav a.active { color: #fff; }
-    .admin-btn { background: none; border: 1px solid #333; color: #666; padding: 5px 12px; border-radius: 3px; font-size: 11px; font-family: inherit; font-weight: 500; letter-spacing: 0.5px; cursor: pointer; transition: all 0.2s; }
+    .header-nav a:hover, .header-nav a.active { color: #fff; }
+    .admin-btn { background: none; border: 1px solid #333; color: #666; padding: 5px 12px; border-radius: 3px; font-size: 11px; font-family: inherit; font-weight: 500; cursor: pointer; transition: all 0.2s; }
     .admin-btn:hover { border-color: #888; color: #ccc; }
     .admin-btn.logged-in { border-color: #3a7d44; color: #3a7d44; }
-    .header-hamburger { display: none; background: none; border: none; cursor: pointer; color: #aaa; font-size: 20px; padding: 4px; margin-left: auto; line-height: 1; }
+    .header-hamburger { display: none; background: none; border: none; cursor: pointer; color: #aaa; font-size: 20px; padding: 4px; margin-left: auto; }
     .header-mobile-menu { display: none; background: #0d0d0d; border-bottom: 1px solid #1a1a1a; position: sticky; top: 58px; z-index: 199; }
     .header-mobile-menu.open { display: block; }
     .header-mobile-menu a, .header-mobile-menu button { display: block; width: 100%; text-align: left; padding: 13px 24px; color: #777; background: none; border: none; font-size: 12px; letter-spacing: 0.8px; text-transform: uppercase; font-family: inherit; cursor: pointer; border-bottom: 1px solid #191919; }
@@ -42,7 +41,6 @@
     .login-modal input[type=password]:focus { border-color: #8f0101; }
     .login-modal-actions { display: flex; gap: 10px; }
     .login-submit-btn { flex: 1; padding: 9px; background: #8f0101; color: #fff; border: none; border-radius: 6px; font-size: 14px; font-weight: 600; font-family: inherit; cursor: pointer; }
-    .login-submit-btn:hover { background: #7a0101; }
     .login-cancel-btn { padding: 9px 16px; border: 1px solid #ccc; background: none; border-radius: 6px; font-size: 14px; font-family: inherit; cursor: pointer; color: #666; }
 
     /* ── Hero ── */
@@ -50,102 +48,46 @@
     .hero-title { font-family: 'Playfair Display', serif; font-size: clamp(26px,5vw,42px); font-weight: 600; color: #111; line-height: 1.15; margin-bottom: 10px; }
     .hero-sub   { font-size: 14px; color: #888; line-height: 1.6; max-width: 540px; }
 
-    /* ── Admin ranking banner (two-phase) ── */
-    .rank-banner {
-      display: none;
-      max-width: 860px;
-      margin: 24px clamp(16px,4vw,48px) 0;
-      background: #1a1a1a; border-radius: 10px;
-      overflow: hidden;
-    }
+    /* ── Admin banner ── */
+    .rank-banner { display: none; max-width: 860px; margin: 24px clamp(16px,4vw,48px) 0; background: #1a1a1a; border-radius: 10px; overflow: hidden; }
     .rank-banner.visible { display: block; }
-
-    .rank-phase {
-      display: flex; align-items: center; gap: 14px;
-      padding: 14px 20px; gap: 16px;
-    }
+    .rank-phase { display: flex; align-items: center; gap: 16px; padding: 14px 20px; }
     .rank-phase + .rank-phase { border-top: 1px solid #2a2a2a; }
-
-    .rank-phase-icon {
-      font-size: 22px; flex-shrink: 0; width: 36px; text-align: center;
-    }
+    .rank-phase-icon { font-size: 22px; flex-shrink: 0; width: 36px; text-align: center; }
     .rank-phase-text { flex: 1; }
     .rank-phase-title { font-size: 13px; font-weight: 600; color: #fff; margin-bottom: 2px; }
     .rank-phase-sub   { font-size: 11px; color: #666; }
     .rank-phase-sub.ready { color: #3a7d44; }
-
-    .rank-phase-btn {
-      flex-shrink: 0; padding: 8px 18px;
-      background: #fff; color: #111;
-      border: none; border-radius: 6px;
-      font-size: 12px; font-weight: 600; font-family: inherit;
-      cursor: pointer; transition: background 0.15s;
-      white-space: nowrap;
-    }
+    .rank-phase-btn { flex-shrink: 0; padding: 8px 18px; background: #fff; color: #111; border: none; border-radius: 6px; font-size: 12px; font-weight: 600; font-family: inherit; cursor: pointer; transition: background 0.15s; white-space: nowrap; }
     .rank-phase-btn:hover { background: #e8e3de; }
-    .rank-phase-btn:disabled { background: #333; color: #555; cursor: default; }
+    .rank-phase-btn:disabled { background: #2a2a2a; color: #555; cursor: default; }
 
     /* ── Ranked list ── */
     .ranked-wrap { max-width: 860px; padding: clamp(24px,4vw,40px) clamp(16px,4vw,48px) 80px; }
-
-    .rank-row {
-      display: flex; align-items: center; gap: 16px;
-      background: #fff; border-radius: 10px; border: 1px solid #e8e3de;
-      padding: 14px 16px; margin-bottom: 10px;
-      cursor: pointer; transition: border-color 0.15s, box-shadow 0.15s;
-    }
+    .rank-row { display: flex; align-items: center; gap: 16px; background: #fff; border-radius: 10px; border: 1px solid #e8e3de; padding: 14px 16px; margin-bottom: 10px; cursor: pointer; transition: border-color 0.15s, box-shadow 0.15s; }
     .rank-row:hover { border-color: #c8c2ba; box-shadow: 0 2px 12px rgba(0,0,0,.06); }
-
-    .rank-num {
-      font-family: 'Playfair Display', serif;
-      font-size: clamp(20px,3vw,28px); font-weight: 600;
-      color: #ccc; min-width: 36px; text-align: center; flex-shrink: 0;
-    }
+    .rank-num { font-family: 'Playfair Display', serif; font-size: clamp(20px,3vw,28px); font-weight: 600; color: #ccc; min-width: 36px; text-align: center; flex-shrink: 0; }
     .rank-row:hover .rank-num { color: #aaa; }
-
     .rank-thumb { width: 80px; height: 80px; border-radius: 6px; overflow: hidden; flex-shrink: 0; background: #ece8e2; }
     .rank-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
-
     .rank-info { flex: 1; min-width: 0; }
     .rank-title  { font-weight: 600; font-size: 15px; color: #111; margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .rank-artist { font-size: 13px; color: #555; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .rank-meta   { font-size: 12px; color: #aaa; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .rank-tags   { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
     .rank-tag    { font-size: 10px; background: #f0ede8; color: #888; padding: 2px 8px; border-radius: 20px; }
-
-    .rank-score {
-      flex-shrink: 0; width: 52px; height: 52px; border-radius: 50%;
-      display: flex; align-items: center; justify-content: center;
-      font-weight: 700; font-size: 17px; transition: transform 0.15s;
-    }
+    .rank-score { flex-shrink: 0; width: 52px; height: 52px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 17px; transition: transform 0.15s; }
     .rank-score.tier-like    { background: #1a1a1a; color: #fff; }
     .rank-score.tier-okay    { background: #3a3a3a; color: #ccc; }
     .rank-score.tier-dislike { background: #ece8e2; color: #999; font-size: 14px; }
-    .rank-score.unranked     { background: #ece8e2; color: #bbb; font-size: 13px; font-weight: 500; width: auto; height: auto; border-radius: 4px; padding: 4px 8px; }
+    .rank-score.unranked     { background: #ece8e2; color: #bbb; font-size: 12px; font-weight: 500; width: auto; height: auto; border-radius: 4px; padding: 4px 8px; }
     .rank-row:hover .rank-score.tier-like,
     .rank-row:hover .rank-score.tier-okay,
     .rank-row:hover .rank-score.tier-dislike { transform: scale(1.06); }
-
-    /* tier pill on rows */
-    .tier-pill {
-      display: inline-flex; align-items: center; gap: 4px;
-      font-size: 10px; font-weight: 600; padding: 2px 8px;
-      border-radius: 20px; flex-shrink: 0;
-    }
-    .tier-pill.like    { background: #e8f5e9; color: #2e7d32; }
-    .tier-pill.okay    { background: #fff8e1; color: #f57f17; }
-    .tier-pill.dislike { background: #fce4ec; color: #c62828; }
-
-    .section-divider {
-      display: flex; align-items: center; gap: 12px;
-      margin: 28px 0 16px; color: #aaa; font-size: 11px;
-      font-weight: 600; letter-spacing: 1px; text-transform: uppercase;
-    }
+    .section-divider { display: flex; align-items: center; gap: 12px; margin: 28px 0 16px; color: #aaa; font-size: 11px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; }
     .section-divider::before, .section-divider::after { content: ''; flex: 1; height: 1px; background: #e0dbd5; }
-
     .empty-state { text-align: center; padding: 60px 24px; color: #aaa; }
     .empty-state p { font-size: 15px; margin-bottom: 6px; color: #888; }
-    .empty-state small { font-size: 13px; }
     .load-spinner { width: 36px; height: 36px; border: 3px solid #e0dbd5; border-top-color: #8f0101; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 16px; }
     @keyframes spin { to { transform: rotate(360deg); } }
 
@@ -153,7 +95,7 @@
     .modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 8000; align-items: flex-end; justify-content: center; }
     .modal-bg.open { display: flex; }
     @media (min-width: 600px) { .modal-bg { align-items: center; } }
-    .modal { background: #fff; border-radius: 14px 14px 0 0; width: 100%; max-width: 560px; max-height: 92vh; overflow-y: auto; position: relative; }
+    .modal { background: #fff; border-radius: 14px 14px 0 0; width: 100%; max-width: 560px; max-height: 92vh; overflow-y: auto; }
     @media (min-width: 600px) { .modal { border-radius: 14px; max-height: 88vh; } }
     .modal-drag-handle { width: 36px; height: 4px; background: #ddd; border-radius: 2px; margin: 10px auto 0; }
     .modal-img-wrap { position: relative; background: #111; max-height: 300px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
@@ -176,7 +118,7 @@
     .confidence-med  { color: #c87d00 !important; }
     .confidence-low  { color: #c0392b !important; }
     .modal-note { font-size: 11px; color: #bbb; margin-bottom: 14px; }
-    .manually-edited-badge { font-size: 9px; border: 1px solid #dce8d8; color: #3a7d44; padding: 1px 6px; font-weight: 600; margin-left: 6px; letter-spacing: 0.3px; }
+    .manually-edited-badge { font-size: 9px; border: 1px solid #dce8d8; color: #3a7d44; padding: 1px 6px; font-weight: 600; margin-left: 6px; }
     .modal-admin-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
     .modal-like-btn { display: inline-flex; align-items: center; gap: 5px; padding: 7px 14px; border: 1.5px solid #e0dbd5; border-radius: 20px; background: #fff; font-size: 13px; font-weight: 500; color: #555; cursor: pointer; transition: all 0.18s; font-family: inherit; }
     .modal-like-btn:hover { border-color: #8f0101; color: #8f0101; }
@@ -184,167 +126,165 @@
     #modalRating { margin: 14px 0 6px; }
     .modal-rating-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
     .modal-rating-label { font-size: 11px; font-weight: 600; color: #888; text-transform: uppercase; letter-spacing: 0.5px; }
-    .modal-rating-badge { display: inline-flex; align-items: center; justify-content: center; width: 42px; height: 42px; border-radius: 50%; font-weight: 700; font-size: 15px; flex-shrink: 0; }
+    .modal-rating-badge { display: inline-flex; align-items: center; justify-content: center; width: 42px; height: 42px; border-radius: 50%; font-weight: 700; font-size: 15px; }
     .modal-rating-badge.rated   { background: #1a1a1a; color: #fff; }
-    .modal-rating-badge.unrated { width: auto; height: auto; border-radius: 4px; background: none; color: #bbb; font-size: 12px; font-weight: 500; padding: 0; }
+    .modal-rating-badge.unrated { width: auto; height: auto; border-radius: 4px; background: none; color: #bbb; font-size: 12px; font-weight: 500; }
+    .tier-pill { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 20px; }
+    .tier-pill.like    { background: #e8f5e9; color: #2e7d32; }
+    .tier-pill.okay    { background: #fff8e1; color: #f57f17; }
+    .tier-pill.dislike { background: #fce4ec; color: #c62828; }
 
-    /* ─────────────────────────────────────────────────────── */
-    /* ── Triage Overlay ── */
-    /* ─────────────────────────────────────────────────────── */
-    .triage-overlay {
+    /* ════════════════════════════════════════════════════════ */
+    /* ── Ranking Overlay  (triage + placement in one screen) ── */
+    /* ════════════════════════════════════════════════════════ */
+    .ranking-overlay {
       display: none; position: fixed; inset: 0; background: #0d0d0d;
       z-index: 9500; flex-direction: column;
     }
-    .triage-overlay.open { display: flex; }
+    .ranking-overlay.open { display: flex; }
 
-    .overlay-header {
+    /* shared header */
+    .ov-header {
       width: 100%; padding: 14px 20px; flex-shrink: 0;
       display: flex; align-items: center; justify-content: space-between;
       border-bottom: 1px solid #1e1e1e;
     }
-    .overlay-header-left .overlay-title { font-size: 13px; font-weight: 600; color: #fff; }
-    .overlay-header-left .overlay-sub   { font-size: 11px; color: #555; margin-top: 2px; }
-    .overlay-stop-btn { background: none; border: 1px solid #333; color: #777; padding: 5px 14px; border-radius: 4px; font-size: 12px; font-family: inherit; cursor: pointer; transition: all 0.15s; }
-    .overlay-stop-btn:hover { border-color: #666; color: #aaa; }
+    .ov-header-title { font-size: 13px; font-weight: 600; color: #fff; }
+    .ov-header-sub   { font-size: 11px; color: #555; margin-top: 2px; }
+    .ov-stop-btn { background: none; border: 1px solid #333; color: #777; padding: 5px 14px; border-radius: 4px; font-size: 12px; font-family: inherit; cursor: pointer; transition: all 0.15s; }
+    .ov-stop-btn:hover { border-color: #666; color: #aaa; }
 
-    .triage-body {
-      flex: 1; display: flex; flex-direction: column;
+    /* ── Shared loading/done panels ── */
+    .ov-loading { display: none; flex-direction: column; align-items: center; justify-content: center; gap: 14px; flex: 1; }
+    .ov-loading.visible { display: flex; }
+    .ov-spinner { width: 32px; height: 32px; border: 3px solid #2a2a2a; border-top-color: #fff; border-radius: 50%; animation: spin 0.8s linear infinite; }
+    .ov-loading-text { font-size: 13px; color: #555; }
+
+    .ov-done { display: none; flex-direction: column; align-items: center; justify-content: center; gap: 14px; flex: 1; padding: 40px 24px; text-align: center; }
+    .ov-done.visible { display: flex; }
+    .ov-done-icon  { font-size: 40px; }
+    .ov-done-title { font-family: 'Playfair Display', serif; font-size: 22px; font-weight: 600; color: #f0ede8; }
+    .ov-done-sub   { font-size: 13px; color: #555; max-width: 320px; line-height: 1.6; }
+    .ov-done-btn   { margin-top: 8px; padding: 10px 24px; background: #fff; color: #111; border: none; border-radius: 6px; font-size: 13px; font-weight: 600; font-family: inherit; cursor: pointer; }
+
+    /* ── Triage panel: single artwork card + tier buttons ── */
+    .triage-panel {
+      display: none; flex: 1; flex-direction: column;
       align-items: center; justify-content: center;
-      padding: 24px 16px 32px; overflow-y: auto;
+      padding: 24px 16px 28px; overflow-y: auto;
     }
+    .triage-panel.visible { display: flex; }
 
-    .triage-instruction {
-      font-size: 13px; color: #555; text-align: center;
-      margin-bottom: 20px; letter-spacing: 0.3px;
-    }
+    .triage-progress-wrap { width: 100%; max-width: 380px; margin-bottom: 20px; }
+    .triage-progress-track { height: 3px; background: #222; border-radius: 2px; overflow: hidden; }
+    .triage-progress-fill  { height: 100%; background: #fff; border-radius: 2px; transition: width 0.35s ease; }
+    .triage-progress-label { font-size: 10px; color: #444; margin-top: 6px; text-align: center; letter-spacing: 0.4px; }
 
-    /* progress bar */
-    .triage-progress-bar-wrap {
-      width: 100%; max-width: 380px; margin-bottom: 24px;
-    }
-    .triage-progress-track {
-      height: 3px; background: #222; border-radius: 2px; overflow: hidden;
-    }
-    .triage-progress-fill {
-      height: 100%; background: #fff; border-radius: 2px;
-      transition: width 0.3s ease;
-    }
-    .triage-progress-label {
-      font-size: 10px; color: #444; margin-top: 6px; text-align: center;
-      letter-spacing: 0.5px;
-    }
-
-    /* artwork card */
-    .triage-card {
-      width: 100%; max-width: 380px;
-      background: #181818; border-radius: 14px; overflow: hidden;
-      border: 1px solid #2a2a2a; margin-bottom: 24px;
-    }
-    .triage-card-img {
-      aspect-ratio: 4/3; overflow: hidden; background: #111;
-    }
-    .triage-card-img img {
-      width: 100%; height: 100%; object-fit: cover; display: block;
-    }
-    .triage-card-body { padding: 16px; }
+    .triage-card { width: 100%; max-width: 380px; background: #181818; border-radius: 14px; overflow: hidden; border: 1px solid #2a2a2a; margin-bottom: 20px; }
+    .triage-card-img { aspect-ratio: 4/3; overflow: hidden; background: #111; }
+    .triage-card-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .triage-card-body { padding: 14px; }
     .triage-card-title  { font-size: 15px; font-weight: 600; color: #f0ede8; margin-bottom: 4px; }
-    .triage-card-artist { font-size: 13px; color: #777; margin-bottom: 6px; }
+    .triage-card-artist { font-size: 13px; color: #777; margin-bottom: 4px; }
     .triage-card-meta   { font-size: 11px; color: #555; }
 
-    /* verdict buttons */
-    .triage-btns {
-      display: flex; gap: 12px; width: 100%; max-width: 380px;
-    }
+    .triage-btns { display: flex; gap: 10px; width: 100%; max-width: 380px; }
     .triage-btn {
-      flex: 1; display: flex; flex-direction: column;
-      align-items: center; justify-content: center; gap: 5px;
-      padding: 14px 8px; border-radius: 10px;
-      border: 2px solid transparent; cursor: pointer;
-      font-family: inherit; transition: all 0.15s;
-      background: #181818;
+      flex: 1; display: flex; flex-direction: column; align-items: center;
+      justify-content: center; gap: 5px; padding: 14px 8px; border-radius: 10px;
+      border: 2px solid transparent; cursor: pointer; font-family: inherit;
+      transition: all 0.15s; background: #181818;
     }
     .triage-btn-icon  { font-size: 24px; }
     .triage-btn-label { font-size: 11px; font-weight: 600; letter-spacing: 0.5px; }
-
     .triage-btn.dislike { color: #e57373; border-color: #2a1818; }
-    .triage-btn.dislike:hover { background: #2a1818; border-color: #c62828; }
-    .triage-btn.dislike.chosen { background: #2a1818; border-color: #c62828; }
+    .triage-btn.dislike:hover, .triage-btn.dislike.chosen { background: #2a1818; border-color: #c62828; }
+    .triage-btn.okay    { color: #ffb74d; border-color: #2a2218; }
+    .triage-btn.okay:hover,    .triage-btn.okay.chosen    { background: #2a2218; border-color: #f57f17; }
+    .triage-btn.like    { color: #81c784; border-color: #182a1e; }
+    .triage-btn.like:hover,    .triage-btn.like.chosen    { background: #182a1e; border-color: #2e7d32; }
+    .triage-skip { margin-top: 10px; background: none; border: none; color: #333; font-size: 12px; font-family: inherit; cursor: pointer; transition: color 0.15s; }
+    .triage-skip:hover { color: #666; }
 
-    .triage-btn.okay { color: #ffb74d; border-color: #2a2218; }
-    .triage-btn.okay:hover { background: #2a2218; border-color: #f57f17; }
-    .triage-btn.okay.chosen { background: #2a2218; border-color: #f57f17; }
-
-    .triage-btn.like { color: #81c784; border-color: #182a1e; }
-    .triage-btn.like:hover { background: #182a1e; border-color: #2e7d32; }
-    .triage-btn.like.chosen { background: #182a1e; border-color: #2e7d32; }
-
-    .triage-skip-btn {
-      margin-top: 12px; background: none; border: none;
-      color: #333; font-size: 12px; font-family: inherit;
-      cursor: pointer; transition: color 0.15s;
-    }
-    .triage-skip-btn:hover { color: #666; }
-
-    /* triage done state */
-    .triage-done {
-      display: none; flex-direction: column; align-items: center;
-      justify-content: center; gap: 14px; padding: 60px 24px; text-align: center;
-    }
-    .triage-done.visible { display: flex; }
-    .triage-done-icon  { font-size: 40px; }
-    .triage-done-title { font-family: 'Playfair Display', serif; font-size: 22px; font-weight: 600; color: #f0ede8; }
-    .triage-done-sub   { font-size: 13px; color: #555; max-width: 320px; line-height: 1.6; }
-    .triage-done-btn   { margin-top: 8px; padding: 10px 24px; background: #fff; color: #111; border: none; border-radius: 6px; font-size: 13px; font-weight: 600; font-family: inherit; cursor: pointer; }
-
-    /* triage loading state */
-    .triage-loading { display: none; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 60px 24px; }
-    .triage-loading.visible { display: flex; }
-    .triage-loading-spinner { width: 32px; height: 32px; border: 3px solid #2a2a2a; border-top-color: #fff; border-radius: 50%; animation: spin 0.8s linear infinite; }
-    .triage-loading-text { font-size: 13px; color: #555; }
-
-    /* ─────────────────────────────────────────────────────── */
-    /* ── Compare Overlay ── */
-    /* ─────────────────────────────────────────────────────── */
-    .compare-overlay {
-      display: none; position: fixed; inset: 0; background: #0d0d0d;
-      z-index: 9500; flex-direction: column; align-items: center;
-      overflow-y: auto;
-    }
-    .compare-overlay.open { display: flex; }
-
-    .compare-body {
-      flex: 1; display: flex; flex-direction: column;
+    /* ── Placement panel: head-to-head right after triage ── */
+    .placement-panel {
+      display: none; flex: 1; flex-direction: column;
       align-items: center; justify-content: center;
-      padding: 24px 16px 40px; width: 100%; max-width: 900px;
+      padding: 20px 16px 32px; overflow-y: auto; width: 100%;
     }
-    .compare-tier-label {
-      font-size: 11px; letter-spacing: 1px; text-transform: uppercase;
-      font-weight: 600; margin-bottom: 14px;
+    .placement-panel.visible { display: flex; }
+
+    /* tier badge strip at top of placement */
+    .placement-tier-strip {
+      display: flex; align-items: center; gap: 10px;
+      margin-bottom: 16px; font-size: 12px; color: #555;
     }
+    .placement-tier-badge {
+      font-size: 11px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase;
+      padding: 3px 10px; border-radius: 20px;
+    }
+    .placement-tier-badge.like    { background: #182a1e; color: #81c784; }
+    .placement-tier-badge.okay    { background: #2a2218; color: #ffb74d; }
+    .placement-tier-badge.dislike { background: #2a1818; color: #e57373; }
+
+    /* pip progress */
+    .placement-pips { display: flex; gap: 6px; margin-bottom: 20px; }
+    .placement-pip { width: 8px; height: 8px; border-radius: 50%; background: #2a2a2a; transition: background 0.2s; }
+    .placement-pip.done    { background: #fff; }
+    .placement-pip.current { background: #666; }
+
+    /* the two cards */
+    .placement-cards { display: flex; gap: 14px; align-items: stretch; width: 100%; max-width: 760px; justify-content: center; }
+    @media (max-width: 599px) { .placement-cards { flex-direction: column; } }
+
+    .pl-card {
+      flex: 1; max-width: 320px; background: #181818; border-radius: 12px;
+      border: 2px solid #2a2a2a; overflow: hidden; cursor: pointer;
+      transition: border-color 0.15s, transform 0.15s; display: flex; flex-direction: column;
+    }
+    .pl-card:hover { border-color: #fff; transform: translateY(-2px); }
+    .pl-card.winner { border-color: #3a7d44 !important; animation: pulse-win 0.45s ease; }
+    .pl-card.loser  { border-color: #333 !important; opacity: 0.45; animation: fade-lose 0.45s ease; }
+    .pl-card.tied   { border-color: #b8860b !important; animation: pulse-tie 0.45s ease; }
+    @keyframes pulse-win  { 0%,100%{box-shadow:none} 40%{box-shadow:0 0 22px rgba(58,125,68,.6)} }
+    @keyframes fade-lose  { 0%{opacity:1} 100%{opacity:.45} }
+    @keyframes pulse-tie  { 0%,100%{box-shadow:none} 40%{box-shadow:0 0 22px rgba(184,134,11,.4)} }
+
+    /* "NEW" badge on the card being placed */
+    .pl-card-img-wrap { position: relative; aspect-ratio: 1; overflow: hidden; background: #111; }
+    .pl-card-img-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none; }
+    .pl-new-badge { position: absolute; top: 8px; left: 8px; background: #fff; color: #111; font-size: 9px; font-weight: 700; letter-spacing: 0.8px; padding: 3px 7px; border-radius: 4px; }
+
+    .pl-card-body { padding: 12px; }
+    .pl-card-title  { font-size: 13px; font-weight: 600; color: #f0ede8; margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .pl-card-artist { font-size: 11px; color: #888; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    .pl-vs { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; flex-shrink: 0; padding: 0 6px; }
+    .pl-vs-label { font-family: 'Playfair Display', serif; font-size: 24px; font-weight: 600; color: #333; }
+    .pl-same-btn { background: none; border: 1px solid #2a2a2a; color: #444; padding: 6px 14px; border-radius: 20px; font-size: 11px; font-family: inherit; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+    .pl-same-btn:hover { border-color: #b8860b; color: #b8860b; }
+    @media (max-width: 599px) { .pl-vs { flex-direction: row; padding: 4px 0; } }
+
+    .placement-result-msg { margin-top: 16px; font-size: 12px; color: #555; text-align: center; min-height: 18px; }
+    .placement-result-msg.win { color: #3a7d44; }
+    .placement-result-msg.tie { color: #b8860b; }
+
+    /* ── Compare (refine) overlay — standalone Phase 2 ── */
+    .compare-overlay { display: none; position: fixed; inset: 0; background: #0d0d0d; z-index: 9500; flex-direction: column; align-items: center; overflow-y: auto; }
+    .compare-overlay.open { display: flex; }
+    .compare-body { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px 16px 40px; width: 100%; max-width: 900px; }
+    .compare-tier-label { font-size: 11px; letter-spacing: 1px; text-transform: uppercase; font-weight: 600; margin-bottom: 14px; }
     .compare-tier-label.like    { color: #81c784; }
     .compare-tier-label.okay    { color: #ffb74d; }
     .compare-tier-label.dislike { color: #e57373; }
-
-    .compare-instruction { font-size: 13px; color: #555; text-align: center; margin-bottom: 24px; letter-spacing: 0.3px; }
-
+    .compare-instruction { font-size: 13px; color: #555; text-align: center; margin-bottom: 24px; }
     .compare-cards { display: flex; gap: 16px; align-items: stretch; width: 100%; justify-content: center; }
     @media (max-width: 599px) { .compare-cards { flex-direction: column; } }
-
-    .compare-card {
-      flex: 1; max-width: 340px; background: #181818; border-radius: 12px;
-      border: 2px solid #2a2a2a; overflow: hidden; cursor: pointer;
-      transition: border-color 0.15s, transform 0.15s;
-      display: flex; flex-direction: column;
-    }
+    .compare-card { flex: 1; max-width: 340px; background: #181818; border-radius: 12px; border: 2px solid #2a2a2a; overflow: hidden; cursor: pointer; transition: border-color 0.15s, transform 0.15s; display: flex; flex-direction: column; }
     .compare-card:hover { border-color: #fff; transform: translateY(-2px); }
-    .compare-card:focus-visible { outline: 2px solid #fff; }
-    .compare-card.winner { border-color: #3a7d44 !important; animation: pulse-winner 0.5s ease; }
-    .compare-card.loser  { border-color: #444 !important; opacity: 0.5; animation: fade-loser 0.5s ease; }
+    .compare-card.winner { border-color: #3a7d44 !important; animation: pulse-win 0.5s ease; }
+    .compare-card.loser  { border-color: #444 !important; opacity: 0.5; animation: fade-lose 0.5s ease; }
     .compare-card.tied   { border-color: #b8860b !important; animation: pulse-tie 0.5s ease; }
-    @keyframes pulse-winner { 0%,100%{ box-shadow:none; } 40%{ box-shadow:0 0 24px rgba(58,125,68,.6); } }
-    @keyframes fade-loser   { 0%{ opacity:1; } 100%{ opacity:.5; } }
-    @keyframes pulse-tie    { 0%,100%{ box-shadow:none; } 40%{ box-shadow:0 0 24px rgba(184,134,11,.4); } }
-
     .compare-card-img { aspect-ratio: 1; overflow: hidden; background: #111; }
     .compare-card-img img { width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none; }
     .compare-card-body { padding: 14px; }
@@ -352,26 +292,22 @@
     .compare-card-artist { font-size: 12px; color: #888; margin-bottom: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .compare-card-meta   { display: flex; gap: 6px; flex-wrap: wrap; }
     .compare-card-tag    { font-size: 10px; background: #2a2a2a; color: #777; padding: 2px 8px; border-radius: 20px; }
-    .compare-card-elo    { display: inline-flex; align-items: center; font-size: 10px; font-weight: 600; color: #555; margin-top: 8px; }
-
+    .compare-card-elo    { font-size: 10px; color: #555; margin-top: 6px; }
     .compare-vs { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; flex-shrink: 0; padding: 0 8px; }
-    .vs-label { font-family: 'Playfair Display', serif; font-size: 28px; font-weight: 600; color: #333; user-select: none; }
+    .vs-label { font-family: 'Playfair Display', serif; font-size: 28px; font-weight: 600; color: #333; }
     .same-btn { background: none; border: 1px solid #333; color: #555; padding: 7px 16px; border-radius: 20px; font-size: 12px; font-family: inherit; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
     .same-btn:hover { border-color: #b8860b; color: #b8860b; }
     @media (max-width: 599px) { .compare-vs { flex-direction: row; padding: 4px 0; } .vs-label { font-size: 22px; } }
-
-    .compare-result-msg { margin-top: 20px; font-size: 13px; color: #555; text-align: center; height: 20px; }
+    .compare-result-msg { margin-top: 20px; font-size: 13px; color: #555; text-align: center; min-height: 20px; }
     .compare-result-msg.win { color: #3a7d44; }
     .compare-result-msg.tie { color: #b8860b; }
-
-    .compare-done { display: none; flex-direction: column; align-items: center; justify-content: center; padding: 60px 24px; text-align: center; gap: 14px; }
+    .compare-done { display: none; flex-direction: column; align-items: center; justify-content: center; padding: 60px 24px; text-align: center; gap: 14px; flex: 1; }
     .compare-done.visible { display: flex; }
     .compare-done-icon  { font-size: 40px; }
     .compare-done-title { font-family: 'Playfair Display', serif; font-size: 22px; font-weight: 600; color: #f0ede8; }
     .compare-done-sub   { font-size: 13px; color: #555; max-width: 320px; line-height: 1.6; }
     .compare-done-btn   { margin-top: 8px; padding: 10px 24px; background: #fff; color: #111; border: none; border-radius: 6px; font-size: 13px; font-weight: 600; font-family: inherit; cursor: pointer; }
-
-    .compare-loading { display: none; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 60px 24px; }
+    .compare-loading { display: none; flex-direction: column; align-items: center; justify-content: center; gap: 14px; flex: 1; }
     .compare-loading.visible { display: flex; }
     .compare-loading-spinner { width: 36px; height: 36px; border: 3px solid #2a2a2a; border-top-color: #fff; border-radius: 50%; animation: spin 0.8s linear infinite; }
     .compare-loading-text { font-size: 13px; color: #555; }
@@ -410,11 +346,10 @@
   <button onclick="toggleAdminLogin(); document.getElementById('headerMobileMenu').classList.remove('open')">🔒 Admin Login</button>
 </div>
 
-<!-- Login Modal -->
 <div class="login-modal-bg" id="loginModalBg">
   <div class="login-modal">
     <h2>Admin Login</h2>
-    <p>Log in to rate and rank artworks.</p>
+    <p>Log in to rank artworks.</p>
     <div class="login-error" id="loginError"></div>
     <input type="password" id="adminPasswordInput" placeholder="Admin password"
            onkeydown="if(event.key==='Enter') submitLogin()" />
@@ -425,29 +360,26 @@
   </div>
 </div>
 
-<!-- Hero -->
 <div class="hero">
   <h1 class="hero-title">Top Works of Art</h1>
-  <p class="hero-sub">A personal ranking of the collection, built through head-to-head comparisons. Artworks are first sorted into tiers, then ranked within each tier.</p>
+  <p class="hero-sub">A personal ranking refined through comparison. Each artwork is first sorted into a tier, then placed within it through head-to-head matchups.</p>
 </div>
 
-<!-- Admin ranking banner (two phases) -->
+<!-- Admin banner -->
 <div class="rank-banner" id="rankBanner">
-  <!-- Phase 1: Triage -->
-  <div class="rank-phase" id="phase1Row">
+  <div class="rank-phase">
     <div class="rank-phase-icon">🗂</div>
     <div class="rank-phase-text">
-      <div class="rank-phase-title">Phase 1 — Sort into tiers</div>
-      <div class="rank-phase-sub" id="phase1Sub">Like / Okay / Dislike for each artwork</div>
+      <div class="rank-phase-title">Rank new artworks</div>
+      <div class="rank-phase-sub" id="phase1Sub">Sort &amp; place unsorted artworks one by one</div>
     </div>
-    <button class="rank-phase-btn" id="phase1Btn" onclick="startTriage()">Start</button>
+    <button class="rank-phase-btn" id="phase1Btn" onclick="startRanking()">Start</button>
   </div>
-  <!-- Phase 2: Compare -->
-  <div class="rank-phase" id="phase2Row">
+  <div class="rank-phase">
     <div class="rank-phase-icon">⚔️</div>
     <div class="rank-phase-text">
-      <div class="rank-phase-title">Phase 2 — Compare within tiers</div>
-      <div class="rank-phase-sub" id="phase2Sub">Head-to-head to refine rankings</div>
+      <div class="rank-phase-title">Refine rankings</div>
+      <div class="rank-phase-sub" id="phase2Sub">Compare existing artworks within tiers</div>
     </div>
     <button class="rank-phase-btn" id="phase2Btn" onclick="startComparing()" disabled>Start</button>
   </div>
@@ -456,10 +388,7 @@
 <!-- Ranked list -->
 <div class="ranked-wrap">
   <div id="listWrap">
-    <div class="empty-state">
-      <div class="load-spinner"></div>
-      <p>Loading collection…</p>
-    </div>
+    <div class="empty-state"><div class="load-spinner"></div><p>Loading collection…</p></div>
   </div>
 </div>
 
@@ -484,76 +413,122 @@
   </div>
 </div>
 
-<!-- ── Triage Overlay ── -->
-<div class="triage-overlay" id="triageOverlay">
-  <div class="overlay-header">
-    <div class="overlay-header-left">
-      <div class="overlay-title">How do you feel about this artwork?</div>
-      <div class="overlay-sub" id="triageProgress"></div>
+<!-- ════════════════════════════════════════════════════════════ -->
+<!-- Ranking Overlay — triage + immediate placement in one flow  -->
+<!-- ════════════════════════════════════════════════════════════ -->
+<div class="ranking-overlay" id="rankingOverlay">
+  <div class="ov-header">
+    <div>
+      <div class="ov-header-title" id="ovTitle">How do you feel about this artwork?</div>
+      <div class="ov-header-sub"   id="ovSub"></div>
     </div>
-    <button class="overlay-stop-btn" onclick="stopTriage()">✕ Stop</button>
+    <button class="ov-stop-btn" onclick="stopRanking()">✕ Stop</button>
   </div>
 
-  <div class="triage-body">
-    <!-- Loading -->
-    <div class="triage-loading" id="triageLoading">
-      <div class="triage-loading-spinner"></div>
-      <div class="triage-loading-text">Loading…</div>
+  <!-- Loading -->
+  <div class="ov-loading" id="ovLoading">
+    <div class="ov-spinner"></div>
+    <div class="ov-loading-text" id="ovLoadingText">Loading…</div>
+  </div>
+
+  <!-- All done -->
+  <div class="ov-done" id="ovDone">
+    <div class="ov-done-icon">✓</div>
+    <div class="ov-done-title">All artworks ranked!</div>
+    <div class="ov-done-sub">Every artwork has been sorted and placed. Use "Refine rankings" to keep fine-tuning.</div>
+    <button class="ov-done-btn" onclick="stopRanking()">View Rankings</button>
+  </div>
+
+  <!-- Triage panel -->
+  <div class="triage-panel" id="triagePanel">
+    <div class="triage-progress-wrap">
+      <div class="triage-progress-track">
+        <div class="triage-progress-fill" id="triageProgressFill" style="width:0%"></div>
+      </div>
+      <div class="triage-progress-label" id="triageProgressLabel">0% complete</div>
     </div>
 
-    <!-- Done -->
-    <div class="triage-done" id="triageDone">
-      <div class="triage-done-icon">✓</div>
-      <div class="triage-done-title">All artworks sorted!</div>
-      <div class="triage-done-sub">Every artwork has a tier. Move to Phase 2 to rank them within each tier.</div>
-      <button class="triage-done-btn" onclick="stopTriage(); startComparing()">Start Comparing →</button>
+    <div class="triage-card">
+      <div class="triage-card-img"><img id="triageImg" src="" alt="" /></div>
+      <div class="triage-card-body">
+        <div class="triage-card-title"  id="triageTitle"></div>
+        <div class="triage-card-artist" id="triageArtist"></div>
+        <div class="triage-card-meta"   id="triageMeta"></div>
+      </div>
     </div>
 
-    <!-- Main -->
-    <div id="triageMain" style="display:none; flex-direction:column; align-items:center; width:100%;">
-      <div class="triage-progress-bar-wrap">
-        <div class="triage-progress-track">
-          <div class="triage-progress-fill" id="triageProgressFill" style="width:0%"></div>
+    <div class="triage-btns">
+      <button class="triage-btn dislike" id="triageBtnDislike" onclick="submitTier('dislike')">
+        <span class="triage-btn-icon">👎</span>
+        <span class="triage-btn-label">Dislike</span>
+      </button>
+      <button class="triage-btn okay" id="triageBtnOkay" onclick="submitTier('okay')">
+        <span class="triage-btn-icon">😐</span>
+        <span class="triage-btn-label">Okay</span>
+      </button>
+      <button class="triage-btn like" id="triageBtnLike" onclick="submitTier('like')">
+        <span class="triage-btn-icon">👍</span>
+        <span class="triage-btn-label">Like</span>
+      </button>
+    </div>
+    <button class="triage-skip" onclick="skipPhoto()">Skip for now</button>
+  </div>
+
+  <!-- Placement panel -->
+  <div class="placement-panel" id="placementPanel">
+    <div class="placement-tier-strip">
+      <div class="placement-tier-badge" id="placementTierBadge"></div>
+      <span id="placementInstruction">Which do you prefer?</span>
+    </div>
+
+    <div class="placement-pips" id="placementPips"></div>
+
+    <div class="placement-cards">
+      <!-- New artwork being placed (side randomised per round) -->
+      <div class="pl-card" id="plCardNew" role="button" tabindex="0"
+           onclick="submitPlacement('new')" onkeydown="if(event.key==='Enter'||event.key===' ')submitPlacement('new')">
+        <div class="pl-card-img-wrap">
+          <img id="plNewImg" src="" alt="" />
+          <span class="pl-new-badge">NEW</span>
         </div>
-        <div class="triage-progress-label" id="triageProgressLabel"></div>
-      </div>
-
-      <div class="triage-card">
-        <div class="triage-card-img"><img id="triageImg" src="" alt="" /></div>
-        <div class="triage-card-body">
-          <div class="triage-card-title"  id="triageTitle"></div>
-          <div class="triage-card-artist" id="triageArtist"></div>
-          <div class="triage-card-meta"   id="triageMeta"></div>
+        <div class="pl-card-body">
+          <div class="pl-card-title"  id="plNewTitle"></div>
+          <div class="pl-card-artist" id="plNewArtist"></div>
         </div>
       </div>
 
-      <div class="triage-btns">
-        <button class="triage-btn dislike" id="triageDislikeBtn" onclick="submitTier('dislike')">
-          <span class="triage-btn-icon">👎</span>
-          <span class="triage-btn-label">Dislike</span>
-        </button>
-        <button class="triage-btn okay" id="triageOkayBtn" onclick="submitTier('okay')">
-          <span class="triage-btn-icon">😐</span>
-          <span class="triage-btn-label">Okay</span>
-        </button>
-        <button class="triage-btn like" id="triageLikeBtn" onclick="submitTier('like')">
-          <span class="triage-btn-icon">👍</span>
-          <span class="triage-btn-label">Like</span>
-        </button>
+      <div class="pl-vs">
+        <div class="pl-vs-label">VS</div>
+        <button class="pl-same-btn" onclick="submitPlacement('tie')">Same</button>
       </div>
-      <button class="triage-skip-btn" onclick="skipTriage()">Skip for now</button>
+
+      <!-- Opponent -->
+      <div class="pl-card" id="plCardOpp" role="button" tabindex="0"
+           onclick="submitPlacement('opp')" onkeydown="if(event.key==='Enter'||event.key===' ')submitPlacement('opp')">
+        <div class="pl-card-img-wrap">
+          <img id="plOppImg" src="" alt="" />
+        </div>
+        <div class="pl-card-body">
+          <div class="pl-card-title"  id="plOppTitle"></div>
+          <div class="pl-card-artist" id="plOppArtist"></div>
+        </div>
+      </div>
     </div>
+
+    <div class="placement-result-msg" id="placementResultMsg"></div>
   </div>
 </div>
 
-<!-- ── Compare Overlay ── -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- Compare (refine) overlay — Phase 2                     -->
+<!-- ═══════════════════════════════════════════════════════ -->
 <div class="compare-overlay" id="compareOverlay">
-  <div class="overlay-header">
-    <div class="overlay-header-left">
-      <div class="overlay-title">Which do you prefer?</div>
-      <div class="overlay-sub" id="compareProgress"></div>
+  <div class="ov-header">
+    <div>
+      <div class="ov-header-title">Which do you prefer?</div>
+      <div class="ov-header-sub" id="compareProgress"></div>
     </div>
-    <button class="overlay-stop-btn" onclick="stopComparing()">✕ Stop</button>
+    <button class="ov-stop-btn" onclick="stopComparing()">✕ Stop</button>
   </div>
 
   <div class="compare-loading" id="compareLoading">
@@ -564,13 +539,13 @@
   <div class="compare-done" id="compareDone">
     <div class="compare-done-icon">✓</div>
     <div class="compare-done-title">All pairs compared!</div>
-    <div class="compare-done-sub">Every artwork has been matched within its tier — the rankings are as refined as they can get.</div>
+    <div class="compare-done-sub">Every artwork has been matched within its tier.</div>
     <button class="compare-done-btn" onclick="stopComparing()">View Rankings</button>
   </div>
 
   <div class="compare-body" id="compareMain" style="display:none">
     <div class="compare-tier-label" id="compareTierLabel"></div>
-    <div class="compare-instruction">Tap the artwork you prefer — or mark them as equal</div>
+    <div class="compare-instruction">Tap the one you prefer — or mark them as equal</div>
     <div class="compare-cards">
       <div class="compare-card" id="cardA" role="button" tabindex="0"
            onclick="submitChoice('a')" onkeydown="if(event.key==='Enter'||event.key===' ')submitChoice('a')">
@@ -602,30 +577,18 @@
 </div>
 
 <script>
-  // ── Config ──────────────────────────────────────────────────────────────────
   const SERVER_URL = (() => {
     if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
       return 'http://localhost:3000';
     return 'https://art-pokedex-production.up.railway.app';
   })();
 
-  // ── State ───────────────────────────────────────────────────────────────────
   let photos     = [];
   let adminToken = null;
   let activeId   = null;
   const likedIds = new Set();
 
-  // Triage state
-  let triagePhoto    = null;
-  let triageInFlight = false;
-
-  // Compare state
-  let comparePairA    = null;
-  let comparePairB    = null;
-  let compareInFlight = false;
-
-  const TIER_LABELS  = { like: '👍 Like', okay: '😐 Okay', dislike: '👎 Dislike' };
-  const TIER_CLASSES = { like: 'tier-like', okay: 'tier-okay', dislike: 'tier-dislike' };
+  const TIER_LABELS = { like: '👍 Like', okay: '😐 Okay', dislike: '👎 Dislike' };
 
   function authHeaders() {
     const h = { 'content-type': 'application/json' };
@@ -633,15 +596,13 @@
     return h;
   }
 
-  // ── Admin login ──────────────────────────────────────────────────────────────
+  // ── Login ───────────────────────────────────────────────────────────────────
   function toggleAdminLogin() {
-    if (adminToken) { adminToken = null; updateAdminUI(); }
-    else {
-      document.getElementById('loginModalBg').classList.add('open');
-      document.getElementById('adminPasswordInput').value = '';
-      document.getElementById('loginError').style.display = 'none';
-      setTimeout(() => document.getElementById('adminPasswordInput').focus(), 50);
-    }
+    if (adminToken) { adminToken = null; updateAdminUI(); return; }
+    document.getElementById('loginModalBg').classList.add('open');
+    document.getElementById('adminPasswordInput').value = '';
+    document.getElementById('loginError').style.display = 'none';
+    setTimeout(() => document.getElementById('adminPasswordInput').focus(), 50);
   }
   function closeLoginModal() { document.getElementById('loginModalBg').classList.remove('open'); }
   async function submitLogin() {
@@ -651,11 +612,11 @@
     try {
       const res  = await fetch(`${SERVER_URL}/api/login`, { method:'POST', headers:{'content-type':'application/json'}, body:JSON.stringify({password:pw}) });
       const data = await res.json();
-      if (!res.ok) { errEl.textContent = data.error || 'Login failed.'; errEl.style.display = 'block'; return; }
+      if (!res.ok) { errEl.textContent = data.error || 'Login failed.'; errEl.style.display='block'; return; }
       adminToken = data.token;
       closeLoginModal();
       updateAdminUI();
-    } catch { errEl.textContent = 'Could not reach server.'; errEl.style.display = 'block'; }
+    } catch { errEl.textContent = 'Could not reach server.'; errEl.style.display='block'; }
   }
 
   function updateAdminUI() {
@@ -665,85 +626,65 @@
     document.getElementById('rankBanner').classList.toggle('visible', !!adminToken);
     if (adminToken) refreshBannerCounts();
     renderList();
-    if (activeId) { const p = photos.find(x=>x.id===activeId); if (p) renderModal(p); }
+    if (activeId) { const p = photos.find(x=>x.id===activeId); if(p) renderModal(p); }
   }
 
   async function refreshBannerCounts() {
     if (!adminToken) return;
     try {
-      // Triage stats (reuse /api/triage/next to get counts without loading a photo)
-      const triRes  = await fetch(`${SERVER_URL}/api/triage/next`, { headers: authHeaders() });
+      const [triRes, cmpRes] = await Promise.all([
+        fetch(`${SERVER_URL}/api/triage/next`,    { headers: authHeaders() }),
+        fetch(`${SERVER_URL}/api/compare/next`,   { headers: authHeaders() })
+      ]);
       const triData = await triRes.json();
-      const { total = 0, untriaged = 0, triaged = 0 } = triData.stats || {};
-      const allDone = triData.done;
+      const cmpData = await cmpRes.json();
+
+      const { total=0, untriaged=0, triaged=0 } = triData.stats || {};
 
       const p1Sub = document.getElementById('phase1Sub');
       const p1Btn = document.getElementById('phase1Btn');
-      if (allDone || untriaged === 0) {
+      if (untriaged === 0) {
         p1Sub.textContent = `✓ All ${total} artworks sorted`;
         p1Sub.className   = 'rank-phase-sub ready';
-        p1Btn.textContent = 'Done';
-        p1Btn.disabled    = true;
+        p1Btn.textContent = 'Done'; p1Btn.disabled = true;
       } else {
         p1Sub.textContent = `${untriaged} of ${total} not yet sorted`;
         p1Sub.className   = 'rank-phase-sub';
-        p1Btn.textContent = 'Start';
-        p1Btn.disabled    = false;
+        p1Btn.textContent = 'Start'; p1Btn.disabled = false;
       }
 
-      // Compare stats
-      const cmpRes  = await fetch(`${SERVER_URL}/api/compare/next`, { headers: authHeaders() });
-      const cmpData = await cmpRes.json();
-      const { totalPairs = 0, donePairs = 0 } = cmpData.stats || {};
       const p2Sub = document.getElementById('phase2Sub');
       const p2Btn = document.getElementById('phase2Btn');
-
+      const { totalPairs=0, donePairs=0 } = cmpData.stats || {};
       if (untriaged > 0) {
-        p2Sub.textContent = 'Complete Phase 1 first';
-        p2Sub.className   = 'rank-phase-sub';
-        p2Btn.disabled    = true;
+        p2Sub.textContent = 'Sort all artworks first'; p2Sub.className = 'rank-phase-sub'; p2Btn.disabled = true;
       } else if (cmpData.done) {
-        p2Sub.textContent = `✓ All ${totalPairs} pairs compared`;
-        p2Sub.className   = 'rank-phase-sub ready';
-        p2Btn.textContent = 'Done';
-        p2Btn.disabled    = true;
+        p2Sub.textContent = `✓ All ${totalPairs} pairs compared`; p2Sub.className = 'rank-phase-sub ready'; p2Btn.textContent = 'Done'; p2Btn.disabled = true;
       } else {
-        p2Sub.textContent = `${donePairs} of ${totalPairs} pairs compared`;
-        p2Sub.className   = 'rank-phase-sub';
-        p2Btn.textContent = 'Continue';
-        p2Btn.disabled    = false;
+        p2Sub.textContent = `${donePairs} of ${totalPairs} pairs compared`; p2Sub.className = 'rank-phase-sub'; p2Btn.textContent = 'Continue'; p2Btn.disabled = false;
       }
     } catch { /* non-critical */ }
   }
 
-  // ── Data loading ─────────────────────────────────────────────────────────────
+  // ── Data ─────────────────────────────────────────────────────────────────────
   async function loadPhotos() {
     try {
       const res  = await fetch(`${SERVER_URL}/api/photos`);
       const rows = await res.json();
       if (!Array.isArray(rows)) return;
-      photos = rows.filter(r => r.id && r.thumbnail).map(r => ({
-        id:             r.id,
-        name:           r.name,
-        url:            `data:image/jpeg;base64,${r.thumbnail}`,
-        rating:         r.rating    ?? null,
-        eloScore:       r.elo_score ?? 1500,
-        tier:           r.tier      || null,
-        likes:          r.likes     || 0,
+      photos = rows.filter(r=>r.id&&r.thumbnail).map(r => ({
+        id: r.id, name: r.name,
+        url: `data:image/jpeg;base64,${r.thumbnail}`,
+        rating: r.rating ?? null, eloScore: r.elo_score ?? 1500,
+        tier: r.tier || null, likes: r.likes || 0,
         locationSource: r.location_source || 'ai',
         aiData: {
-          paintingName:   r.painting_name  || '',
-          artist:         r.artist         || '',
-          location:       r.location       || '',
-          country:        r.country        || '',
-          style:          r.style          || '',
-          medium:         r.medium         || '',
-          period:         r.period         || '',
-          confidence:     r.confidence     ?? 75,
-          description:    r.description    || '',
-          artistHint:     r.artist_hint    || '',
-          manuallyEdited: r.manually_edited || false,
-          model:          r.ai_model       || 'Claude'
+          paintingName: r.painting_name||'', artist: r.artist||'',
+          location: r.location||'', country: r.country||'',
+          style: r.style||'', medium: r.medium||'', period: r.period||'',
+          confidence: r.confidence??75, description: r.description||'',
+          artistHint: r.artist_hint||'', manuallyEdited: r.manually_edited||false,
+          model: r.ai_model||'Claude'
         }
       }));
       renderList();
@@ -753,250 +694,346 @@
     }
   }
 
-  // ── Sort & render list ───────────────────────────────────────────────────────
-  function sortedPhotos() {
-    const byTier = tier => photos
-      .filter(p => p.tier === tier)
-      .sort((a,b) => (b.rating ?? 0) - (a.rating ?? 0));
-
-    return {
-      liked:    byTier('like'),
-      okay:     byTier('okay'),
-      disliked: byTier('dislike'),
-      unranked: photos.filter(p => !p.tier).sort((a,b) =>
-        (a.aiData.artist||'').localeCompare(b.aiData.artist||''))
-    };
-  }
-
+  // ── List ─────────────────────────────────────────────────────────────────────
   function renderList() {
-    const { liked, okay, disliked, unranked } = sortedPhotos();
+    const byTier = t => photos.filter(p=>p.tier===t).sort((a,b)=>(b.rating??0)-(a.rating??0));
+    const liked=byTier('like'), okay=byTier('okay'), disliked=byTier('dislike');
+    const unranked=photos.filter(p=>!p.tier).sort((a,b)=>(a.aiData.artist||'').localeCompare(b.aiData.artist||''));
     const wrap = document.getElementById('listWrap');
-    const total = liked.length + okay.length + disliked.length + unranked.length;
-    if (!total) { wrap.innerHTML = `<div class="empty-state"><p>No artworks yet.</p></div>`; return; }
-
-    let html = '';
-    let rank = 1;
-
-    if (liked.length) {
-      html += `<div class="section-divider">👍 Like</div>`;
-      liked.forEach(p => { html += rowHtml(p, rank++); });
-    }
-    if (okay.length) {
-      html += `<div class="section-divider">😐 Okay</div>`;
-      okay.forEach(p => { html += rowHtml(p, rank++); });
-    }
-    if (disliked.length) {
-      html += `<div class="section-divider">👎 Dislike</div>`;
-      disliked.forEach(p => { html += rowHtml(p, rank++); });
-    }
-    if (unranked.length) {
-      html += `<div class="section-divider">Not yet sorted</div>`;
-      unranked.forEach(p => { html += rowHtml(p, null); });
-    }
-
+    if (!photos.length) { wrap.innerHTML=`<div class="empty-state"><p>No artworks yet.</p></div>`; return; }
+    let html='', rank=1;
+    if (liked.length)    { html+=`<div class="section-divider">👍 Like</div>`;          liked.forEach(p=>{html+=rowHtml(p,rank++);}); }
+    if (okay.length)     { html+=`<div class="section-divider">😐 Okay</div>`;          okay.forEach(p=>{html+=rowHtml(p,rank++);}); }
+    if (disliked.length) { html+=`<div class="section-divider">👎 Dislike</div>`;       disliked.forEach(p=>{html+=rowHtml(p,rank++);}); }
+    if (unranked.length) { html+=`<div class="section-divider">Not yet sorted</div>`;   unranked.forEach(p=>{html+=rowHtml(p,null);}); }
     wrap.innerHTML = html;
   }
 
   function rowHtml(p, rank) {
-    const d      = p.aiData;
-    const title  = d.paintingName || p.name || 'Untitled';
-    const artist = d.artist || '—';
-    const meta   = [d.location, d.period].filter(Boolean).join(' · ');
-    const r      = p.rating;
-    const scoreClass = p.tier ? TIER_CLASSES[p.tier] : 'unranked';
-    const scoreContent = r != null
-      ? (r % 1 === 0 ? r : r.toFixed(1))
-      : (p.tier ? '—' : '?');
-
+    const d=p.aiData, title=d.paintingName||p.name||'Untitled', artist=d.artist||'—';
+    const meta=[d.location,d.period].filter(Boolean).join(' · ');
+    const r=p.rating;
+    const cls = p.tier ? `tier-${p.tier}` : 'unranked';
+    const scoreContent = r!=null ? (r%1===0?r:r.toFixed(1)) : (p.tier?'—':'?');
     return `
       <div class="rank-row" onclick="openModal('${p.id}')">
-        <div class="rank-num">${rank != null ? rank : ''}</div>
-        <div class="rank-thumb"><img src="${p.url}" alt="${esc(title)}" loading="lazy" /></div>
+        <div class="rank-num">${rank!=null?rank:''}</div>
+        <div class="rank-thumb"><img src="${p.url}" alt="${esc(title)}" loading="lazy"/></div>
         <div class="rank-info">
           <div class="rank-title">${esc(title)}</div>
           <div class="rank-artist">${esc(artist)}</div>
           <div class="rank-meta">${esc(meta)}</div>
           <div class="rank-tags">
-            ${d.style  ? `<span class="rank-tag">${esc(d.style)}</span>`  : ''}
-            ${d.medium ? `<span class="rank-tag">${esc(d.medium)}</span>` : ''}
+            ${d.style?`<span class="rank-tag">${esc(d.style)}</span>`:''}
+            ${d.medium?`<span class="rank-tag">${esc(d.medium)}</span>`:''}
           </div>
         </div>
-        <div class="rank-score ${scoreClass}">${scoreContent}</div>
+        <div class="rank-score ${cls}">${scoreContent}</div>
       </div>`;
   }
 
-  // ── Detail Modal ─────────────────────────────────────────────────────────────
+  // ── Modal ─────────────────────────────────────────────────────────────────────
   function openModal(id) {
-    const p = photos.find(x => x.id === id);
-    if (!p) return;
-    activeId = id;
-    renderModal(p);
+    const p=photos.find(x=>x.id===id); if(!p) return;
+    activeId=id; renderModal(p);
     document.getElementById('modalBg').classList.add('open');
-    document.body.style.overflow = 'hidden';
+    document.body.style.overflow='hidden';
   }
   function closeModal() {
     document.getElementById('modalBg').classList.remove('open');
-    document.body.style.overflow = '';
-    activeId = null;
+    document.body.style.overflow=''; activeId=null;
   }
-  function bgClick(e) { if (e.target === document.getElementById('modalBg')) closeModal(); }
+  function bgClick(e) { if(e.target===document.getElementById('modalBg')) closeModal(); }
 
   function renderModal(p) {
-    const d = p.aiData;
-    document.getElementById('modalImg').src = p.url;
-    document.getElementById('modalTitle').innerHTML =
-      esc(d.paintingName || p.name) + (d.manuallyEdited ? ' <span class="manually-edited-badge">✎ edited</span>' : '');
-    document.getElementById('modalTags').innerHTML = `
+    const d=p.aiData;
+    document.getElementById('modalImg').src=p.url;
+    document.getElementById('modalTitle').innerHTML=esc(d.paintingName||p.name)+(d.manuallyEdited?' <span class="manually-edited-badge">✎ edited</span>':'');
+    document.getElementById('modalTags').innerHTML=`
       <span class="tag location">📍 ${esc(d.location)}</span>
       <span class="tag style">🎨 ${esc(d.style)}</span>
       <span class="tag medium">🖌️ ${esc(d.medium)}</span>`;
-    document.getElementById('modalDesc').textContent = d.description;
-    const cc = d.confidence >= 80 ? 'confidence-high' : d.confidence >= 55 ? 'confidence-med' : 'confidence-low';
-    document.getElementById('modalDetails').innerHTML = `
-      ${d.paintingName ? `<div class="modal-detail" style="grid-column:1/-1"><label>Painting Name</label><span>${esc(d.paintingName)}</span></div>` : ''}
-      ${d.artist       ? `<div class="modal-detail" style="grid-column:1/-1"><label>Artist</label><span>${esc(d.artist)}</span></div>` : ''}
+    document.getElementById('modalDesc').textContent=d.description;
+    const cc=d.confidence>=80?'confidence-high':d.confidence>=55?'confidence-med':'confidence-low';
+    document.getElementById('modalDetails').innerHTML=`
+      ${d.paintingName?`<div class="modal-detail" style="grid-column:1/-1"><label>Painting</label><span>${esc(d.paintingName)}</span></div>`:''}
+      ${d.artist?`<div class="modal-detail" style="grid-column:1/-1"><label>Artist</label><span>${esc(d.artist)}</span></div>`:''}
       <div class="modal-detail"><label>Location</label><span>${esc(d.location)}</span></div>
       <div class="modal-detail"><label>Country</label><span>${esc(d.country)}</span></div>
       <div class="modal-detail"><label>Art Style</label><span>${esc(d.style)}</span></div>
       <div class="modal-detail"><label>Medium</label><span>${esc(d.medium)}</span></div>
       <div class="modal-detail"><label>Period</label><span>${esc(d.period)}</span></div>
       <div class="modal-detail"><label>Confidence</label><span class="${cc}">${d.confidence}%</span></div>`;
-    document.getElementById('modalNote').textContent =
-      `${d.manuallyEdited ? 'Originally analyzed by' : 'Analyzed by'} ${d.model || 'Claude'} · ${p.locationSource === 'gps' ? '🛰 GPS' : '✦ AI'}`;
-
-    // Rating + tier badge
-    const r = p.rating;
-    const tierBit = p.tier
-      ? `<span class="tier-pill ${p.tier}">${TIER_LABELS[p.tier]}</span>`
-      : '';
-    const scoreBit = r != null
-      ? `<span class="modal-rating-badge rated">${r % 1 === 0 ? r : r.toFixed(1)}</span>`
-      : `<span class="modal-rating-badge unrated">Not rated</span>`;
-    document.getElementById('modalRating').innerHTML = `
+    document.getElementById('modalNote').textContent=`${d.manuallyEdited?'Originally analyzed by':'Analyzed by'} ${d.model||'Claude'} · ${p.locationSource==='gps'?'🛰 GPS':'✦ AI'}`;
+    const r=p.rating;
+    const tierBit=p.tier?`<span class="tier-pill ${p.tier}">${TIER_LABELS[p.tier]}</span>`:'';
+    const scoreBit=r!=null?`<span class="modal-rating-badge rated">${r%1===0?r:r.toFixed(1)}</span>`:`<span class="modal-rating-badge unrated">Not rated</span>`;
+    document.getElementById('modalRating').innerHTML=`
       <div class="modal-rating-row">
         <div class="modal-rating-label">My Rating</div>
         <div style="display:flex;align-items:center;gap:8px">${tierBit}${scoreBit}</div>
       </div>`;
-
-    const liked = likedIds.has(p.id);
-    document.getElementById('modalActions').innerHTML =
-      `<button class="modal-like-btn${liked ? ' liked' : ''}" onclick="likePhoto('${p.id}', event)">
-         ${liked ? '👍' : '👍🏻'} ${p.likes || 0} Like${(p.likes||0)!==1?'s':''}
-       </button>`;
+    const liked=likedIds.has(p.id);
+    document.getElementById('modalActions').innerHTML=`
+      <button class="modal-like-btn${liked?' liked':''}" onclick="likePhoto('${p.id}',event)">
+        ${liked?'👍':'👍🏻'} ${p.likes||0} Like${(p.likes||0)!==1?'s':''}
+      </button>`;
   }
 
-  // ── Like ─────────────────────────────────────────────────────────────────────
   async function likePhoto(id, event) {
-    if (event) event.stopPropagation();
-    const photo   = photos.find(p => p.id === id);
-    const isLiked = likedIds.has(id);
-    if (isLiked) { likedIds.delete(id); if (photo) photo.likes = Math.max((photo.likes||1)-1,0); }
-    else         { likedIds.add(id);   if (photo) photo.likes = (photo.likes||0)+1; }
-    if (activeId === id && photo) renderModal(photo);
+    if(event) event.stopPropagation();
+    const photo=photos.find(p=>p.id===id), isLiked=likedIds.has(id);
+    if(isLiked){likedIds.delete(id);if(photo)photo.likes=Math.max((photo.likes||1)-1,0);}
+    else{likedIds.add(id);if(photo)photo.likes=(photo.likes||0)+1;}
+    if(activeId===id&&photo) renderModal(photo);
     try {
-      const res  = await fetch(`${SERVER_URL}/api/photos/${id}/like`, { method: isLiked ? 'DELETE' : 'POST' });
-      const data = await res.json();
-      if (photo && data.likes !== undefined) { photo.likes = data.likes; if (activeId===id) renderModal(photo); }
-    } catch { /* optimistic already applied */ }
+      const res=await fetch(`${SERVER_URL}/api/photos/${id}/like`,{method:isLiked?'DELETE':'POST'});
+      const data=await res.json();
+      if(photo&&data.likes!==undefined){photo.likes=data.likes;if(activeId===id)renderModal(photo);}
+    } catch {}
   }
 
-  // ── Phase 1: Triage ───────────────────────────────────────────────────────────
-  function startTriage() {
+  // ═══════════════════════════════════════════════════════════════
+  // PHASE 1: Ranking overlay — triage + immediate placement
+  // ═══════════════════════════════════════════════════════════════
+
+  // State
+  let rankingPhoto      = null;   // current untriaged photo
+  let placementOpps     = [];     // opponents queue for this photo
+  let placementIndex    = 0;      // which opponent we're on
+  let placementNewSide  = 'left'; // which side the NEW card appears on (randomised)
+  let placementInFlight = false;
+
+  function showRankingState(state) {
+    // state: 'loading' | 'triage' | 'placement' | 'done'
+    document.getElementById('ovLoading').classList.toggle('visible',   state==='loading');
+    document.getElementById('triagePanel').classList.toggle('visible', state==='triage');
+    document.getElementById('placementPanel').classList.toggle('visible', state==='placement');
+    document.getElementById('ovDone').classList.toggle('visible',      state==='done');
+
+    const titles = {
+      loading: 'Loading…',
+      triage:  'How do you feel about this artwork?',
+      placement: 'Which do you prefer?',
+      done: 'All done!'
+    };
+    document.getElementById('ovTitle').textContent = titles[state] || '';
+  }
+
+  function startRanking() {
     if (!adminToken) return;
-    document.getElementById('triageOverlay').classList.add('open');
+    document.getElementById('rankingOverlay').classList.add('open');
     document.body.style.overflow = 'hidden';
-    showTriageState('loading');
-    loadNextTriage();
+    loadNextTriagePhoto();
   }
 
-  function stopTriage() {
-    document.getElementById('triageOverlay').classList.remove('open');
+  function stopRanking() {
+    document.getElementById('rankingOverlay').classList.remove('open');
     document.body.style.overflow = '';
-    triagePhoto    = null;
-    triageInFlight = false;
+    rankingPhoto = null; placementOpps = []; placementIndex = 0;
+    placementInFlight = false;
     refreshBannerCounts();
     renderList();
   }
 
-  function showTriageState(state) {
-    document.getElementById('triageLoading').classList.toggle('visible', state === 'loading');
-    document.getElementById('triageMain').style.display  = state === 'main'    ? 'flex' : 'none';
-    document.getElementById('triageDone').classList.toggle('visible',   state === 'done');
-  }
-
-  async function loadNextTriage() {
-    showTriageState('loading');
-    // Reset button states
-    ['triageLikeBtn','triageOkayBtn','triageDislikeBtn'].forEach(id => {
-      document.getElementById(id).classList.remove('chosen');
-      document.getElementById(id).disabled = false;
-    });
+  async function loadNextTriagePhoto() {
+    showRankingState('loading');
+    resetTriageButtons();
     try {
       const res  = await fetch(`${SERVER_URL}/api/triage/next`, { headers: authHeaders() });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || `Server error ${res.status}`);
+      if (!res.ok) throw new Error(data.error);
+      if (data.done) { showRankingState('done'); return; }
 
-      if (data.done) { showTriageState('done'); return; }
-
-      triagePhoto = data.photo;
+      rankingPhoto = data.photo;
       const { total, untriaged, triaged } = data.stats;
       const pct = total > 0 ? Math.round((triaged / total) * 100) : 0;
 
-      document.getElementById('triageProgress').textContent      = `${triaged} of ${total} sorted`;
       document.getElementById('triageProgressFill').style.width  = `${pct}%`;
-      document.getElementById('triageProgressLabel').textContent = `${pct}% complete`;
-      document.getElementById('triageImg').src    = `data:image/jpeg;base64,${data.photo.thumbnail}`;
+      document.getElementById('triageProgressLabel').textContent = `${triaged} of ${total} sorted`;
+      document.getElementById('ovSub').textContent               = `${untriaged} remaining`;
+
+      document.getElementById('triageImg').src            = `data:image/jpeg;base64,${data.photo.thumbnail}`;
       document.getElementById('triageTitle').textContent  = data.photo.title  || 'Untitled';
       document.getElementById('triageArtist').textContent = data.photo.artist || '—';
       document.getElementById('triageMeta').textContent   = [data.photo.location, data.photo.style].filter(Boolean).join(' · ');
 
-      showTriageState('main');
+      showRankingState('triage');
     } catch (err) {
-      document.querySelector('.triage-loading-text').textContent = `Error: ${err.message}`;
+      document.getElementById('ovLoadingText').textContent = `Error: ${err.message}`;
     }
+  }
+
+  function resetTriageButtons() {
+    ['triageBtnDislike','triageBtnOkay','triageBtnLike'].forEach(id => {
+      const el = document.getElementById(id);
+      el.classList.remove('chosen'); el.disabled = false;
+    });
   }
 
   async function submitTier(tier) {
-    if (triageInFlight || !triagePhoto) return;
-    triageInFlight = true;
+    if (!rankingPhoto) return;
 
-    // Visual feedback — highlight chosen button
-    const btnMap = { like: 'triageLikeBtn', okay: 'triageOkayBtn', dislike: 'triageDislikeBtn' };
-    document.getElementById(btnMap[tier]).classList.add('chosen');
-    ['triageLikeBtn','triageOkayBtn','triageDislikeBtn'].forEach(id => {
+    // Highlight chosen button immediately
+    const btnId = { dislike:'triageBtnDislike', okay:'triageBtnOkay', like:'triageBtnLike' }[tier];
+    document.getElementById(btnId).classList.add('chosen');
+    ['triageBtnDislike','triageBtnOkay','triageBtnLike'].forEach(id => {
       document.getElementById(id).disabled = true;
     });
 
+    showRankingState('loading');
+    document.getElementById('ovLoadingText').textContent = 'Placing in ranking…';
+
     try {
-      const res  = await fetch(`${SERVER_URL}/api/photos/${triagePhoto.id}/tier`, {
-        method: 'PATCH', headers: authHeaders(),
-        body: JSON.stringify({ tier })
+      // 1. Assign tier
+      const tierRes  = await fetch(`${SERVER_URL}/api/photos/${rankingPhoto.id}/tier`, {
+        method: 'PATCH', headers: authHeaders(), body: JSON.stringify({ tier })
+      });
+      const tierData = await tierRes.json();
+      if (!tierRes.ok) throw new Error(tierData.error);
+
+      // Update local photo object
+      const lp = photos.find(x => x.id === rankingPhoto.id);
+      if (lp) { lp.tier = tierData.tier; lp.rating = tierData.rating; lp.eloScore = tierData.elo; }
+
+      // 2. Fetch placement opponents
+      const oppRes  = await fetch(`${SERVER_URL}/api/triage/placement-opponents?photoId=${rankingPhoto.id}`, { headers: authHeaders() });
+      const oppData = await oppRes.json();
+
+      placementOpps  = oppData.opponents || [];
+      placementIndex = 0;
+
+      if (placementOpps.length === 0) {
+        // No opponents yet (first in tier) — go straight to next photo
+        setTimeout(loadNextTriagePhoto, 200);
+        return;
+      }
+
+      // 3. Enter placement mode
+      renderPlacementRound(tier);
+
+    } catch (err) {
+      console.warn('Tier/placement error:', err.message);
+      setTimeout(loadNextTriagePhoto, 400);
+    }
+  }
+
+  function renderPlacementRound(tier) {
+    const opp = placementOpps[placementIndex];
+
+    // Build pip indicators
+    const pipsHtml = placementOpps.map((_, i) =>
+      `<div class="placement-pip ${i < placementIndex ? 'done' : i === placementIndex ? 'current' : ''}"></div>`
+    ).join('');
+    document.getElementById('placementPips').innerHTML = pipsHtml;
+
+    // Tier badge
+    const tierEmoji = { like:'👍', okay:'😐', dislike:'👎' }[tier] || '';
+    const tierWord  = { like:'Like', okay:'Okay', dislike:'Dislike' }[tier] || tier;
+    const badgeEl   = document.getElementById('placementTierBadge');
+    badgeEl.textContent = `${tierEmoji} ${tierWord}`;
+    badgeEl.className   = `placement-tier-badge ${tier}`;
+    document.getElementById('placementInstruction').textContent =
+      `Comparison ${placementIndex + 1} of ${placementOpps.length}`;
+
+    // Randomise which side the new artwork appears on
+    placementNewSide = Math.random() < 0.5 ? 'left' : 'right';
+    const newFirst   = placementNewSide === 'left';
+
+    const newCard = document.getElementById('plCardNew');
+    const oppCard = document.getElementById('plCardOpp');
+
+    if (newFirst) {
+      // New on left, opponent on right — default DOM order; swap via CSS order if needed
+      newCard.style.order = '0'; oppCard.style.order = '2';
+      document.querySelector('.pl-vs').style.order = '1';
+    } else {
+      newCard.style.order = '2'; oppCard.style.order = '0';
+      document.querySelector('.pl-vs').style.order = '1';
+    }
+
+    // Populate new card
+    document.getElementById('plNewImg').src        = `data:image/jpeg;base64,${rankingPhoto.thumbnail}`;
+    document.getElementById('plNewTitle').textContent  = rankingPhoto.title  || 'Untitled';
+    document.getElementById('plNewArtist').textContent = rankingPhoto.artist || '—';
+
+    // Populate opponent card
+    document.getElementById('plOppImg').src        = `data:image/jpeg;base64,${opp.thumbnail}`;
+    document.getElementById('plOppTitle').textContent  = opp.title  || 'Untitled';
+    document.getElementById('plOppArtist').textContent = opp.artist || '—';
+
+    // Reset card states and result message
+    newCard.className = 'pl-card'; oppCard.className = 'pl-card';
+    document.getElementById('placementResultMsg').textContent = '';
+    document.getElementById('placementResultMsg').className   = 'placement-result-msg';
+
+    showRankingState('placement');
+  }
+
+  async function submitPlacement(choice) {
+    if (placementInFlight) return;
+    placementInFlight = true;
+
+    const opp      = placementOpps[placementIndex];
+    const newCard  = document.getElementById('plCardNew');
+    const oppCard  = document.getElementById('plCardOpp');
+
+    // Determine winner
+    // 'new' = user prefers the new artwork
+    // 'opp' = user prefers the opponent
+    // 'tie' = same
+    let winnerId = null;
+    if (choice === 'new')      winnerId = rankingPhoto.id;
+    else if (choice === 'opp') winnerId = opp.id;
+
+    // Animate
+    if (choice === 'new')      { newCard.className='pl-card winner'; oppCard.className='pl-card loser'; }
+    else if (choice === 'opp') { newCard.className='pl-card loser';  oppCard.className='pl-card winner'; }
+    else                       { newCard.className='pl-card tied';   oppCard.className='pl-card tied'; }
+
+    const msgEl = document.getElementById('placementResultMsg');
+    msgEl.textContent = choice === 'tie' ? '↔ Same' : '✓ Got it';
+    msgEl.className   = `placement-result-msg ${choice === 'tie' ? 'tie' : 'win'}`;
+
+    try {
+      const res  = await fetch(`${SERVER_URL}/api/compare`, {
+        method: 'POST', headers: authHeaders(),
+        body: JSON.stringify({ photoAId: rankingPhoto.id, photoBId: opp.id, winnerId })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-
-      // Update local photo object
-      const p = photos.find(x => x.id === triagePhoto.id);
-      if (p) { p.tier = data.tier; p.rating = data.rating; p.eloScore = data.elo; }
-    } catch (err) {
-      console.warn('Tier submit error:', err.message);
-    }
+      // Update local photos
+      [data.a, data.b].forEach(upd => {
+        const lp = photos.find(x => x.id === upd.id);
+        if (lp) { lp.rating = upd.rating; lp.eloScore = upd.elo; }
+      });
+    } catch (err) { console.warn('Placement compare error:', err.message); }
 
     setTimeout(() => {
-      triageInFlight = false;
-      loadNextTriage();
-    }, 380);
+      placementInFlight = false;
+      placementIndex++;
+      if (placementIndex < placementOpps.length) {
+        // More opponents to compare against for this photo
+        renderPlacementRound(rankingPhoto.tier || 'like');
+      } else {
+        // Done placing — load next untriaged photo
+        loadNextTriagePhoto();
+      }
+    }, 480);
   }
 
-  async function skipTriage() {
-    if (triageInFlight) return;
-    // Move to end of queue by temporarily marking as seen — just reload a different photo
-    // We achieve this by calling loadNextTriage after a brief pause (server returns random order)
-    triagePhoto = null;
-    loadNextTriage();
+  async function skipPhoto() {
+    // Move current photo to end of queue by loading the next one
+    rankingPhoto = null;
+    loadNextTriagePhoto();
   }
 
-  // ── Phase 2: Compare ─────────────────────────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════════
+  // PHASE 2: Refine — standalone compare overlay
+  // ═══════════════════════════════════════════════════════════════
+
+  let comparePairA = null, comparePairB = null, compareInFlight = false;
+
   function startComparing() {
     if (!adminToken) return;
     document.getElementById('compareOverlay').classList.add('open');
@@ -1004,20 +1041,16 @@
     showCompareState('loading');
     loadNextPair();
   }
-
   function stopComparing() {
     document.getElementById('compareOverlay').classList.remove('open');
     document.body.style.overflow = '';
-    comparePairA = comparePairB = null;
-    compareInFlight = false;
-    refreshBannerCounts();
-    renderList();
+    comparePairA = comparePairB = null; compareInFlight = false;
+    refreshBannerCounts(); renderList();
   }
-
   function showCompareState(state) {
-    document.getElementById('compareLoading').classList.toggle('visible', state === 'loading');
-    document.getElementById('compareMain').style.display = state === 'main' ? 'flex' : 'none';
-    document.getElementById('compareDone').classList.toggle('visible', state === 'done');
+    document.getElementById('compareLoading').classList.toggle('visible', state==='loading');
+    document.getElementById('compareMain').style.display = state==='main' ? 'flex' : 'none';
+    document.getElementById('compareDone').classList.toggle('visible', state==='done');
   }
 
   async function loadNextPair() {
@@ -1025,26 +1058,19 @@
     try {
       const res  = await fetch(`${SERVER_URL}/api/compare/next`, { headers: authHeaders() });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || `Server error ${res.status}`);
+      if (!res.ok) throw new Error(data.error);
       if (data.done) { showCompareState('done'); return; }
-
-      comparePairA = data.a;
-      comparePairB = data.b;
-
+      comparePairA = data.a; comparePairB = data.b;
       const { totalPairs, donePairs } = data.stats;
       document.getElementById('compareProgress').textContent = `${donePairs} of ${totalPairs} pairs compared`;
-
-      // Tier label (both cards share the same tier)
       const tierEl = document.getElementById('compareTierLabel');
-      tierEl.textContent  = TIER_LABELS[data.a.tier] || '';
-      tierEl.className    = `compare-tier-label ${data.a.tier || ''}`;
-
-      renderCompareCard('A', data.a);
-      renderCompareCard('B', data.b);
-      document.getElementById('compareResultMsg').textContent = '';
-      document.getElementById('compareResultMsg').className   = 'compare-result-msg';
-      document.getElementById('cardA').className = 'compare-card';
-      document.getElementById('cardB').className = 'compare-card';
+      tierEl.textContent = TIER_LABELS[data.a.tier] || '';
+      tierEl.className   = `compare-tier-label ${data.a.tier||''}`;
+      renderCompareCard('A', data.a); renderCompareCard('B', data.b);
+      document.getElementById('compareResultMsg').textContent='';
+      document.getElementById('compareResultMsg').className='compare-result-msg';
+      document.getElementById('cardA').className='compare-card';
+      document.getElementById('cardB').className='compare-card';
       showCompareState('main');
     } catch (err) {
       document.querySelector('.compare-loading-text').textContent = `Error: ${err.message}`;
@@ -1052,45 +1078,30 @@
   }
 
   function renderCompareCard(side, data) {
-    document.getElementById(`card${side}Img`).src              = `data:image/jpeg;base64,${data.thumbnail}`;
-    document.getElementById(`card${side}Title`).textContent    = data.title  || 'Untitled';
-    document.getElementById(`card${side}Artist`).textContent   = data.artist || '—';
-    const tags = [data.location, data.style].filter(Boolean)
-      .map(t => `<span class="compare-card-tag">${esc(t)}</span>`).join('');
-    document.getElementById(`card${side}Meta`).innerHTML       = tags;
-    document.getElementById(`card${side}Elo`).textContent      = `ELO ${data.elo}`;
+    document.getElementById(`card${side}Img`).src             = `data:image/jpeg;base64,${data.thumbnail}`;
+    document.getElementById(`card${side}Title`).textContent   = data.title  || 'Untitled';
+    document.getElementById(`card${side}Artist`).textContent  = data.artist || '—';
+    document.getElementById(`card${side}Meta`).innerHTML      = [data.location, data.style].filter(Boolean)
+      .map(t=>`<span class="compare-card-tag">${esc(t)}</span>`).join('');
+    document.getElementById(`card${side}Elo`).textContent     = `ELO ${data.elo}`;
   }
 
   async function submitChoice(choice) {
-    if (compareInFlight || !comparePairA || !comparePairB) return;
+    if (compareInFlight||!comparePairA||!comparePairB) return;
     compareInFlight = true;
-
-    let winnerId = null;
-    if (choice === 'a')      winnerId = comparePairA.id;
-    else if (choice === 'b') winnerId = comparePairB.id;
-
-    if (choice === 'a')      { document.getElementById('cardA').className = 'compare-card winner'; document.getElementById('cardB').className = 'compare-card loser'; }
-    else if (choice === 'b') { document.getElementById('cardA').className = 'compare-card loser';  document.getElementById('cardB').className = 'compare-card winner'; }
-    else                     { document.getElementById('cardA').className = 'compare-card tied';   document.getElementById('cardB').className = 'compare-card tied'; }
-
-    const msgEl = document.getElementById('compareResultMsg');
-    msgEl.textContent = choice === 'tie' ? '↔ Tie recorded' : '✓ Preference recorded';
-    msgEl.className   = `compare-result-msg ${choice === 'tie' ? 'tie' : 'win'}`;
-
+    const winnerId = choice==='a' ? comparePairA.id : choice==='b' ? comparePairB.id : null;
+    if (choice==='a')      {document.getElementById('cardA').className='compare-card winner';document.getElementById('cardB').className='compare-card loser';}
+    else if (choice==='b') {document.getElementById('cardA').className='compare-card loser'; document.getElementById('cardB').className='compare-card winner';}
+    else                   {document.getElementById('cardA').className='compare-card tied';  document.getElementById('cardB').className='compare-card tied';}
+    const msgEl=document.getElementById('compareResultMsg');
+    msgEl.textContent=choice==='tie'?'↔ Tie':'✓ Preference recorded';
+    msgEl.className=`compare-result-msg ${choice==='tie'?'tie':'win'}`;
     try {
-      const res  = await fetch(`${SERVER_URL}/api/compare`, {
-        method: 'POST', headers: authHeaders(),
-        body: JSON.stringify({ photoAId: comparePairA.id, photoBId: comparePairB.id, winnerId })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-      [data.a, data.b].forEach(upd => {
-        const p = photos.find(x => x.id === upd.id);
-        if (p) { p.rating = upd.rating; p.eloScore = upd.elo; }
-      });
-    } catch (err) { console.warn('Compare error:', err.message); }
-
-    setTimeout(() => { compareInFlight = false; loadNextPair(); }, 520);
+      const res=await fetch(`${SERVER_URL}/api/compare`,{method:'POST',headers:authHeaders(),body:JSON.stringify({photoAId:comparePairA.id,photoBId:comparePairB.id,winnerId})});
+      const data=await res.json(); if(!res.ok) throw new Error(data.error);
+      [data.a,data.b].forEach(upd=>{const lp=photos.find(x=>x.id===upd.id);if(lp){lp.rating=upd.rating;lp.eloScore=upd.elo;}});
+    } catch(err){console.warn('Compare error:',err.message);}
+    setTimeout(()=>{compareInFlight=false;loadNextPair();},520);
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -1099,44 +1110,48 @@
   }
 
   document.addEventListener('click', e => {
-    const menu = document.getElementById('headerMobileMenu');
-    if (!menu) return;
-    if (!e.target.closest('#headerMobileMenu') && !e.target.closest('.header-hamburger'))
-      menu.classList.remove('open');
+    const menu=document.getElementById('headerMobileMenu'); if(!menu) return;
+    if(!e.target.closest('#headerMobileMenu')&&!e.target.closest('.header-hamburger')) menu.classList.remove('open');
   });
 
-  // Keyboard shortcuts in triage
+  // Keyboard shortcuts
   document.addEventListener('keydown', e => {
-    if (document.getElementById('triageOverlay').classList.contains('open')) {
-      if (e.key === '1') submitTier('dislike');
-      if (e.key === '2') submitTier('okay');
-      if (e.key === '3') submitTier('like');
-      if (e.key === 'Escape') stopTriage();
-      return;
-    }
-    if (document.getElementById('compareOverlay').classList.contains('open')) {
-      if (e.key === 'ArrowLeft'  || e.key === '1') submitChoice('a');
-      if (e.key === 'ArrowRight' || e.key === '2') submitChoice('b');
-      if (e.key === 'Enter'      || e.key === ' ') submitChoice('tie');
-      if (e.key === 'Escape') stopComparing();
+    const inRanking  = document.getElementById('rankingOverlay').classList.contains('open');
+    const inCompare  = document.getElementById('compareOverlay').classList.contains('open');
+    const inTriage   = inRanking && document.getElementById('triagePanel').classList.contains('visible');
+    const inPlace    = inRanking && document.getElementById('placementPanel').classList.contains('visible');
+
+    if (inTriage) {
+      if (e.key==='1') submitTier('dislike');
+      if (e.key==='2') submitTier('okay');
+      if (e.key==='3') submitTier('like');
+      if (e.key==='Escape') stopRanking();
+    } else if (inPlace) {
+      if (e.key==='ArrowLeft'||e.key==='1')  submitPlacement(placementNewSide==='left'?'new':'opp');
+      if (e.key==='ArrowRight'||e.key==='2') submitPlacement(placementNewSide==='left'?'opp':'new');
+      if (e.key==='Enter'||e.key===' ')       submitPlacement('tie');
+      if (e.key==='Escape') stopRanking();
+    } else if (inCompare) {
+      if (e.key==='ArrowLeft'||e.key==='1')  submitChoice('a');
+      if (e.key==='ArrowRight'||e.key==='2') submitChoice('b');
+      if (e.key==='Enter'||e.key===' ')       submitChoice('tie');
+      if (e.key==='Escape') stopComparing();
     }
   });
 
-  // Swipe to close detail modal
   (function() {
-    let startY = 0, active = false;
-    document.getElementById('modal').addEventListener('touchstart', e => {
-      if (!e.target.closest('.modal-img-wrap, .modal-drag-handle')) return;
-      startY = e.touches[0].clientY; active = true;
-    }, { passive: true });
-    document.getElementById('modal').addEventListener('touchend', e => {
-      if (!active) return;
-      if (e.changedTouches[0].clientY - startY > 60) closeModal();
-      active = false;
-    }, { passive: true });
+    let startY=0, active=false;
+    document.getElementById('modal').addEventListener('touchstart',e=>{
+      if(!e.target.closest('.modal-img-wrap,.modal-drag-handle')) return;
+      startY=e.touches[0].clientY; active=true;
+    },{passive:true});
+    document.getElementById('modal').addEventListener('touchend',e=>{
+      if(!active) return;
+      if(e.changedTouches[0].clientY-startY>60) closeModal();
+      active=false;
+    },{passive:true});
   })();
 
-  // ── Boot ──────────────────────────────────────────────────────────────────────
   loadPhotos();
 </script>
 </body>
