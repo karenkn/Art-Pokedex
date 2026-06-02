@@ -295,7 +295,19 @@ function handleFiles(files) {
   // The browser permission prompt fires now (while the user is still looking at
   // the UI), rather than mid-analysis. The cached promise is reused by every
   // analysePhoto() call so there is never a second permission prompt.
-  getDeviceLocation(); // fire-and-forget — result will be cached for analysis
+  // Kick off location permission request — show a brief hint so the user
+  // notices the Chrome address-bar prompt before it auto-dismisses.
+  if (window.isSecureContext && navigator.geolocation) {
+    const qEl = document.getElementById('queueStatus');
+    if (qEl && !_deviceLocationPromise) {
+      qEl.textContent = '📍 Requesting location…';
+      getDeviceLocation().then(coords => {
+        if (qEl.textContent === '📍 Requesting location…') qEl.textContent = '';
+      });
+    } else {
+      getDeviceLocation();
+    }
+  }
 
   Array.from(files).forEach(file => {
     if (!file.type.startsWith('image/') && !/\.(heic|heif)$/i.test(file.name)) return;
@@ -682,7 +694,9 @@ async function getDeviceLocation() {
   if (_deviceLocationPromise && (now - _deviceLocationTimestamp) < DEVICE_LOCATION_TTL) {
     return _deviceLocationPromise;
   }
-  if (!navigator.geolocation) {
+  // Geolocation requires a secure context (HTTPS or localhost).
+  // Chrome silently errors without a prompt on plain HTTP — detect early.
+  if (!navigator.geolocation || !window.isSecureContext) {
     _deviceLocationPromise   = Promise.resolve(null);
     _deviceLocationTimestamp = now;
     return null;
@@ -702,7 +716,13 @@ async function getDeviceLocation() {
       new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 12000))
     ])
     .then(pos => resolve([pos.coords.latitude, pos.coords.longitude]))
-    .catch(() => resolve(null));
+    .catch(() => {
+      // Don't cache failures — clear so the next upload can try again
+      // (e.g. user denied then re-enables permission in Chrome settings)
+      _deviceLocationPromise   = null;
+      _deviceLocationTimestamp = 0;
+      resolve(null);
+    });
   });
   return _deviceLocationPromise;
 }
