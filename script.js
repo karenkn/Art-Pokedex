@@ -1424,7 +1424,7 @@ function renderGrouped(container, _key, icon, keyFn) {
       case 'oldest':
         return a.reverse();
       case 'liked':
-        return a.sort((x, y) => (y.likes || 0) - (x.likes || 0));
+        return a.sort((x, y) => (y.rating ?? 0) - (x.rating ?? 0));
       case 'confidence':
         return a.sort((x, y) => (y.aiData?.confidence || 0) - (x.aiData?.confidence || 0));
       case 'title':
@@ -1447,11 +1447,11 @@ function renderGrouped(container, _key, icon, keyFn) {
   function sortedGroups(entries) {
     switch (currentSort) {
       case 'liked':
-        // Groups with the most total likes first
+        // Groups with the highest-rated photo first
         return entries.sort(([, a], [, b]) => {
-          const sumA = a.reduce((s, p) => s + (p.likes || 0), 0);
-          const sumB = b.reduce((s, p) => s + (p.likes || 0), 0);
-          return sumB - sumA;
+          const maxA = Math.max(...a.map(p => p.rating ?? 0));
+          const maxB = Math.max(...b.map(p => p.rating ?? 0));
+          return maxB - maxA;
         });
       case 'confidence':
         // Groups with the highest average confidence first
@@ -1532,8 +1532,8 @@ function renderGrouped(container, _key, icon, keyFn) {
     // Build a sort-aware subtitle for each group header
     let sortNote = '';
     if (currentSort === 'liked') {
-      const total = items.reduce((s, p) => s + (p.likes || 0), 0);
-      sortNote = ` · ${total} like${total !== 1 ? 's' : ''}`;
+      const top = Math.max(...items.map(p => p.rating ?? 0));
+      sortNote = top > 0 ? ` · top rating ${top.toFixed(1)}` : '';
     } else if (currentSort === 'confidence') {
       const avg = Math.round(items.reduce((s, p) => s + (p.aiData?.confidence || 0), 0) / items.length);
       sortNote = ` · avg ${avg}% confidence`;
@@ -1575,7 +1575,7 @@ function sortAllPhotos(arr) {
   const a = [...arr];
   switch (currentSort) {
     case 'oldest':     return a.reverse();
-    case 'liked':      return a.sort((x, y) => (y.likes || 0) - (x.likes || 0));
+    case 'liked':      return a.sort((x, y) => (y.rating ?? 0) - (x.rating ?? 0));
     case 'confidence': return a.sort((x, y) => (y.aiData?.confidence || 0) - (x.aiData?.confidence || 0));
     case 'title':      return a.sort((x, y) => (x.aiData?.paintingName || x.name).localeCompare(y.aiData?.paintingName || y.name));
     case 'artist':     return a.sort((x, y) => (x.aiData?.artist || '').localeCompare(y.aiData?.artist || ''));
