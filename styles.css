@@ -536,6 +536,7 @@
     .modal-section-title {
       font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #bbb; margin-bottom: 10px;
     }
+    .modal-note { font-size: 10px; color: #c4bfba; line-height: 1.5; margin: 10px 0 14px; }
     .modal-detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     .modal-detail { background: #f7f4f0; border: 1px solid #ece8e2; padding: 11px 14px; }
     .modal-detail label { font-size: 10px; color: #aaa; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 3px; }
