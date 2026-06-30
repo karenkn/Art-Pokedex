@@ -455,6 +455,19 @@
     .confidence-high { color: #3a7d44; font-weight: 600; }
     .confidence-med  { color: #b07a0a; font-weight: 600; }
     .confidence-low  { color: #c0392b; font-weight: 600; }
+    .card-rating {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-width: 22px; height: 22px; border-radius: 11px; padding: 0 5px;
+      font-size: 10px; font-weight: 700; line-height: 1;
+      background: #1a1a1a; color: #fff;
+    }
+    .card-rating.tier-like    { background: #1a1a1a; color: #fff; }
+    .card-rating.tier-okay    { background: #3a3a3a; color: #ccc; }
+    .card-rating.tier-dislike { background: #e8e2db; color: #888; }
+    .tier-pill { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 20px; }
+    .tier-pill.like    { background: #e8f5e9; color: #2e7d32; }
+    .tier-pill.okay    { background: #fff8e1; color: #f57f17; }
+    .tier-pill.dislike { background: #fce4ec; color: #c62828; }
 
     /* Error message in card */
     .error-msg { font-size: 11px; color: #c0392b; padding: 8px 14px; }

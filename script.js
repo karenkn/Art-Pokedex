@@ -11,6 +11,7 @@ let recentlyAddedIds = new Set();       // IDs of photos that finished analysis 
 let currentAllMode  = 'grouped';        // 'grouped' | 'flat' — only applies when currentFilter === 'all'
 let adminToken = null;  // set on successful login; null = view-only mode
 const likedIds = new Set(); // track photos liked this session to prevent duplicates
+const TIER_LABELS = { like: '👍 Like', okay: '😐 Okay', dislike: '👎 Dislike' };
 let isLoading = true;  // true while initial DB fetch is in flight
 let selectMode = false;
 const selectedPhotoIds = new Set();
@@ -535,6 +536,7 @@ async function loadSavedPhotos() {
         likes:          row.likes || 0,
         pinned:         row.pinned || false,
         rating:         row.rating ?? null,
+        tier:           row.tier || null,
         eloScore:       row.elo_score ?? 1500,
         userSubmitted:  row.user_submitted || false,
         aiData: {
@@ -1681,6 +1683,7 @@ function photoCard(p, featured = false, isNew = false) {
         </div>
         <div class="photo-meta-right">
           <span class="${confClass}">✓ ${d.confidence}%</span>
+          ${p.rating != null ? `<span class="card-rating${p.tier ? ' tier-' + p.tier : ''}">${p.rating % 1 === 0 ? p.rating : p.rating.toFixed(1)}</span>` : ''}
           <button class="like-btn${likedIds.has(p.id) ? ' liked' : ''}"
                   onclick="event.stopPropagation(); likePhoto('${p.id}', event)">
             <span class="heart">♡</span>${p.likes || 0}
@@ -1811,6 +1814,7 @@ function refreshModalView(p) {
   // ── Rating section ────────────────────────────────────────────────────────
   // Read-only badge — score is set via ELO comparisons on the Top Works page.
   const r = p.rating;
+  const tierBit = p.tier ? `<span class="tier-pill ${p.tier}">${TIER_LABELS[p.tier]}</span>` : '';
   const ratingBadgeHtml = r != null
     ? `<span class="modal-rating-badge rated">${r % 1 === 0 ? r : r.toFixed(1)}</span>`
     : `<span class="modal-rating-badge unrated">Not rated</span>`;
@@ -1818,7 +1822,7 @@ function refreshModalView(p) {
   document.getElementById('modalRating').innerHTML = `
     <div class="modal-rating-row">
       <div class="modal-rating-label">My Rating</div>
-      <div class="modal-rating-right">${ratingBadgeHtml}</div>
+      <div style="display:flex;align-items:center;gap:8px">${tierBit}${ratingBadgeHtml}</div>
     </div>`;
 
   // Like button + admin actions
