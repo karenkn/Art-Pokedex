@@ -84,6 +84,10 @@
     .rank-row:hover .rank-score.tier-like,
     .rank-row:hover .rank-score.tier-okay,
     .rank-row:hover .rank-score.tier-dislike { transform: scale(1.06); }
+    .rank-rate-btn { flex-shrink: 0; opacity: 0; padding: 6px 12px; border: 1.5px solid #ccc; border-radius: 20px; background: #fff; font-size: 11px; font-weight: 600; color: #555; cursor: pointer; font-family: inherit; transition: opacity 0.15s, border-color 0.15s, color 0.15s; white-space: nowrap; }
+    .rank-row:hover .rank-rate-btn { opacity: 1; }
+    .rank-rate-btn:hover { border-color: #1a1a1a; color: #1a1a1a; }
+    @media (max-width: 599px) { .rank-rate-btn { display: none; } }
     .section-divider { display: flex; align-items: center; gap: 12px; margin: 28px 0 16px; color: #aaa; font-size: 11px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; }
     .section-divider::before, .section-divider::after { content: ''; flex: 1; height: 1px; background: #e0dbd5; }
     .empty-state { text-align: center; padding: 60px 24px; color: #aaa; }
@@ -658,12 +662,15 @@
       const p2Sub = document.getElementById('phase2Sub');
       const p2Btn = document.getElementById('phase2Btn');
       const { totalPairs=0, donePairs=0 } = cmpData.stats || {};
-      if (untriaged > 0) {
-        p2Sub.textContent = 'Sort all artworks first'; p2Sub.className = 'rank-phase-sub'; p2Btn.disabled = true;
+      if (totalPairs === 0) {
+        p2Sub.textContent = 'Rate at least 2 artworks in the same tier first';
+        p2Sub.className = 'rank-phase-sub'; p2Btn.disabled = true;
       } else if (cmpData.done) {
         p2Sub.textContent = `✓ All ${totalPairs} pairs compared`; p2Sub.className = 'rank-phase-sub ready'; p2Btn.textContent = 'Done'; p2Btn.disabled = true;
       } else {
-        p2Sub.textContent = `${donePairs} of ${totalPairs} pairs compared`; p2Sub.className = 'rank-phase-sub'; p2Btn.textContent = 'Continue'; p2Btn.disabled = false;
+        const unsortedNote = untriaged > 0 ? ` · ${untriaged} still unsorted` : '';
+        p2Sub.textContent = `${donePairs} of ${totalPairs} pairs compared${unsortedNote}`;
+        p2Sub.className = 'rank-phase-sub'; p2Btn.textContent = donePairs > 0 ? 'Continue' : 'Start'; p2Btn.disabled = false;
       }
     } catch { /* non-critical */ }
   }
@@ -731,6 +738,7 @@
           </div>
         </div>
         <div class="rank-score ${cls}">${scoreContent}</div>
+        ${adminToken ? `<button class="rank-rate-btn" onclick="event.stopPropagation(); startRerank('${p.id}')">↔ Rate</button>` : ''}
       </div>`;
   }
 
