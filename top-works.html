@@ -123,6 +123,8 @@
     .modal-like-btn { display: inline-flex; align-items: center; gap: 5px; padding: 7px 14px; border: 1.5px solid #e0dbd5; border-radius: 20px; background: #fff; font-size: 13px; font-weight: 500; color: #555; cursor: pointer; transition: all 0.18s; font-family: inherit; }
     .modal-like-btn:hover { border-color: #8f0101; color: #8f0101; }
     .modal-like-btn.liked { border-color: #8f0101; color: #8f0101; background: #fff7f7; }
+    .modal-rerank-btn { display: inline-flex; align-items: center; gap: 5px; padding: 7px 14px; border: 1.5px solid #1a1a1a; border-radius: 20px; background: #fff; font-size: 13px; font-weight: 500; color: #1a1a1a; cursor: pointer; transition: all 0.18s; font-family: inherit; }
+    .modal-rerank-btn:hover { background: #1a1a1a; color: #fff; }
     #modalRating { margin: 14px 0 6px; }
     .modal-rating-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
     .modal-rating-label { font-size: 11px; font-weight: 600; color: #888; text-transform: uppercase; letter-spacing: 0.5px; }
@@ -434,14 +436,14 @@
   <!-- All done -->
   <div class="ov-done" id="ovDone">
     <div class="ov-done-icon">✓</div>
-    <div class="ov-done-title">All artworks ranked!</div>
-    <div class="ov-done-sub">Every artwork has been sorted and placed. Use "Refine rankings" to keep fine-tuning.</div>
+    <div class="ov-done-title" id="ovDoneTitle">All artworks ranked!</div>
+    <div class="ov-done-sub"   id="ovDoneSub">Every artwork has been sorted and placed. Use "Refine rankings" to keep fine-tuning.</div>
     <button class="ov-done-btn" onclick="stopRanking()">View Rankings</button>
   </div>
 
   <!-- Triage panel -->
   <div class="triage-panel" id="triagePanel">
-    <div class="triage-progress-wrap">
+    <div class="triage-progress-wrap" id="triageProgressWrap">
       <div class="triage-progress-track">
         <div class="triage-progress-fill" id="triageProgressFill" style="width:0%"></div>
       </div>
@@ -777,7 +779,8 @@
     document.getElementById('modalActions').innerHTML=`
       <button class="modal-like-btn${liked?' liked':''}" onclick="likePhoto('${p.id}',event)">
         ${liked?'👍':'👍🏻'} ${p.likes||0} Like${(p.likes||0)!==1?'s':''}
-      </button>`;
+      </button>
+      ${adminToken ? `<button class="modal-rerank-btn" onclick="startRerank('${p.id}')">↔ Rate this photo</button>` : ''}`;
   }
 
   async function likePhoto(id, event) {
@@ -803,6 +806,7 @@
   let placementIndex    = 0;      // which opponent we're on
   let placementNewSide  = 'left'; // which side the NEW card appears on (randomised)
   let placementInFlight = false;
+  let isRerankMode      = false;  // true when triggered from "Rate this photo"
 
   function showRankingState(state) {
     // state: 'loading' | 'triage' | 'placement' | 'done'
@@ -832,6 +836,10 @@
     document.body.style.overflow = '';
     rankingPhoto = null; placementOpps = []; placementIndex = 0;
     placementInFlight = false;
+    isRerankMode = false;
+    document.getElementById('triageProgressWrap').style.display = '';
+    document.getElementById('ovDoneTitle').textContent = 'All artworks ranked!';
+    document.getElementById('ovDoneSub').textContent   = 'Every artwork has been sorted and placed. Use "Refine rankings" to keep fine-tuning.';
     refreshBannerCounts();
     renderList();
   }
@@ -1015,11 +1023,82 @@
       if (placementIndex < placementOpps.length) {
         // More opponents to compare against for this photo
         renderPlacementRound(rankingPhoto.tier || 'like');
+      } else if (isRerankMode) {
+        // Re-rank complete — show done state then close
+        document.getElementById('ovDoneTitle').textContent = 'Rating complete!';
+        document.getElementById('ovDoneSub').textContent   = 'This artwork\'s position has been updated based on your comparisons.';
+        showRankingState('done');
       } else {
         // Done placing — load next untriaged photo
         loadNextTriagePhoto();
       }
     }, 480);
+  }
+
+  async function startRerank(id) {
+    if (!adminToken) return;
+    closeModal();
+
+    const p = photos.find(x => x.id === id);
+    if (!p) return;
+
+    isRerankMode = true;
+
+    // Build rankingPhoto in the same shape the triage API returns
+    rankingPhoto = {
+      id:        p.id,
+      title:     p.aiData.paintingName || p.name || 'Untitled',
+      artist:    p.aiData.artist  || '—',
+      location:  p.aiData.location || '',
+      style:     p.aiData.style   || '',
+      thumbnail: p.url.replace(/^data:image\/[^;]+;base64,/, ''),
+      tier:      p.tier
+    };
+
+    document.getElementById('rankingOverlay').classList.add('open');
+    document.body.style.overflow = 'hidden';
+
+    if (!p.tier) {
+      // Unranked — show triage panel pre-loaded with this photo
+      document.getElementById('triageProgressWrap').style.display = 'none';
+      document.getElementById('ovSub').textContent = 'Selected photo';
+      document.getElementById('triageImg').src            = p.url;
+      document.getElementById('triageTitle').textContent  = rankingPhoto.title;
+      document.getElementById('triageArtist').textContent = rankingPhoto.artist;
+      document.getElementById('triageMeta').textContent   = [p.aiData.location, p.aiData.style].filter(Boolean).join(' · ');
+      resetTriageButtons();
+      showRankingState('triage');
+    } else {
+      // Already ranked — skip triage, go straight to comparisons
+      showRankingState('loading');
+      document.getElementById('ovLoadingText').textContent = 'Finding comparison partners…';
+      await loadRerankOpponents(p);
+    }
+  }
+
+  async function loadRerankOpponents(p) {
+    // Find photos in the same tier, sorted by ELO proximity, pick up to 5
+    const sameTier = photos.filter(x => x.id !== p.id && x.tier === p.tier);
+    if (sameTier.length === 0) {
+      document.getElementById('ovLoadingText').textContent = 'No other artworks in this tier to compare against yet.';
+      setTimeout(() => stopRanking(), 2200);
+      return;
+    }
+    const targetElo = p.eloScore || 1500;
+    const candidates = sameTier
+      .sort((a, b) => Math.abs((a.eloScore||1500) - targetElo) - Math.abs((b.eloScore||1500) - targetElo))
+      .slice(0, 5);
+
+    placementOpps = candidates.map(c => ({
+      id:        c.id,
+      title:     c.aiData.paintingName || c.name || 'Untitled',
+      artist:    c.aiData.artist || '—',
+      thumbnail: c.url.replace(/^data:image\/[^;]+;base64,/, ''),
+      tier:      c.tier,
+      elo:       c.eloScore || 1500
+    }));
+    placementIndex = 0;
+    renderPlacementRound(p.tier);
   }
 
   async function skipPhoto() {
@@ -1125,7 +1204,7 @@
       if (e.key==='1') submitTier('dislike');
       if (e.key==='2') submitTier('okay');
       if (e.key==='3') submitTier('like');
-      if (e.key==='Escape') stopRanking();
+      if (e.key==='Escape') { isRerankMode ? stopRanking() : stopRanking(); }
     } else if (inPlace) {
       if (e.key==='ArrowLeft'||e.key==='1')  submitPlacement(placementNewSide==='left'?'new':'opp');
       if (e.key==='ArrowRight'||e.key==='2') submitPlacement(placementNewSide==='left'?'opp':'new');
