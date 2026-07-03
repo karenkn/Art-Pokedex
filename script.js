@@ -1819,23 +1819,22 @@ function refreshModalView(p) {
     ? `<span class="modal-rating-badge rated">${r % 1 === 0 ? r : r.toFixed(1)}</span>`
     : `<span class="modal-rating-badge unrated">Not rated</span>`;
 
+  // Like button merged into rating row for compact inline display
+  const liked = likedIds.has(p.id);
+  const likeCompact = `<button class="modal-like-compact${liked ? ' liked' : ''}" id="modalLikeBtn"
+    onclick="likePhoto('${p.id}', event)">${liked ? '♥' : '♡'} ${p.likes || 0}</button>`;
+
   document.getElementById('modalRating').innerHTML = `
     <div class="modal-rating-row">
       <div class="modal-rating-label">My Rating</div>
-      <div style="display:flex;align-items:center;gap:8px">${tierBit}${ratingBadgeHtml}</div>
+      <div style="display:flex;align-items:center;gap:8px">${tierBit}${ratingBadgeHtml}${likeCompact}</div>
     </div>`;
 
-  // Like button + admin actions
-  const liked = likedIds.has(p.id);
-  document.getElementById('modalAdminActions').innerHTML =
-    `<button class="modal-like-btn${liked ? ' liked' : ''}" id="modalLikeBtn"
-             onclick="likePhoto('${p.id}', event)">
-       ${liked ? '👍' : '👍🏻'} ${p.likes || 0} Like${(p.likes || 0) !== 1 ? 's' : ''}
-     </button>`
-    + (adminToken
-      ? `<button class="modal-edit-btn" onclick="startEdit()">✏️ Edit Details</button>
-         <button class="modal-delete-btn" onclick="deleteFromModal()">🗑 Delete</button>`
-      : '');
+  // Admin-only actions (edit / delete)
+  document.getElementById('modalAdminActions').innerHTML = adminToken
+    ? `<button class="modal-edit-btn" onclick="startEdit()">✏️ Edit Details</button>
+       <button class="modal-delete-btn" onclick="deleteFromModal()">🗑 Delete</button>`
+    : '';
 }
 
 function startEdit() {
@@ -1993,8 +1992,8 @@ function refreshModalLikeBtn(photo) {
   const btn = document.getElementById('modalLikeBtn');
   if (!btn || !photo) return;
   const liked = likedIds.has(photo.id);
-  btn.className = 'modal-like-btn' + (liked ? ' liked' : '');
-  btn.innerHTML = `${liked ? '👍' : '👍🏻'} ${photo.likes || 0} Like${(photo.likes || 0) !== 1 ? 's' : ''}`;
+  btn.className = 'modal-like-compact' + (liked ? ' liked' : '');
+  btn.innerHTML = `${liked ? '♥' : '♡'} ${photo.likes || 0}`;
 }
 
 

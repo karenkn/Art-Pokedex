@@ -124,9 +124,9 @@
     .modal-note { font-size: 10px; color: #c4bfba; line-height: 1.5; margin: 10px 0 14px; }
     .manually-edited-badge { font-size: 9px; border: 1px solid #dce8d8; color: #3a7d44; padding: 1px 6px; font-weight: 600; margin-left: 6px; }
     .modal-admin-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
-    .modal-like-btn { display: inline-flex; align-items: center; gap: 5px; padding: 7px 14px; border: 1.5px solid #e0dbd5; border-radius: 20px; background: #fff; font-size: 13px; font-weight: 500; color: #555; cursor: pointer; transition: all 0.18s; font-family: inherit; }
-    .modal-like-btn:hover { border-color: #8f0101; color: #8f0101; }
-    .modal-like-btn.liked { border-color: #8f0101; color: #8f0101; background: #fff7f7; }
+    .modal-like-compact { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border: 1.5px solid #e0dbd5; border-radius: 20px; background: transparent; font-size: 11px; font-weight: 600; color: #999; cursor: pointer; transition: all 0.18s; font-family: inherit; line-height: 1.4; }
+    .modal-like-compact:hover { border-color: #8f0101; color: #8f0101; }
+    .modal-like-compact.liked { border-color: #8f0101; color: #8f0101; }
     .modal-rerank-btn { display: inline-flex; align-items: center; gap: 5px; padding: 7px 14px; border: 1.5px solid #1a1a1a; border-radius: 20px; background: #fff; font-size: 13px; font-weight: 500; color: #1a1a1a; cursor: pointer; transition: all 0.18s; font-family: inherit; }
     .modal-rerank-btn:hover { background: #1a1a1a; color: #fff; }
     #modalRating { margin: 14px 0 6px; }
@@ -778,17 +778,15 @@
     const r=p.rating;
     const tierBit=p.tier?`<span class="tier-pill ${p.tier}">${TIER_LABELS[p.tier]}</span>`:'';
     const scoreBit=r!=null?`<span class="modal-rating-badge rated">${r%1===0?r:r.toFixed(1)}</span>`:`<span class="modal-rating-badge unrated">Not rated</span>`;
+    const liked=likedIds.has(p.id);
+    const likeCompact=`<button class="modal-like-compact${liked?' liked':''}" id="modalLikeBtn" onclick="likePhoto('${p.id}',event)">${liked?'♥':'♡'} ${p.likes||0}</button>`;
     document.getElementById('modalRating').innerHTML=`
       <div class="modal-rating-row">
         <div class="modal-rating-label">My Rating</div>
-        <div style="display:flex;align-items:center;gap:8px">${tierBit}${scoreBit}</div>
+        <div style="display:flex;align-items:center;gap:8px">${tierBit}${scoreBit}${likeCompact}</div>
       </div>`;
-    const liked=likedIds.has(p.id);
-    document.getElementById('modalActions').innerHTML=`
-      <button class="modal-like-btn${liked?' liked':''}" onclick="likePhoto('${p.id}',event)">
-        ${liked?'👍':'👍🏻'} ${p.likes||0} Like${(p.likes||0)!==1?'s':''}
-      </button>
-      ${adminToken ? `<button class="modal-rerank-btn" onclick="startRerank('${p.id}')">↔ Rate this photo</button>` : ''}`;
+    document.getElementById('modalActions').innerHTML=
+      adminToken ? `<button class="modal-rerank-btn" onclick="startRerank('${p.id}')">↔ Rate this photo</button>` : '';
   }
 
   async function likePhoto(id, event) {
