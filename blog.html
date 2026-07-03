@@ -42,24 +42,24 @@
     }
     .logo-sub { font-size: 10px; color: #4a4a4a; letter-spacing: 1px; text-transform: uppercase; }
     @media (max-width: 639px) { .logo-sub { display: none; } }
-    .header-nav { margin-left: auto; display: flex; align-items: center; gap: 24px; }
-    .header-nav-links { display: flex; align-items: center; gap: 24px; }
-    .header-nav-links a {
+    .header-nav { display: flex; align-items: center; gap: 24px; margin-left: auto; }
+    .header-nav a {
       color: #666; text-decoration: none; font-size: 11px;
       letter-spacing: 1px; text-transform: uppercase; font-weight: 500; transition: color 0.2s;
     }
-    .header-nav-links a:hover { color: #fff; }
-    .header-nav-links a.active { color: #fff; }
+    .header-nav a:hover { color: #fff; }
+    .header-nav a.active { color: #fff; }
     .admin-btn {
       padding: 5px 13px; border-radius: 3px; border: 1px solid #3a3a3a;
       background: transparent; color: #777; font-size: 10px; font-weight: 500;
-      letter-spacing: 0.5px; text-transform: uppercase; cursor: pointer; transition: all 0.2s;
+      letter-spacing: 0.5px; text-transform: uppercase; cursor: pointer; transition: all 0.2s; white-space: nowrap;
     }
     .admin-btn:hover { border-color: #fff; color: #fff; }
     .admin-btn.logged-in { border-color: #5ae09a; color: #5ae09a; }
     .header-hamburger {
       display: none; background: none; border: none;
-      cursor: pointer; color: #aaa; font-size: 20px; padding: 4px; line-height: 1;
+      cursor: pointer; color: #aaa; font-size: 20px; padding: 4px;
+      margin-left: auto; line-height: 1;
     }
     .header-mobile-menu {
       display: none; background: #0d0d0d; border-bottom: 1px solid #1a1a1a;
@@ -74,8 +74,8 @@
     }
     .header-mobile-menu a.active { color: #fff; }
     @media (max-width: 767px) {
-      .header-nav-links, .admin-btn { display: none; }
-      .header-hamburger { display: flex; align-items: center; margin-left: auto; }
+      .header-nav { display: none; }
+      .header-hamburger { display: flex; align-items: center; }
     }
 
     /* ── Login modal ── */

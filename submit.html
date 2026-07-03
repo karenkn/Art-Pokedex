@@ -35,17 +35,36 @@
       position: sticky; top: 58px; z-index: 199;
     }
     .header-mobile-menu.open { display: block; }
-    .header-mobile-menu a {
+    .header-mobile-menu a, .header-mobile-menu button {
       display: block; width: 100%; text-align: left;
-      padding: 13px 24px; color: #777; text-decoration: none;
+      padding: 13px 24px; color: #777; background: none; border: none; text-decoration: none;
       font-size: 12px; letter-spacing: 0.8px; text-transform: uppercase;
-      font-family: inherit; border-bottom: 1px solid #191919;
+      font-family: inherit; cursor: pointer; border-bottom: 1px solid #191919;
     }
     .header-mobile-menu a.active { color: #fff; }
+    .admin-btn {
+      padding: 5px 13px; border-radius: 3px; border: 1px solid #3a3a3a;
+      background: transparent; color: #777; font-size: 10px; font-weight: 500;
+      letter-spacing: 0.5px; text-transform: uppercase; cursor: pointer; transition: all 0.2s; white-space: nowrap; font-family: inherit;
+    }
+    .admin-btn:hover { border-color: #fff; color: #fff; }
+    .admin-btn.logged-in { border-color: #5ae09a; color: #5ae09a; }
     @media (max-width: 767px) {
       .header-nav { display: none; }
       .header-hamburger { display: flex; align-items: center; }
     }
+    /* ── Login modal ── */
+    .login-modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 9000; align-items: center; justify-content: center; }
+    .login-modal-bg.open { display: flex; }
+    .login-modal { background: #fff; border-radius: 10px; padding: 32px 28px; width: 340px; max-width: 94vw; }
+    .login-modal h2 { font-family: 'Playfair Display', serif; font-size: 20px; margin-bottom: 8px; }
+    .login-modal p { font-size: 13px; color: #666; margin-bottom: 18px; line-height: 1.5; }
+    .login-error { color: #c0392b; font-size: 13px; margin-bottom: 10px; display: none; }
+    .login-modal input[type=password] { width: 100%; padding: 9px 12px; border: 1.5px solid #ccc; border-radius: 6px; font-size: 14px; font-family: inherit; outline: none; margin-bottom: 14px; }
+    .login-modal input[type=password]:focus { border-color: #8f0101; }
+    .login-modal-actions { display: flex; gap: 10px; }
+    .login-submit-btn { flex: 1; padding: 9px; background: #8f0101; color: #fff; border: none; border-radius: 6px; font-size: 14px; font-weight: 600; font-family: inherit; cursor: pointer; }
+    .login-cancel-btn { padding: 9px 16px; border: 1px solid #ccc; background: none; border-radius: 6px; font-size: 14px; font-family: inherit; cursor: pointer; color: #666; }
 
     /* ── Page layout ── */
     .page-wrap { max-width: 720px; margin: 0 auto; padding: 40px clamp(16px,4vw,32px) 80px; }
@@ -164,6 +183,7 @@
     <a href="top-works.html">Top Works</a>
     <a href="blog.html">Design &amp; Process</a>
     <a href="submit.html" class="active">Submit a Photo</a>
+    <button class="admin-btn" id="adminBtn" onclick="toggleAdminLogin()">🔒 Admin</button>
   </nav>
   <button class="header-hamburger" onclick="document.getElementById('headerMobileMenu').classList.toggle('open')" aria-label="Menu">☰</button>
 </header>
@@ -172,6 +192,22 @@
   <a href="top-works.html">Top Works</a>
   <a href="blog.html">Design &amp; Process</a>
   <a href="submit.html" class="active">Submit a Photo</a>
+  <button onclick="toggleAdminLogin(); document.getElementById('headerMobileMenu').classList.remove('open')">🔒 Admin Login</button>
+</div>
+
+<!-- Login Modal -->
+<div class="login-modal-bg" id="loginModalBg">
+  <div class="login-modal">
+    <h2>Admin Login</h2>
+    <p>Enter your admin password to manage the collection.</p>
+    <div class="login-error" id="loginError"></div>
+    <input type="password" id="adminPasswordInput" placeholder="Admin password"
+           onkeydown="if(event.key==='Enter') submitLogin()" />
+    <div class="login-modal-actions">
+      <button class="login-submit-btn" onclick="submitLogin()">Log In</button>
+      <button class="login-cancel-btn" onclick="closeLoginModal()">Cancel</button>
+    </div>
+  </div>
 </div>
 
 <div class="page-wrap">
@@ -1002,6 +1038,44 @@ Return ONLY a valid JSON object with ALL of these keys (raw JSON, no markdown fe
   function esc(str) {
     return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
+
+  // ── Admin login ──────────────────────────────────────────────────────────────
+  let adminToken = null;
+
+  function toggleAdminLogin() {
+    if (adminToken) { adminToken = null; updateAdminBtn(); return; }
+    document.getElementById('loginModalBg').classList.add('open');
+    document.getElementById('adminPasswordInput').value = '';
+    document.getElementById('loginError').style.display = 'none';
+    setTimeout(() => document.getElementById('adminPasswordInput').focus(), 50);
+  }
+  function closeLoginModal() {
+    document.getElementById('loginModalBg').classList.remove('open');
+  }
+  async function submitLogin() {
+    const pw    = document.getElementById('adminPasswordInput').value;
+    const errEl = document.getElementById('loginError');
+    errEl.style.display = 'none';
+    try {
+      const res  = await fetch(`${SERVER_URL}/api/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ password: pw }) });
+      const data = await res.json();
+      if (!res.ok) { errEl.textContent = data.error || 'Login failed.'; errEl.style.display = 'block'; return; }
+      adminToken = data.token;
+      closeLoginModal();
+      updateAdminBtn();
+    } catch { errEl.textContent = 'Could not reach server.'; errEl.style.display = 'block'; }
+  }
+  function updateAdminBtn() {
+    const btn = document.getElementById('adminBtn');
+    if (!btn) return;
+    btn.textContent = adminToken ? '🔓 Logged In (Logout)' : '🔒 Admin';
+    btn.classList.toggle('logged-in', !!adminToken);
+  }
+
+  // Close modal on background click
+  document.getElementById('loginModalBg').addEventListener('click', e => {
+    if (e.target === document.getElementById('loginModalBg')) closeLoginModal();
+  });
 
   // Close mobile menu when tapping outside
   document.addEventListener('click', e => {
