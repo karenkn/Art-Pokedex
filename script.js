@@ -79,13 +79,80 @@ function updateAdminUI() {
   document.querySelectorAll('.delete-btn, .pin-btn').forEach(el => {
     el.dataset.adminVisible = isAdmin ? '1' : '0';
   });
-  if (isAdmin) loadSubmissions();
-  else {
+  if (isAdmin) {
+    loadSubmissions();
+    updateLocationBanner();
+  } else {
     submissions = [];
     updateSubmissionsBadge();
     if (currentFilter === 'submissions') { currentFilter = 'all'; document.querySelector('.filter-btn').classList.add('active'); }
+    const locBanner = document.getElementById('locationBanner');
+    if (locBanner) locBanner.style.display = 'none';
   }
   render();
+}
+
+// ── Location permission banner ─────────────────────────────────────────────
+async function updateLocationBanner() {
+  const banner = document.getElementById('locationBanner');
+  if (!banner) return;
+  if (!navigator.geolocation || !window.isSecureContext) {
+    banner.style.display = 'none';
+    return;
+  }
+  try {
+    const perm = await navigator.permissions.query({ name: 'geolocation' });
+    applyLocationBannerState(perm.state);
+    perm.addEventListener('change', () => applyLocationBannerState(perm.state));
+  } catch {
+    banner.style.display = 'none'; // Permissions API unsupported — fail silently
+  }
+}
+
+function applyLocationBannerState(state) {
+  const banner = document.getElementById('locationBanner');
+  if (!banner) return;
+  banner.className = 'location-banner';
+  if (state === 'granted') {
+    banner.style.display = 'none';
+    if (!_deviceLocationPromise) getDeviceLocation(); // pre-warm the cache
+  } else if (state === 'denied') {
+    banner.classList.add('state-denied');
+    banner.innerHTML = `<span>🚫 Location access is blocked — GPS won't be used for museum detection.</span>
+      <button class="location-banner-btn" onclick="showLocationHelp()">How to fix in Chrome</button>`;
+    banner.style.display = '';
+  } else {
+    // 'prompt' state — not yet asked
+    banner.classList.add('state-prompt');
+    banner.innerHTML = `<span>📍 Enable location so GPS coordinates help identify the museum or gallery.</span>
+      <button class="location-banner-btn" onclick="requestLocationFromBanner()">Enable Location</button>`;
+    banner.style.display = '';
+  }
+}
+
+function requestLocationFromBanner() {
+  // Called directly from a click — Chrome treats this as a user gesture and
+  // shows the full permission dialog rather than just the address-bar icon.
+  _deviceLocationPromise   = null;
+  _deviceLocationTimestamp = 0;
+  getDeviceLocation().then(coords => {
+    if (coords) {
+      applyLocationBannerState('granted');
+    } else {
+      // Denied or dismissed — re-query actual state
+      navigator.permissions.query({ name: 'geolocation' })
+        .then(p => applyLocationBannerState(p.state))
+        .catch(() => {});
+    }
+  });
+}
+
+function showLocationHelp() {
+  const banner = document.getElementById('locationBanner');
+  if (!banner) return;
+  banner.className = 'location-banner state-denied';
+  banner.innerHTML = `<span>Click the 🔒 lock icon in Chrome's address bar → <strong>Site settings</strong> → set <strong>Location</strong> to <em>Allow</em>, then refresh the page.</span>
+    <button class="location-banner-btn" onclick="applyLocationBannerState('denied')">↩ Back</button>`;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -304,6 +371,13 @@ function handleFiles(files) {
       qEl.textContent = '📍 Requesting location…';
       getDeviceLocation().then(coords => {
         if (qEl.textContent === '📍 Requesting location…') qEl.textContent = '';
+        // Update the banner to reflect the outcome (granted → hide it, denied → show help)
+        if (coords) {
+          applyLocationBannerState('granted');
+        } else if (navigator.permissions) {
+          navigator.permissions.query({ name: 'geolocation' })
+            .then(p => applyLocationBannerState(p.state)).catch(() => {});
+        }
       });
     } else {
       getDeviceLocation();

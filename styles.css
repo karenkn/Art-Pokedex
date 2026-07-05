@@ -182,6 +182,24 @@
     }
     .sort-select:focus { outline: none; color: #1a1a1a; }
 
+    /* ── Location permission banner ── */
+    .location-banner {
+      display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+      padding: 9px clamp(16px, 4vw, 48px); font-size: 12px;
+    }
+    .location-banner.state-prompt {
+      background: #eef5ff; color: #1a6aad; border-bottom: 1px solid #cce0f8;
+    }
+    .location-banner.state-denied {
+      background: #fff5f5; color: #8f0101; border-bottom: 1px solid #fad2d2;
+    }
+    .location-banner-btn {
+      padding: 3px 12px; border-radius: 20px; border: 1.5px solid currentColor;
+      background: none; font-size: 11px; font-weight: 600; cursor: pointer;
+      color: inherit; font-family: inherit; white-space: nowrap;
+    }
+    .location-banner-btn:hover { opacity: 0.7; }
+
     /* ── Stats Bar ── */
     .stats-bar {
       display: flex;
