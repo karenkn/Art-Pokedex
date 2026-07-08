@@ -2433,5 +2433,19 @@ function escHtml(str) {
 // Proxy server URL — update this if you redeploy to a new Railway URL
 serverUrl = 'https://art-pokedex-production.up.railway.app';
 
+// Sync currentFilter from whichever filter button has the 'active' class in the HTML.
+// This makes the HTML the single source of truth so the two never get out of sync
+// (e.g. if the browser has a cached version of this script).
+(function syncFilterFromDOM() {
+  const activeBtn = document.querySelector('.filter-btn.active');
+  if (activeBtn) {
+    const m = activeBtn.getAttribute('onclick')?.match(/setFilter\('(\w+)'/);
+    if (m && m[1]) currentFilter = m[1];
+  }
+  // Ensure the grouping toggle is hidden for any non-'all' filter
+  const toggle = document.getElementById('groupingToggle');
+  if (toggle) toggle.style.display = currentFilter === 'all' ? '' : 'none';
+})();
+
 // Load any previously saved photos from the database
 loadSavedPhotos();
