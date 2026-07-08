@@ -66,15 +66,15 @@
   <button class="clear-btn admin-only select-mode-btn" id="selectModeBtn" onclick="toggleSelectMode()" style="display:none">☑ Select</button>
 
   <div class="filter-group">
-    <button class="filter-btn active" onclick="setFilter('all', this)">All</button>
+    <button class="filter-btn" onclick="setFilter('all', this)">All</button>
     <button class="filter-btn" onclick="setFilter('location', this)">📍 By Location</button>
     <button class="filter-btn" onclick="setFilter('style', this)">🎨 By Style</button>
-    <button class="filter-btn" onclick="setFilter('artist', this)">🖌️ By Artist</button>
+    <button class="filter-btn active" onclick="setFilter('artist', this)">🖌️ By Artist</button>
     <button class="filter-btn admin-only" id="submissionsFilterBtn" onclick="setFilter('submissions', this)" style="display:none">📬 Submissions<span id="submissionsBadge" class="sub-badge" style="display:none"></span></button>
   </div>
 
   <!-- Grouping toggle — only visible when "All" is selected -->
-  <div class="grouping-toggle" id="groupingToggle">
+  <div class="grouping-toggle" id="groupingToggle" style="display:none">
     <button class="group-btn active" id="groupedBtn" onclick="setAllMode('grouped')">📍 Grouped</button>
     <button class="group-btn" id="flatBtn" onclick="setAllMode('flat')">⊞ Ungrouped</button>
   </div>

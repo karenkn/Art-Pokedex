@@ -3,7 +3,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 let photos = [];
 let submissions = [];
-let currentFilter = 'all';
+let currentFilter = 'artist';
 let currentSort   = 'liked';
 let serverUrl = '';
 let analysisQueue = Promise.resolve();  // serialise API calls
