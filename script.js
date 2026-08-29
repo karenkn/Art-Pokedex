@@ -509,7 +509,7 @@ async function consolidateStyles() {
       method: 'POST',
       headers: authHeaders(),
       body: JSON.stringify({
-        model: 'claude-opus-4-6',
+        model: 'claude-opus-5',
         max_tokens: 1000,
         temperature: 0,
         messages: [{
@@ -918,7 +918,7 @@ Return a JSON object with EXACTLY these fields (no markdown, raw JSON only):
       method: 'POST',
       headers: authHeaders(),
       body: JSON.stringify({
-        model: 'claude-opus-4-6',
+        model: 'claude-opus-5',
         max_tokens: 800,
         temperature: 0,
         system: systemPrompt,

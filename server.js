@@ -439,6 +439,7 @@ app.patch('/api/photos/:id/rating', authenticate, async (req, res) => {
 // overriding the model, inflating max_tokens, injecting extra messages, or
 // triggering any other Anthropic API feature.
 const ALLOWED_MODELS = new Set([
+  'claude-opus-5',
   'claude-opus-4-6',
   'claude-sonnet-4-6',
   'claude-haiku-4-5-20251001',
