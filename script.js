@@ -25,8 +25,9 @@ function authHeaders(extra) {
 // ── Admin login UI ────────────────────────────────────────────────────────────
 function toggleAdminLogin() {
   if (adminToken) {
-    // Already logged in — log out
+    // Already logged in — log out and clear persisted token
     adminToken = null;
+    try { localStorage.removeItem('adminToken'); } catch (_) {}
     updateAdminUI();
   } else {
     document.getElementById('loginModalBg').classList.add('open');
@@ -57,6 +58,7 @@ async function submitLogin() {
       return;
     }
     adminToken = data.token;
+    try { localStorage.setItem('adminToken', adminToken); } catch (_) {}
     closeLoginModal();
     updateAdminUI();
   } catch (err) {
@@ -2446,6 +2448,15 @@ serverUrl = 'https://art-pokedex-production.up.railway.app';
   const toggle = document.getElementById('groupingToggle');
   if (toggle) toggle.style.display = currentFilter === 'all' ? '' : 'none';
 })();
+
+// Restore admin session from localStorage (persists across page refreshes)
+try {
+  const saved = localStorage.getItem('adminToken');
+  if (saved) {
+    adminToken = saved;
+    updateAdminUI();
+  }
+} catch (_) {}
 
 // Load any previously saved photos from the database
 loadSavedPhotos();
