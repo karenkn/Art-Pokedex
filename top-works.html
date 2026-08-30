@@ -604,7 +604,7 @@
 
   // ── Login ───────────────────────────────────────────────────────────────────
   function toggleAdminLogin() {
-    if (adminToken) { adminToken = null; updateAdminUI(); return; }
+    if (adminToken) { adminToken = null; try { localStorage.removeItem('adminToken'); } catch(_){} updateAdminUI(); return; }
     document.getElementById('loginModalBg').classList.add('open');
     document.getElementById('adminPasswordInput').value = '';
     document.getElementById('loginError').style.display = 'none';
@@ -620,6 +620,7 @@
       const data = await res.json();
       if (!res.ok) { errEl.textContent = data.error || 'Login failed.'; errEl.style.display='block'; return; }
       adminToken = data.token;
+      try { localStorage.setItem('adminToken', adminToken); } catch(_) {}
       closeLoginModal();
       updateAdminUI();
     } catch { errEl.textContent = 'Could not reach server.'; errEl.style.display='block'; }
@@ -1236,6 +1237,9 @@
       active=false;
     },{passive:true});
   })();
+
+  // Restore admin session from localStorage
+  try { const t = localStorage.getItem('adminToken'); if (t) { adminToken = t; updateAdminUI(); } } catch(_) {}
 
   loadPhotos();
 </script>

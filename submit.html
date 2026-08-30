@@ -1043,7 +1043,7 @@ Return ONLY a valid JSON object with ALL of these keys (raw JSON, no markdown fe
   let adminToken = null;
 
   function toggleAdminLogin() {
-    if (adminToken) { adminToken = null; updateAdminBtn(); return; }
+    if (adminToken) { adminToken = null; try { localStorage.removeItem('adminToken'); } catch(_){} updateAdminBtn(); return; }
     document.getElementById('loginModalBg').classList.add('open');
     document.getElementById('adminPasswordInput').value = '';
     document.getElementById('loginError').style.display = 'none';
@@ -1061,6 +1061,7 @@ Return ONLY a valid JSON object with ALL of these keys (raw JSON, no markdown fe
       const data = await res.json();
       if (!res.ok) { errEl.textContent = data.error || 'Login failed.'; errEl.style.display = 'block'; return; }
       adminToken = data.token;
+      try { localStorage.setItem('adminToken', adminToken); } catch(_) {}
       closeLoginModal();
       updateAdminBtn();
     } catch { errEl.textContent = 'Could not reach server.'; errEl.style.display = 'block'; }
@@ -1071,6 +1072,9 @@ Return ONLY a valid JSON object with ALL of these keys (raw JSON, no markdown fe
     btn.textContent = adminToken ? '🔓 Logged In (Logout)' : '🔒 Admin';
     btn.classList.toggle('logged-in', !!adminToken);
   }
+
+  // Restore admin session from localStorage
+  try { const t = localStorage.getItem('adminToken'); if (t) { adminToken = t; updateAdminBtn(); } } catch(_) {}
 
   // Close modal on background click
   document.getElementById('loginModalBg').addEventListener('click', e => {
