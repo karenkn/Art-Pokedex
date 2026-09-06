@@ -1867,14 +1867,13 @@ function refreshModalView(p) {
   `;
   document.getElementById('modalDesc').textContent = d.description;
   const descEl = document.getElementById('modalDesc');
-  const existingHint = descEl.nextElementSibling;
-  if (existingHint && existingHint.classList.contains('modal-artist-hint')) existingHint.remove();
+  descEl.parentElement.querySelectorAll('.modal-artist-hint, .modal-artist-header').forEach(el => el.remove());
   if (d.artistHint) {
     const hintEl = document.createElement('p');
     hintEl.className = 'modal-artist-hint';
     hintEl.textContent = d.artistHint;
     const hintHeader = document.createElement('p');
-    hintHeader.className = 'modal-section-title';
+    hintHeader.className = 'modal-section-title modal-artist-header';
     hintHeader.textContent = 'About the Artist';
     descEl.insertAdjacentElement('afterend', hintEl);
     descEl.insertAdjacentElement('afterend', hintHeader);
