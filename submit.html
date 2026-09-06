@@ -54,17 +54,19 @@
       .header-hamburger { display: flex; align-items: center; }
     }
     /* ── Login modal ── */
-    .login-modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 9000; align-items: center; justify-content: center; }
+    .login-modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 2000; align-items: center; justify-content: center; }
     .login-modal-bg.open { display: flex; }
-    .login-modal { background: #fff; border-radius: 10px; padding: 32px 28px; width: 340px; max-width: 94vw; }
-    .login-modal h2 { font-family: 'Playfair Display', serif; font-size: 20px; margin-bottom: 8px; }
-    .login-modal p { font-size: 13px; color: #666; margin-bottom: 18px; line-height: 1.5; }
-    .login-error { color: #c0392b; font-size: 13px; margin-bottom: 10px; display: none; }
-    .login-modal input[type=password] { width: 100%; padding: 9px 12px; border: 1.5px solid #ccc; border-radius: 6px; font-size: 14px; font-family: inherit; outline: none; margin-bottom: 14px; }
-    .login-modal input[type=password]:focus { border-color: #8f0101; }
-    .login-modal-actions { display: flex; gap: 10px; }
-    .login-submit-btn { flex: 1; padding: 9px; background: #8f0101; color: #fff; border: none; border-radius: 6px; font-size: 14px; font-weight: 600; font-family: inherit; cursor: pointer; }
-    .login-cancel-btn { padding: 9px 16px; border: 1px solid #ccc; background: none; border-radius: 6px; font-size: 14px; font-family: inherit; cursor: pointer; color: #666; }
+    .login-modal { background: #fff; border-radius: 0; padding: 30px 28px; width: 340px; max-width: 94vw; box-shadow: 0 16px 48px rgba(0,0,0,0.3); border: 1px solid #e4dfd8; }
+    .login-modal h2 { font-family: 'Playfair Display', serif; font-size: 20px; font-weight: 400; margin: 0 0 6px; color: #1a1a1a; }
+    .login-modal p { font-size: 12px; color: #aaa; margin: 0 0 18px; }
+    .login-error { color: #c0392b; font-size: 12px; margin-bottom: 10px; display: none; }
+    .login-modal input[type=password] { width: 100%; box-sizing: border-box; padding: 9px 12px; border: 1px solid #c8c2b8; border-radius: 0; font-size: 13px; margin-bottom: 12px; font-family: inherit; }
+    .login-modal input[type=password]:focus { outline: none; border-color: #8f0101; }
+    .login-modal-actions { display: flex; gap: 8px; }
+    .login-submit-btn { flex: 1; padding: 9px; border: none; border-radius: 0; background: #111; color: #fff; font-size: 12px; font-weight: 600; cursor: pointer; letter-spacing: 0.5px; text-transform: uppercase; transition: background 0.2s; }
+    .login-submit-btn:hover { background: #8f0101; }
+    .login-cancel-btn { padding: 9px 16px; border: 1px solid #c8c2b8; border-radius: 0; background: #fff; color: #888; font-size: 12px; cursor: pointer; transition: all 0.2s; }
+    .login-cancel-btn:hover { border-color: #888; }
 
     /* ── Page layout ── */
     .page-wrap { max-width: 720px; margin: 0 auto; padding: 40px clamp(16px,4vw,32px) 80px; }
