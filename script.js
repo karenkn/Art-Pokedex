@@ -1873,7 +1873,11 @@ function refreshModalView(p) {
     const hintEl = document.createElement('p');
     hintEl.className = 'modal-artist-hint';
     hintEl.textContent = d.artistHint;
+    const hintHeader = document.createElement('p');
+    hintHeader.className = 'modal-section-title';
+    hintHeader.textContent = 'About the Artist';
     descEl.insertAdjacentElement('afterend', hintEl);
+    descEl.insertAdjacentElement('afterend', hintHeader);
   }
 
   const confClass = d.confidence >= 80 ? 'confidence-high' : d.confidence >= 55 ? 'confidence-med' : 'confidence-low';
