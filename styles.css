@@ -486,6 +486,36 @@
     /* Error message in card */
     .error-msg { font-size: 11px; color: #c0392b; padding: 8px 14px; }
 
+    /* Mobile: overlay the info block as a caption on top of the image, so the image fills the entire card height */
+    @media (max-width: 639px) {
+      .card-img-wrap { position: absolute; inset: 0; }
+      .photo-info {
+        position: absolute; left: 0; right: 0; bottom: 0; z-index: 2;
+        background: linear-gradient(to top, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.5) 65%, transparent 100%);
+        padding: 34px 14px 12px;
+      }
+      .photo-title   { color: #fff; }
+      .card-artist   { color: #e5e0d8; }
+      .card-movement { color: #e0c990; }
+      .card-location { color: #ccc; }
+      .photo-meta { border-top-color: rgba(255,255,255,0.25); }
+      .photo-meta-left > span { color: #ddd; }
+      .confidence-high { color: #8fdb9a; }
+      .confidence-med  { color: #f0c060; }
+      .confidence-low  { color: #f29a9a; }
+      .card-rating { background: rgba(255,255,255,0.92); color: #6b6560; }
+      .like-btn { color: #eee; }
+      .like-btn:hover, .like-btn.liked { color: #ff8a6a; }
+
+      /* Bottom-anchored image badges move up top so they don't collide with the new caption overlay */
+      .new-badge    { bottom: auto; top: 36px; right: 8px; }
+      .pinned-badge {
+        bottom: auto; top: 0; left: 0; right: auto;
+        background: linear-gradient(to bottom, rgba(143,1,1,0.85) 0%, transparent 100%);
+        padding: 6px 10px 16px;
+      }
+    }
+
     /* ── Modal (lightbox) — Gallery Noir style ── */
     .modal-bg {
       display: none; position: fixed; inset: 0;
