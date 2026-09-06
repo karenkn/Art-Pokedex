@@ -112,7 +112,8 @@
     .tag.location { background: #f0f7ff; color: #1a6fa6; }
     .tag.style    { background: #fff5f0; color: #e05c2e; }
     .tag.medium   { background: #f4f0fb; color: #7c4dbd; }
-    .modal-desc { font-size: 14px; color: #444; line-height: 1.65; margin-bottom: 16px; }
+    .modal-desc { font-size: 14px; color: #444; line-height: 1.65; margin-bottom: 12px; }
+    .modal-artist-hint { font-size: 12px; color: #888; line-height: 1.6; margin-bottom: 16px; font-style: italic; }
     .modal-section-title { font-size: 11px; font-weight: 600; color: #aaa; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 10px; }
     .modal-detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
     .modal-detail { background: #faf8f5; border-radius: 6px; padding: 8px 10px; }
@@ -764,7 +765,16 @@
       <span class="tag location">📍 ${esc(d.location)}</span>
       <span class="tag style">🎨 ${esc(d.style)}</span>
       <span class="tag medium">🖌️ ${esc(d.medium)}</span>`;
-    document.getElementById('modalDesc').textContent=d.description;
+    const descEl=document.getElementById('modalDesc');
+    descEl.textContent=d.description;
+    const existingHint=descEl.nextElementSibling;
+    if(existingHint&&existingHint.classList.contains('modal-artist-hint')) existingHint.remove();
+    if(d.artistHint){
+      const hintEl=document.createElement('p');
+      hintEl.className='modal-artist-hint';
+      hintEl.textContent=d.artistHint;
+      descEl.insertAdjacentElement('afterend',hintEl);
+    }
     const cc=d.confidence>=80?'confidence-high':d.confidence>=55?'confidence-med':'confidence-low';
     document.getElementById('modalDetails').innerHTML=`
       ${d.paintingName?`<div class="modal-detail" style="grid-column:1/-1"><label>Painting</label><span>${esc(d.paintingName)}</span></div>`:''}

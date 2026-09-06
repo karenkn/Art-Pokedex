@@ -1866,6 +1866,15 @@ function refreshModalView(p) {
     <span class="tag medium"   style="font-size:13px">🖌️ ${escHtml(d.medium)}</span>
   `;
   document.getElementById('modalDesc').textContent = d.description;
+  const descEl = document.getElementById('modalDesc');
+  const existingHint = descEl.nextElementSibling;
+  if (existingHint && existingHint.classList.contains('modal-artist-hint')) existingHint.remove();
+  if (d.artistHint) {
+    const hintEl = document.createElement('p');
+    hintEl.className = 'modal-artist-hint';
+    hintEl.textContent = d.artistHint;
+    descEl.insertAdjacentElement('afterend', hintEl);
+  }
 
   const confClass = d.confidence >= 80 ? 'confidence-high' : d.confidence >= 55 ? 'confidence-med' : 'confidence-low';
   document.getElementById('modalDetails').innerHTML = `
@@ -1877,7 +1886,6 @@ function refreshModalView(p) {
     <div class="modal-detail"><label>Medium</label><span>${escHtml(d.medium)}</span></div>
     <div class="modal-detail"><label>Period</label><span>${escHtml(d.period)}</span></div>
     <div class="modal-detail"><label>Confidence</label><span class="${confClass}">${d.confidence}%</span></div>
-    ${d.artistHint ? `<div class="modal-detail" style="grid-column:1/-1"><label>Artist Context</label><span>${escHtml(d.artistHint)}</span></div>` : ''}
   `;
   const locSource = p.locationSource === 'gps'
     ? '🛰 Location from GPS metadata'
