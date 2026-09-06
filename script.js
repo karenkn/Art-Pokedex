@@ -512,7 +512,7 @@ async function consolidateStyles() {
       headers: authHeaders(),
       body: JSON.stringify({
         model: 'claude-opus-5',
-        max_tokens: 1000,
+        max_tokens: 4096,
         temperature: 0,
         messages: [{
           role: 'user',
@@ -537,7 +537,18 @@ Tags: ${JSON.stringify(uniqueStyles)}` }]
     if (!text) throw new Error(JSON.stringify(data.error) || 'Empty response from API');
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) throw new Error('No JSON found in response');
-    const mapping = JSON.parse(jsonMatch[0]);
+    let mapping;
+    try {
+      mapping = JSON.parse(jsonMatch[0]);
+    } catch (parseErr) {
+      // Most likely the response got cut off mid-JSON because there were too many
+      // unique style tags to fit in the token budget — surface a clearer message
+      // instead of the raw "Unexpected end of JSON input" parser error.
+      if (data.stop_reason === 'max_tokens') {
+        throw new Error(`Response truncated — too many unique styles (${uniqueStyles.length}) for one request. Try consolidating in smaller batches.`);
+      }
+      throw parseErr;
+    }
 
     // Apply only entries where the canonical name differs from the current one
     let updateCount = 0;

@@ -444,7 +444,7 @@ const ALLOWED_MODELS = new Set([
   'claude-sonnet-4-6',
   'claude-haiku-4-5-20251001',
 ]);
-const MAX_TOKENS_CAP = 1000;   // well above the ~800 the app ever needs
+const MAX_TOKENS_CAP = 4096;   // covers per-photo analysis (~800) and bulk-mapping calls like style consolidation, which return one JSON entry per unique tag
 
 app.post('/api/analyze', publicRateLimit(analyzeLimit), async (req, res) => {
   const apiKey = process.env.ANTHROPIC_API_KEY;
