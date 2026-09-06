@@ -274,7 +274,7 @@
        grid-auto-rows: 350px; /*fixed row height: 2 rows = ~446px ≈ 4:3 for the featured card */
     }
     @media (max-width: 1023px) { .photo-grid { grid-template-columns: repeat(3, 1fr); } }
-    @media (max-width: 639px)  { .photo-grid { grid-template-columns: 1fr; grid-auto-rows: 560px; } }
+    @media (max-width: 639px)  { .photo-grid { grid-template-columns: 1fr; grid-auto-rows: 500px; } }
 
     .photo-card {
       background: #fff;
