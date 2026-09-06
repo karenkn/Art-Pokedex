@@ -513,7 +513,6 @@ async function consolidateStyles() {
       body: JSON.stringify({
         model: 'claude-opus-5',
         max_tokens: 4096,
-        temperature: 0,
         messages: [{
           role: 'user',
           content: [{ type: 'text', text: `You are an art historian. The following style tags were auto-generated and are far too specific — many use a compound "Primary / Secondary" format. Your job is to map every tag to one concise, well-known canonical art movement name, reducing the full list down to roughly 15–20 core movements.
@@ -933,7 +932,6 @@ Return a JSON object with EXACTLY these fields (no markdown, raw JSON only):
       body: JSON.stringify({
         model: 'claude-opus-5',
         max_tokens: 800,
-        temperature: 0,
         system: systemPrompt,
         messages: [{
           role: 'user',
@@ -1105,9 +1103,8 @@ Return ONLY a valid JSON object with exactly these keys (raw JSON, no markdown f
       method:  'POST',
       headers: authHeaders(),
       body: JSON.stringify({
-        model:      'claude-opus-4-6',
+        model:      'claude-opus-5',
         max_tokens: 900,
-        temperature: 0,
         messages: [{
           role: 'user',
           content: [

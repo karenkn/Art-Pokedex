@@ -492,9 +492,14 @@ app.post('/api/analyze', publicRateLimit(analyzeLimit), async (req, res) => {
   const safePayload = {
     model,
     max_tokens: Math.min(Number(max_tokens) || MAX_TOKENS_CAP, MAX_TOKENS_CAP),
-    temperature: typeof temperature === 'number' ? Math.max(0, Math.min(1, temperature)) : 0,
     messages: [{ role: 'user', content: msg.content }],
   };
+  // Some models (e.g. claude-opus-5) reject an explicit `temperature` field outright
+  // ("temperature is deprecated for this model"), so only forward it when the caller
+  // actually supplied one — never default it in.
+  if (typeof temperature === 'number') {
+    safePayload.temperature = Math.max(0, Math.min(1, temperature));
+  }
   if (typeof system === 'string' && system.length > 0) {
     safePayload.system = system.slice(0, 4000);  // cap system prompt length
   }
