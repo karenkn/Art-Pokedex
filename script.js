@@ -532,7 +532,10 @@ Tags: ${JSON.stringify(uniqueStyles)}` }]
     });
 
     const data = await res.json();
-    const text = data.content?.[0]?.text || '';
+    // Some models (e.g. claude-opus-5) return extended-thinking output as a leading
+    // "thinking" content block before the actual "text" block — find by type instead
+    // of assuming content[0] is the answer.
+    const text = data.content?.find(b => b.type === 'text')?.text || '';
     if (!text) throw new Error(JSON.stringify(data.error) || 'Empty response from API');
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) throw new Error('No JSON found in response');
@@ -931,7 +934,7 @@ Return a JSON object with EXACTLY these fields (no markdown, raw JSON only):
       headers: authHeaders(),
       body: JSON.stringify({
         model: 'claude-opus-5',
-        max_tokens: 800,
+        max_tokens: 2048,
         system: systemPrompt,
         messages: [{
           role: 'user',
@@ -949,7 +952,8 @@ Return a JSON object with EXACTLY these fields (no markdown, raw JSON only):
     }
 
     const data = await response.json();
-    const text = data.content?.[0]?.text || '';
+    // See note above: skip past any leading "thinking" block to find the actual answer.
+    const text = data.content?.find(b => b.type === 'text')?.text || '';
 
     // Extract JSON — handle cases where model wraps in markdown
     const jsonMatch = text.match(/\{[\s\S]*\}/);
@@ -1104,7 +1108,7 @@ Return ONLY a valid JSON object with exactly these keys (raw JSON, no markdown f
       headers: authHeaders(),
       body: JSON.stringify({
         model:      'claude-opus-5',
-        max_tokens: 900,
+        max_tokens: 2048,
         messages: [{
           role: 'user',
           content: [
@@ -1121,7 +1125,8 @@ Return ONLY a valid JSON object with exactly these keys (raw JSON, no markdown f
     }
 
     const data = await res.json();
-    const text = data.content?.[0]?.text || '';
+    // See note above: skip past any leading "thinking" block to find the actual answer.
+    const text = data.content?.find(b => b.type === 'text')?.text || '';
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) throw new Error('Could not parse AI response as JSON.');
     const parsed = JSON.parse(jsonMatch[0]);
