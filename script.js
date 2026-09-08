@@ -1489,14 +1489,14 @@ function renderPendingErrors(container) {
       <div class="location-header"><span class="location-icon">⏳</span>
       <span class="location-name">Analyzing…</span>
       <span class="location-sub">${pending.length} photo${pending.length>1?'s':''}</span></div>
-      <div class="photo-grid">${pending.map(photoCard).join('')}</div></div>`;
+      <div class="photo-grid">${pending.map(p => photoCard(p)).join('')}</div></div>`;
   }
   if (errors.length) {
     html += `<div class="location-group" style="margin-top:16px">
       <div class="location-header"><span class="location-icon">⚠️</span>
       <span class="location-name" style="color:#c0392b">Analysis Failed</span>
       <span class="location-sub">${errors.length} photo${errors.length>1?'s':''}</span></div>
-      <div class="photo-grid">${errors.map(photoCard).join('')}</div></div>`;
+      <div class="photo-grid">${errors.map(p => photoCard(p)).join('')}</div></div>`;
   }
   container.innerHTML = html;
   container.style.display = html ? '' : 'none';
@@ -1602,7 +1602,7 @@ function renderGrouped(container, _key, icon, keyFn) {
         <span class="location-name">Analyzing with Claude AI</span>
         <span class="location-sub">${pending.length} photo${pending.length > 1 ? 's' : ''}</span>
       </div>
-      <div class="photo-grid">${pending.map(photoCard).join('')}</div>
+      <div class="photo-grid">${pending.map(p => photoCard(p)).join('')}</div>
     </div>`;
   }
 
@@ -1613,7 +1613,7 @@ function renderGrouped(container, _key, icon, keyFn) {
         <span class="location-name" style="color:#c0392b">Analysis Failed</span>
         <span class="location-sub">${errors.length} photo${errors.length > 1 ? 's' : ''}</span>
       </div>
-      <div class="photo-grid">${errors.map(photoCard).join('')}</div>
+      <div class="photo-grid">${errors.map(p => photoCard(p)).join('')}</div>
     </div>`;
   }
 
@@ -1710,7 +1710,7 @@ function renderFlat(container) {
         <span class="location-name">Analyzing with Claude AI</span>
         <span class="location-sub">${pending.length} photo${pending.length > 1 ? 's' : ''}</span>
       </div>
-      <div class="photo-grid">${pending.map(photoCard).join('')}</div>
+      <div class="photo-grid">${pending.map(p => photoCard(p)).join('')}</div>
     </div>`;
   }
 
@@ -1722,7 +1722,7 @@ function renderFlat(container) {
         <span class="location-name" style="color:#c0392b">Analysis Failed</span>
         <span class="location-sub">${errors.length} photo${errors.length > 1 ? 's' : ''}</span>
       </div>
-      <div class="photo-grid">${errors.map(photoCard).join('')}</div>
+      <div class="photo-grid">${errors.map(p => photoCard(p)).join('')}</div>
     </div>`;
   }
 
