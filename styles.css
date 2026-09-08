@@ -314,9 +314,10 @@
     }
     .delete-btn:hover { background: #e53e3e; }
     .photo-card:hover .delete-btn { display: block; }
-    /* Pin button — top-left corner of card, admin-only */
+    /* Pin button — top-right corner of card (left of delete), admin-only.
+       Kept out of the top-left so it never overlaps the "★ FEATURED" ribbon. */
     .pin-btn {
-      position: absolute; top: 7px; left: 7px;
+      position: absolute; top: 7px; right: 41px;
       background: rgba(0,0,0,0.55); color: #fff;
       border: none; border-radius: 50%;
       width: 26px; height: 26px; font-size: 13px;

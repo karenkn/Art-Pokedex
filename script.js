@@ -1588,7 +1588,7 @@ function renderGrouped(container, _key, icon, keyFn) {
       </div>
       <div class="just-added-grid-wrap">
         <div class="photo-grid">
-          ${justAdded.map(p => photoCard(p, false, true)).join('')}
+          ${justAdded.map(p => photoCard(p)).join('')}
         </div>
       </div>
     </div>`;
@@ -1695,7 +1695,7 @@ function renderFlat(container) {
       </div>
       <div class="just-added-grid-wrap">
         <div class="photo-grid">
-          ${justAdded.map(p => photoCard(p, false, true)).join('')}
+          ${justAdded.map(p => photoCard(p)).join('')}
         </div>
       </div>
     </div>`;
@@ -1735,7 +1735,7 @@ function renderFlat(container) {
   container.innerHTML = html;
 }
 
-function photoCard(p, featured = false, isNew = false) {
+function photoCard(p, featured = false) {
   let overlay = '';
   if (p.status === 'analyzing') {
     overlay = `<div class="status-overlay overlay-analyzing"><div class="spinner"></div><span>Claude is analyzing…</span></div>`;
@@ -1748,7 +1748,6 @@ function photoCard(p, featured = false, isNew = false) {
   // GPS overlay badge — appears on the photo image
   const gpsBadge = (p.status === 'done' && p.locationSource === 'gps')
     ? `<div class="card-gps-badge">GPS</div>` : '';
-  const newBadge       = isNew          ? `<div class="new-badge">NEW</div>` : '';
   const communityBadge = p.userSubmitted ? `<div class="card-community-badge">Community</div>` : '';
 
   const cardTitle = (p.status === 'done' && p.aiData?.paintingName) ? p.aiData.paintingName : p.name;
@@ -1800,7 +1799,6 @@ function photoCard(p, featured = false, isNew = false) {
       ${p.pinned ? `<div class="pinned-badge">★ FEATURED</div>` : ''}
       ${communityBadge}
       ${gpsBadge}
-      ${newBadge}
       ${overlay}
     </div>
     ${infoHtml}
