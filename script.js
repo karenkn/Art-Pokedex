@@ -77,8 +77,8 @@ function updateAdminUI() {
   document.querySelectorAll('.admin-only').forEach(el => {
     el.style.display = isAdmin ? '' : 'none';
   });
-  // Show / hide delete + pin buttons on existing cards
-  document.querySelectorAll('.delete-btn, .pin-btn').forEach(el => {
+  // Show / hide delete buttons on existing cards
+  document.querySelectorAll('.delete-btn').forEach(el => {
     el.dataset.adminVisible = isAdmin ? '1' : '0';
   });
   if (isAdmin) {
@@ -1788,11 +1788,8 @@ function photoCard(p, featured = false) {
   const featuredClass  = featured ? ' featured' : '';
   const pinnedClass    = p.pinned  ? ' pinned'   : '';
   const selectedClass  = (selectMode && selectedPhotoIds.has(p.id)) ? ' selected' : '';
-  const pinLabel       = p.pinned  ? '📌' : '📍';
-  const pinTitle       = p.pinned  ? 'Unpin (restore normal order)' : 'Pin as featured card for this group';
   return `<div class="photo-card ${p.status}${featuredClass}${pinnedClass}${selectedClass}" data-id="${p.id}" ${clickable ? `onclick="handleCardClick('${p.id}')"` : ''}>
     ${adminToken ? `<button type="button" class="delete-btn" title="Remove photo" onclick="event.stopPropagation(); deletePhoto('${p.id}')">✕</button>` : ''}
-    ${adminToken ? `<button type="button" class="pin-btn" title="${pinTitle}" onclick="event.stopPropagation(); pinPhoto('${p.id}', ${!p.pinned})">${pinLabel}</button>` : ''}
     ${adminToken ? `<div class="select-checkbox${selectedPhotoIds.has(p.id) ? ' checked' : ''}" onclick="event.stopPropagation(); toggleCardSelection('${p.id}')">✓</div>` : ''}
     <div class="card-img-wrap">
       <img src="${p.url}" alt="${escHtml(p.name)}" loading="lazy" />

@@ -314,22 +314,7 @@
     }
     .delete-btn:hover { background: #e53e3e; }
     .photo-card:hover .delete-btn { display: block; }
-    /* Pin button — top-right corner of card (left of delete), admin-only.
-       Kept out of the top-left so it never overlaps the "★ FEATURED" ribbon. */
-    .pin-btn {
-      position: absolute; top: 7px; right: 41px;
-      background: rgba(0,0,0,0.55); color: #fff;
-      border: none; border-radius: 50%;
-      width: 26px; height: 26px; font-size: 13px;
-      line-height: 26px; text-align: center;
-      cursor: pointer; display: none; z-index: 10;
-      transition: background 0.15s;
-    }
-    .pin-btn:hover { background: #8f0101; }
-    .photo-card:hover .pin-btn { display: block; }
-    /* When already pinned, always show the pin btn (in gold) — no badge overlap needed */
-    .photo-card.pinned .pin-btn { display: block; color: #f5c842; background: rgba(143,1,1,0.75); }
-    /* Persistent "★ FEATURED" ribbon — sits at bottom-left of image, not overlapping pin btn */
+    /* Persistent "★ FEATURED" ribbon — sits at bottom-left of image */
     .pinned-badge {
       position: absolute; bottom: 0; left: 0; right: 0;
       background: linear-gradient(to top, rgba(118,118,118,0.85) 0%, transparent 100%);
@@ -1022,7 +1007,6 @@
   background: #8f0101; border-color: #8f0101; color: #fff;
 }
 body.select-mode .photo-card .select-checkbox { display: flex; }
-body.select-mode .photo-card .pin-btn,
 body.select-mode .photo-card .delete-btn { display: none !important; }
 body.select-mode .photo-card { cursor: pointer; }
 body.select-mode .photo-card:hover { transform: none; box-shadow: none; }
