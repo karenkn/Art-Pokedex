@@ -1907,23 +1907,23 @@ function refreshModalView(p) {
   document.getElementById('modalNote').textContent = noteText;
 
   // ── Rating section ────────────────────────────────────────────────────────
-  // Read-only badge — score is set via ELO comparisons on the Top Works page.
+  // Plain text value — score is set via ELO comparisons on the Top Works page.
   const r = p.rating;
-  const tierBit = p.tier ? `<span class="tier-pill ${p.tier}">${TIER_LABELS[p.tier]}</span>` : '';
-  const ratingBadgeHtml = r != null
-    ? `<span class="modal-rating-badge rated">${r % 1 === 0 ? r : r.toFixed(1)}</span>`
-    : `<span class="modal-rating-badge unrated">Not rated</span>`;
-
-  // Like button merged into rating row for compact inline display
-  const liked = likedIds.has(p.id);
-  const likeCompact = `<button class="modal-like-compact${liked ? ' liked' : ''}" id="modalLikeBtn"
-    onclick="likePhoto('${p.id}', event)">${liked ? '♥' : '♡'} ${p.likes || 0}</button>`;
+  const ratingValueHtml = r != null
+    ? `<span class="modal-rating-value">${r.toFixed(1)}</span>`
+    : `<span class="modal-rating-value unrated">Not rated</span>`;
 
   document.getElementById('modalRating').innerHTML = `
     <div class="modal-rating-row">
       <div class="modal-rating-label">My Rating</div>
-      <div style="display:flex;align-items:center;gap:8px">${tierBit}${ratingBadgeHtml}${likeCompact}</div>
+      ${ratingValueHtml}
     </div>`;
+
+  // Like button — sits beside the title, right-aligned
+  const liked = likedIds.has(p.id);
+  document.getElementById('modalTitleLike').innerHTML = `
+    <button class="modal-like-compact${liked ? ' liked' : ''}" id="modalLikeBtn"
+      onclick="likePhoto('${p.id}', event)">${liked ? '♥' : '♡'} ${p.likes || 0}</button>`;
 
   // Admin-only actions (edit / delete)
   document.getElementById('modalAdminActions').innerHTML = adminToken
