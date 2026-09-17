@@ -1052,6 +1052,7 @@ body.select-mode .photo-card.selected {
 .modal-rating-row {
   display: flex; align-items: center; justify-content: space-between;
   gap: 12px; flex-wrap: wrap;
+  background: #f7f4f0; border: 1px solid #ece8e2; padding: 11px 14px;
 }
 .modal-like-compact {
   display: inline-flex; align-items: center; gap: 4px;
