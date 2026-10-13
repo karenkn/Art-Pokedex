@@ -1280,7 +1280,20 @@
   })();
 
   // Restore admin session from localStorage
-  try { const t = localStorage.getItem('adminToken'); if (t) { adminToken = t; updateAdminUI(); } } catch(_) {}
+  // If the server rejects our admin token (401), drop it so the UI stops claiming we're logged in.
+const _origFetch = window.fetch.bind(window);
+window.fetch = async (...args) => {
+  const res = await _origFetch(...args);
+  const h = (args[1] && args[1].headers) || {};
+  if (res.status === 401 && h['Authorization'] && adminToken) {
+    adminToken = null;
+    try { localStorage.removeItem('adminToken'); } catch(_) {}
+    updateAdminUI();
+  }
+  return res;
+};
+function isTokenExpired(token){try{const p=JSON.parse(atob(token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));return !p.exp||p.exp*1000<=Date.now()+30000;}catch(_){return true;}}
+  try { const t = localStorage.getItem('adminToken'); if (t && !isTokenExpired(t)) { adminToken = t; updateAdminUI(); } else if (t) { localStorage.removeItem('adminToken'); } } catch(_) {}
 
   loadPhotos();
 </script>

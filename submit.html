@@ -1076,7 +1076,8 @@ Return ONLY a valid JSON object with ALL of these keys (raw JSON, no markdown fe
   }
 
   // Restore admin session from localStorage
-  try { const t = localStorage.getItem('adminToken'); if (t) { adminToken = t; updateAdminBtn(); } } catch(_) {}
+  function isTokenExpired(token){try{const p=JSON.parse(atob(token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));return !p.exp||p.exp*1000<=Date.now()+30000;}catch(_){return true;}}
+  try { const t = localStorage.getItem('adminToken'); if (t && !isTokenExpired(t)) { adminToken = t; updateAdminBtn(); } else if (t) { localStorage.removeItem('adminToken'); } } catch(_) {}
 
   // Close modal on background click
   document.getElementById('loginModalBg').addEventListener('click', e => {

@@ -23,6 +23,33 @@ function authHeaders(extra) {
 }
 
 // ── Admin login UI ────────────────────────────────────────────────────────────
+// True if the JWT's `exp` claim is in the past (or the token is unreadable).
+function isTokenExpired(token) {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+    return !payload.exp || payload.exp * 1000 <= Date.now() + 30000;
+  } catch (_) { return true; }
+}
+
+// Called when the server rejects our admin token (401): log out cleanly and tell the user.
+function handleSessionExpired() {
+  if (!adminToken) return; // already handled
+  adminToken = null;
+  try { localStorage.removeItem('adminToken'); } catch (_) {}
+  updateAdminUI();
+  alert('Your admin session has expired, so your last change could not be saved. Please log in again and retry (re-upload the photo if it was an upload).');
+}
+
+// Any admin request the server rejects with 401 means our token is dead — log out
+// cleanly instead of silently failing (covers delete, edit, pin, bulk edit, uploads…).
+const _origFetch = window.fetch.bind(window);
+window.fetch = async (...args) => {
+  const res = await _origFetch(...args);
+  const h = (args[1] && args[1].headers) || {};
+  if (res.status === 401 && h['Authorization']) handleSessionExpired();
+  return res;
+};
+
 function toggleAdminLogin() {
   if (adminToken) {
     // Already logged in — log out and clear persisted token
@@ -727,9 +754,17 @@ async function compressThumbnail(file) {
 async function savePhotoToDB(photo) {
   if (!photo.file) return; // already came from DB
   try {
-    const thumbnail = await compressThumbnail(photo.file);
-    if (!thumbnail) return;
-    await fetch(`${serverUrl}/api/photos`, {
+    // Prefer the JPEG we already decoded for analysis — re-decoding a HEIC a second
+    // time on iPhone Safari is slow and often runs out of memory, which silently
+    // skipped the save.
+    let source = photo.file;
+    if (photo.jpegBase64) {
+      source = await (await fetch(`data:image/jpeg;base64,${photo.jpegBase64}`)).blob();
+    }
+    const thumbnail = await compressThumbnail(source);
+    if (!thumbnail) throw new Error('Could not create a thumbnail for this image.');
+
+    const res = await fetch(`${serverUrl}/api/photos`, {
       method:  'POST',
       headers: authHeaders(),
       body: JSON.stringify({
@@ -741,8 +776,16 @@ async function savePhotoToDB(photo) {
         gpsCoords:      photo.gpsCoords || null
       })
     });
+    if (res.status === 401) { handleSessionExpired(); return; }
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err?.error || `HTTP ${res.status}`);
+    }
+    photo.jpegBase64 = null; // free memory once saved
   } catch (err) {
     console.warn('Could not save photo to DB:', err.message);
+    const qEl = document.getElementById('queueStatus');
+    if (qEl) qEl.textContent = `⚠ Photo not saved: ${err.message.slice(0, 60)}`;
   }
 }
 
@@ -901,6 +944,7 @@ async function analysePhoto(photo) {
 
     // ── 2. Build Claude prompts ────────────────────────────────────────────
     const { base64, mediaType } = await compressAndConvert(photo.file, { maxDimension: 1920 });
+    photo.jpegBase64 = base64; // reused by savePhotoToDB for the thumbnail (avoids a 2nd HEIC decode)
 
     const systemPrompt = `Act as a museum curator interested in identifying art, which can include paintings, sculptures, art installations, murals, and street art. For each artwork fed into the API, try to identify the artist that most closely matches the style of the art, the name of the artwork, and the location where the artwork was taken.
 
@@ -2469,11 +2513,15 @@ serverUrl = 'https://art-pokedex-production.up.railway.app';
 })();
 
 // Restore admin session from localStorage (persists across page refreshes)
+// (Skips tokens whose JWT has expired — the server rejects those with 401, which
+// used to make uploads silently fail to save while the UI still looked logged in.)
 try {
   const saved = localStorage.getItem('adminToken');
-  if (saved) {
+  if (saved && !isTokenExpired(saved)) {
     adminToken = saved;
     updateAdminUI();
+  } else if (saved) {
+    localStorage.removeItem('adminToken');
   }
 } catch (_) {}
 

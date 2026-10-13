@@ -483,6 +483,7 @@ function insertImageBase64(dataUrl) {
 function toggleAdminLogin() {
   if (adminToken) {
     adminToken = null;
+    try { localStorage.removeItem('adminToken'); } catch (_) {}
     updateAdminUI();
   } else {
     document.getElementById('loginModalBg').classList.add('open');
@@ -508,6 +509,7 @@ async function submitLogin() {
     const data = await res.json();
     if (!res.ok) { errEl.textContent = data.error || 'Login failed.'; errEl.style.display = 'block'; return; }
     adminToken = data.token;
+    try { localStorage.setItem('adminToken', adminToken); } catch (_) {}
     closeLoginModal();
     updateAdminUI();
     loadPosts();
@@ -698,6 +700,13 @@ async function savePost() {
       });
       editingPostId = id;
     }
+    if (res.status === 401) {
+      handleSessionExpired();
+      status.className = 'save-status error';
+      status.textContent = '⚠ Session expired — log in again to save.';
+      btn.disabled = false;
+      return;
+    }
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       throw new Error(err.error || `HTTP ${res.status}`);
@@ -725,7 +734,9 @@ function cancelEdit() {
 async function deletePost(id) {
   if (!confirm('Delete this post permanently?')) return;
   try {
-    await fetch(`${serverUrl}/api/posts/${id}`, { method: 'DELETE', headers: authHeaders() });
+    const res = await fetch(`${serverUrl}/api/posts/${id}`, { method: 'DELETE', headers: authHeaders() });
+    if (res.status === 401) { handleSessionExpired(); return; }
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
     posts = posts.filter(p => p.id !== id);
     if (currentPostId === id) { currentPostId = null; showList(); }
     else renderPostList();
@@ -791,6 +802,27 @@ function formatDate(iso) {
   if (!iso) return '';
   return new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Admin session persistence (shared with the other pages via localStorage)
+// ─────────────────────────────────────────────────────────────────────────────
+function isTokenExpired(token) {
+  try {
+    const p = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+    return !p.exp || p.exp * 1000 <= Date.now() + 30000;
+  } catch (_) { return true; }
+}
+function handleSessionExpired() {
+  adminToken = null;
+  try { localStorage.removeItem('adminToken'); } catch (_) {}
+  updateAdminUI();
+  alert('Your admin session has expired, so your last change could not be saved. Please log in again and retry.');
+}
+try {
+  const saved = localStorage.getItem('adminToken');
+  if (saved && !isTokenExpired(saved)) { adminToken = saved; updateAdminUI(); }
+  else if (saved) { localStorage.removeItem('adminToken'); }
+} catch (_) {}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Init — handle direct-link hash immediately, load list in background
