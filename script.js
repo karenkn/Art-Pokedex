@@ -764,7 +764,7 @@ async function savePhotoToDB(photo) {
     const thumbnail = await compressThumbnail(source);
     if (!thumbnail) throw new Error('Could not create a thumbnail for this image.');
 
-    const res = await fetch(`${serverUrl}/api/photos`, {
+    const res = await fetchWithRetry(`${serverUrl}/api/photos`, {
       method:  'POST',
       headers: authHeaders(),
       body: JSON.stringify({
@@ -915,6 +915,31 @@ async function reverseGeocode(lat, lng) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Claude API Analysis
 // ─────────────────────────────────────────────────────────────────────────────
+// fetch() that survives flaky mobile networks. Safari reports a dropped connection
+// (e.g. page backgrounded while switching to the Camera app, weak signal) as
+// "TypeError: Load failed". Only these network-level failures are retried — waiting for
+// the page to be visible again first — real HTTP responses are returned untouched.
+// Only used for idempotent calls (analysis, upsert-save).
+async function fetchWithRetry(url, opts, tries = 3) {
+  let lastErr;
+  for (let i = 0; i < tries; i++) {
+    try {
+      return await fetch(url, opts);
+    } catch (err) {
+      lastErr = err;
+      if (i === tries - 1) break;
+      if (document.visibilityState === 'hidden') {
+        await new Promise(r => {
+          const onVis = () => { if (document.visibilityState === 'visible') { document.removeEventListener('visibilitychange', onVis); r(); } };
+          document.addEventListener('visibilitychange', onVis);
+        });
+      }
+      await new Promise(r => setTimeout(r, 1500 * (i + 1)));
+    }
+  }
+  throw new Error('Network connection lost while contacting the server. Check your signal and tap Retry.');
+}
+
 // Coerce an AI-supplied confidence (85, "85", "85%") to an integer 0–100; default 75.
 function parseConfidence(v) {
   if (v === null || v === undefined || v === '') return 75;
@@ -954,7 +979,7 @@ async function requestArtworkJson({ systemPrompt, userPrompt, base64, mediaType 
   ];
   let lastProblem = '';
   for (const a of attempts) {
-    const response = await fetch(`${serverUrl}/api/analyze`, {
+    const response = await fetchWithRetry(`${serverUrl}/api/analyze`, {
       method: 'POST',
       headers: authHeaders(),
       body: JSON.stringify({
@@ -990,6 +1015,16 @@ async function requestArtworkJson({ systemPrompt, userPrompt, base64, mediaType 
     console.warn('Analysis attempt failed:', lastProblem, data);
   }
   throw new Error(`AI response could not be read — ${lastProblem}. Try re-uploading this photo.`);
+}
+
+// Re-queue a photo whose analysis failed (network drop, unreadable reply, etc.)
+function retryAnalysis(id) {
+  const photo = photos.find(p => p.id === id);
+  if (!photo || !photo.file) return;
+  photo.status = 'queue';
+  photo.error  = null;
+  enqueueAnalysis(photo);
+  render();
 }
 
 function enqueueAnalysis(photo) {
@@ -1876,6 +1911,9 @@ function photoCard(p, featured = false) {
       </div>`;
   } else if (p.status === 'error') {
     infoHtml += `<p class="error-msg">Error: ${escHtml(p.error || 'Unknown error')}</p>`;
+    if (p.file) {
+      infoHtml += `<button type="button" class="retry-btn" onclick="event.stopPropagation(); retryAnalysis('${p.id}')">↻ Retry</button>`;
+    }
   }
 
   infoHtml += '</div>';

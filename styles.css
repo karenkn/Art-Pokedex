@@ -467,6 +467,12 @@
 
     /* Error message in card */
     .error-msg { font-size: 11px; color: #c0392b; padding: 8px 14px; }
+    .retry-btn {
+      margin: 0 14px 10px; padding: 5px 14px; border: 1.5px solid #8f0101; border-radius: 3px;
+      background: #fff; color: #8f0101; font-size: 12px; font-weight: 600; cursor: pointer;
+      font-family: inherit;
+    }
+    .retry-btn:hover { background: #8f0101; color: #fff; }
 
     /* Mobile: overlay the info block as a caption on top of the image, so the image fills the entire card height */
     @media (max-width: 639px) {
