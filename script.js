@@ -915,6 +915,83 @@ async function reverseGeocode(lat, lng) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Claude API Analysis
 // ─────────────────────────────────────────────────────────────────────────────
+// Coerce an AI-supplied confidence (85, "85", "85%") to an integer 0–100; default 75.
+function parseConfidence(v) {
+  if (v === null || v === undefined || v === '') return 75;
+  const n = Number(String(v).replace('%', '').trim());
+  return Number.isFinite(n) ? Math.max(0, Math.min(100, Math.round(n))) : 75;
+}
+
+// ── Robust AI-response handling ───────────────────────────────────────────────
+// Pull the first *balanced* {...} object out of text (ignores braces inside strings,
+// stray prose before/after, and ```json fences). Returns the object text or null.
+function extractJsonObject(text) {
+  const start = text.indexOf('{');
+  if (start === -1) return null;
+  let depth = 0, inStr = false, esc = false;
+  for (let i = start; i < text.length; i++) {
+    const c = text[i];
+    if (inStr) {
+      if (esc) esc = false;
+      else if (c === '\\') esc = true;
+      else if (c === '"') inStr = false;
+    } else if (c === '"') inStr = true;
+    else if (c === '{') depth++;
+    else if (c === '}' && --depth === 0) return text.slice(start, i + 1);
+  }
+  return null; // unbalanced → truncated
+}
+
+// Calls /api/analyze and returns the parsed artwork JSON. Retries (up to 3 tries) when
+// the reply was cut off by the token limit, came back empty, was a refusal, or was
+// prose instead of JSON — each retry adjusts the request, and the final error says
+// exactly what Claude returned instead of a generic "could not parse".
+async function requestArtworkJson({ systemPrompt, userPrompt, base64, mediaType }) {
+  const attempts = [
+    { max_tokens: 2048, extra: '' },
+    { max_tokens: 4096, extra: '' },
+    { max_tokens: 4096, extra: '\n\nIMPORTANT: Reply with ONLY the JSON object — no commentary. If you are unsure or cannot identify the work, still fill every field with your best estimate or "Unknown" and set a low confidence.' }
+  ];
+  let lastProblem = '';
+  for (const a of attempts) {
+    const response = await fetch(`${serverUrl}/api/analyze`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({
+        model: 'claude-opus-5',
+        max_tokens: a.max_tokens,
+        system: systemPrompt,
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } },
+            { type: 'text', text: userPrompt + a.extra }
+          ]
+        }]
+      })
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err?.error?.message || `HTTP ${response.status}`); // real API errors: don't retry blindly
+    }
+    const data = await response.json();
+    const text = data.content?.find(b => b.type === 'text')?.text || '';
+    const stop = data.stop_reason || 'unknown';
+    const objText = extractJsonObject(text);
+    if (objText) {
+      try { return { parsed: JSON.parse(objText), data }; }
+      catch (e) { lastProblem = `invalid JSON (${e.message})`; continue; }
+    }
+    lastProblem = !text
+      ? `empty reply (stop reason: ${stop})`
+      : stop === 'max_tokens' ? 'reply was cut off before the JSON finished'
+      : stop === 'refusal'    ? 'Claude declined to analyze this image'
+      : `Claude replied with text instead of JSON: "${text.slice(0, 80).replace(/\s+/g, ' ')}…"`;
+    console.warn('Analysis attempt failed:', lastProblem, data);
+  }
+  throw new Error(`AI response could not be read — ${lastProblem}. Try re-uploading this photo.`);
+}
+
 function enqueueAnalysis(photo) {
   analysisQueue = analysisQueue
     .then(() => analysePhoto(photo))
@@ -973,36 +1050,7 @@ Return a JSON object with EXACTLY these fields (no markdown, raw JSON only):
   "artistHint": "Additional context about the artist — nationality, active period, signature techniques"
 }`;
 
-    const response = await fetch(`${serverUrl}/api/analyze`, {
-      method: 'POST',
-      headers: authHeaders(),
-      body: JSON.stringify({
-        model: 'claude-opus-5',
-        max_tokens: 2048,
-        system: systemPrompt,
-        messages: [{
-          role: 'user',
-          content: [
-            { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } },
-            { type: 'text', text: userPrompt }
-          ]
-        }]
-      })
-    });
-
-    if (!response.ok) {
-      const err = await response.json().catch(() => ({}));
-      throw new Error(err?.error?.message || `HTTP ${response.status}`);
-    }
-
-    const data = await response.json();
-    // See note above: skip past any leading "thinking" block to find the actual answer.
-    const text = data.content?.find(b => b.type === 'text')?.text || '';
-
-    // Extract JSON — handle cases where model wraps in markdown
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error('Could not parse AI response as JSON.');
-    const parsed = JSON.parse(jsonMatch[0]);
+    const { parsed, data } = await requestArtworkJson({ systemPrompt, userPrompt, base64, mediaType });
 
     // Normalize Claude's location string to a canonical Google Places name so it
     // matches what the manual-edit Places autocomplete produces.
@@ -1022,7 +1070,7 @@ Return a JSON object with EXACTLY these fields (no markdown, raw JSON only):
       style:        parsed.style        || 'Unknown Style',
       medium:       parsed.medium       || 'Unknown Medium',
       period:       parsed.period       || 'Unknown Period',
-      confidence:   typeof parsed.confidence === 'number' ? parsed.confidence : 75,
+      confidence:   parseConfidence(parsed.confidence), // tolerates 85, "85", "85%"
       description:  parsed.description  || '',
       artistHint:   parsed.artistHint   || '',
       model:        data.model          || 'claude-haiku',
@@ -1171,9 +1219,13 @@ Return ONLY a valid JSON object with exactly these keys (raw JSON, no markdown f
     const data = await res.json();
     // See note above: skip past any leading "thinking" block to find the actual answer.
     const text = data.content?.find(b => b.type === 'text')?.text || '';
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error('Could not parse AI response as JSON.');
-    const parsed = JSON.parse(jsonMatch[0]);
+    const objText = extractJsonObject(text);
+    if (!objText) {
+      throw new Error(data.stop_reason === 'max_tokens'
+        ? 'AI reply was cut off before finishing — please try again.'
+        : 'AI reply did not contain readable JSON — please try again.');
+    }
+    const parsed = JSON.parse(objText);
 
     // Update only the regeneratable fields in the edit form
     // (never overwrite paintingName, artist, location, country — those are confirmed by the curator)
