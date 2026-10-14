@@ -1295,6 +1295,20 @@ window.fetch = async (...args) => {
 function isTokenExpired(token){try{const p=JSON.parse(atob(token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));return !p.exp||p.exp*1000<=Date.now()+30000;}catch(_){return true;}}
   try { const t = localStorage.getItem('adminToken'); if (t && !isTokenExpired(t)) { adminToken = t; updateAdminUI(); } else if (t) { localStorage.removeItem('adminToken'); } } catch(_) {}
 
+  // Sliding session: swap the current admin token for a fresh one so it never lapses
+  // while the site is in use. Runs on load and whenever the tab becomes visible again.
+  async function refreshAdminToken() {
+    if (!adminToken) return;
+    try {
+      const res = await fetch(`${SERVER_URL}/api/refresh`, { method: 'POST', headers: { 'content-type': 'application/json', 'Authorization': `Bearer ${adminToken}` } });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.token) { adminToken = data.token; try { localStorage.setItem('adminToken', adminToken); } catch(_) {} }
+    } catch(_) {}
+  }
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') refreshAdminToken(); });
+  refreshAdminToken();
+
   loadPhotos();
 </script>
 </body>

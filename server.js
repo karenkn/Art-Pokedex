@@ -143,6 +143,7 @@ pool.query(`
 
 // ── Auth helpers ──────────────────────────────────────────────────────────────
 const JWT_SECRET = process.env.JWT_SECRET;
+const ADMIN_TOKEN_TTL = '14d';
 
 // Middleware: verify JWT on write requests
 function authenticate(req, res, next) {
@@ -323,7 +324,7 @@ app.get('/api/reverse-geocode-places', async (req, res) => {
 
 // ── POST /api/login ───────────────────────────────────────────────────────────
 // Body: { password: "..." }
-// Returns: { token: "<jwt>" }  (valid 12 hours)
+// Returns: { token: "<jwt>" }  (valid 14 days; renewed via /api/refresh)
 app.post('/api/login', loginLimit, async (req, res) => {
   if (!JWT_SECRET) {
     return res.status(500).json({ error: 'JWT_SECRET is not configured on the server.' });
@@ -337,8 +338,15 @@ app.post('/api/login', loginLimit, async (req, res) => {
   if (!valid) {
     return res.status(401).json({ error: 'Incorrect password.' });
   }
-  const token = jwt.sign({ role: 'admin' }, JWT_SECRET, { expiresIn: '12h' });
+  const token = jwt.sign({ role: 'admin' }, JWT_SECRET, { expiresIn: ADMIN_TOKEN_TTL });
   res.json({ token });
+});
+
+// ── POST /api/refresh — admin only: swap a still-valid token for a fresh one ──
+// The pages call this on load / when the tab becomes visible, so an admin who
+// keeps using the site never hits an expired token (sliding session).
+app.post('/api/refresh', authenticate, (_req, res) => {
+  res.json({ token: jwt.sign({ role: 'admin' }, JWT_SECRET, { expiresIn: ADMIN_TOKEN_TTL }) });
 });
 
 // ── POST /api/photos/:id/like — public: add a like ───────────────────────────

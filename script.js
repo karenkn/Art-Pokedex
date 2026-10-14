@@ -2525,5 +2525,20 @@ try {
   }
 } catch (_) {}
 
+
+// Sliding session: swap the current admin token for a fresh one so it never lapses
+// while the site is in use. Runs on load and whenever the tab becomes visible again.
+async function refreshAdminToken() {
+  if (!adminToken) return;
+  try {
+    const res = await fetch(`${serverUrl}/api/refresh`, { method: 'POST', headers: { 'content-type': 'application/json', 'Authorization': `Bearer ${adminToken}` } });
+    if (!res.ok) return; // 401 is handled by the global fetch wrapper
+    const data = await res.json();
+    if (data.token) { adminToken = data.token; try { localStorage.setItem('adminToken', adminToken); } catch (_) {} }
+  } catch (_) {}
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') refreshAdminToken(); });
+refreshAdminToken();
+
 // Load any previously saved photos from the database
 loadSavedPhotos();
