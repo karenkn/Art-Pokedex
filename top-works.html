@@ -366,7 +366,6 @@
     <a href="top-works.html" class="active">Top Works</a>
     <a href="blog.html">Design &amp; Process</a>
     <a href="submit.html">Submit a Photo</a>
-    <button class="admin-btn normalize-artists-btn" id="normalizeArtistsNav" style="display:none" onclick="normalizeArtists()">👤 Normalize Artists</button>
     <button class="admin-btn" id="adminBtn" onclick="toggleAdminLogin()">🔒 Admin</button>
   </nav>
   <button class="header-hamburger" onclick="document.getElementById('headerMobileMenu').classList.toggle('open')" aria-label="Menu">☰</button>
@@ -376,7 +375,6 @@
   <a href="top-works.html" class="active">Top Works</a>
   <a href="blog.html">Design &amp; Process</a>
   <a href="submit.html">Submit a Photo</a>
-  <button class="normalize-artists-btn" id="normalizeArtistsMobile" style="display:none" onclick="normalizeArtists(); document.getElementById('headerMobileMenu').classList.remove('open')">👤 Normalize Artists</button>
   <button onclick="toggleAdminLogin(); document.getElementById('headerMobileMenu').classList.remove('open')">🔒 Admin Login</button>
 </div>
 
@@ -613,7 +611,6 @@
   </div>
 </div>
 
-<script src="normalize-artists.js"></script>
 <script>
   const SERVER_URL = (() => {
     if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
@@ -663,7 +660,6 @@
     btn.textContent = adminToken ? '🔓 Logged In (Logout)' : '🔒 Admin';
     btn.classList.toggle('logged-in', !!adminToken);
     document.getElementById('rankBanner').classList.toggle('visible', !!adminToken);
-    document.querySelectorAll('.normalize-artists-btn').forEach(b => { b.style.display = adminToken ? '' : 'none'; });
     if (adminToken) refreshBannerCounts();
     renderList();
     if (activeId) { const p = photos.find(x=>x.id===activeId); if(p) renderModal(p); }

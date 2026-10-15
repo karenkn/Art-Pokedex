@@ -25,7 +25,6 @@
     <a href="top-works.html">Top Works</a>
     <a href="blog.html">Design & Process</a>
     <a href="submit.html">Submit a Photo</a>
-    <button class="admin-btn admin-only normalize-artists-btn" style="display:none" onclick="normalizeArtists()">👤 Normalize Artists</button>
     <button class="admin-btn" id="adminBtn" onclick="toggleAdminLogin()">🔒 Admin</button>
   </nav>
   <button class="header-hamburger" onclick="document.getElementById('headerMobileMenu').classList.toggle('open')" aria-label="Menu">☰</button>
@@ -35,7 +34,6 @@
   <a href="top-works.html">Top Works</a>
   <a href="blog.html">Design & Process</a>
   <a href="submit.html">Submit a Photo</a>
-  <button class="admin-only normalize-artists-btn" style="display:none" onclick="normalizeArtists(); document.getElementById('headerMobileMenu').classList.remove('open')">👤 Normalize Artists</button>
   <button onclick="toggleAdminLogin(); document.getElementById('headerMobileMenu').classList.remove('open')">🔒 Admin Login</button>
 </div>
 
@@ -64,6 +62,7 @@
   <input type="file" id="fileInput" accept="image/*,.heic,.heif" multiple onchange="handleFiles(this.files)" />
   <button class="clear-btn admin-only" onclick="clearAll()" style="display:none">🗑 Clear All</button>
   <button class="clear-btn admin-only" id="normalizeBtn" onclick="normalizeAllLocations()" style="display:none">🔧 Normalize Locations</button>
+  <button class="clear-btn admin-only normalize-artists-btn" onclick="normalizeArtists()" style="display:none">👤 Normalize Artists</button>
   <button class="clear-btn admin-only" id="consolidateStylesBtn" onclick="consolidateStyles()" style="display:none">🎨 Consolidate Styles</button>
   <button class="clear-btn admin-only select-mode-btn" id="selectModeBtn" onclick="toggleSelectMode()" style="display:none">☑ Select</button>
 
