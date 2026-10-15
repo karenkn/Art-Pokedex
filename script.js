@@ -522,83 +522,103 @@ async function consolidateStyles() {
   const btn = document.getElementById('consolidateStylesBtn');
   btn.disabled = true;
   btn.textContent = '⏳ Consolidating…';
+  const reset = (label, ms) => {
+    btn.disabled = false;
+    btn.textContent = label;
+    if (ms) setTimeout(() => { btn.textContent = '🎨 Consolidate Styles'; }, ms);
+  };
 
   const done = photos.filter(p => p.status === 'done' && p.aiData?.style);
   const uniqueStyles = [...new Set(done.map(p => p.aiData.style).filter(s => s && s !== 'Unknown Style'))];
+  if (uniqueStyles.length < 2) return reset('🎨 Consolidate Styles');
 
-  if (uniqueStyles.length < 2) {
-    btn.disabled = false;
-    btn.textContent = '🎨 Consolidate Styles';
-    return;
+  // A single request for hundreds of tags makes Claude spend its whole token budget
+  // "thinking" and return nothing, so work in small batches. Canonical names chosen in
+  // earlier batches are passed to later ones so the same movement gets the same name.
+  const BATCH = 25;
+  const canonical = new Set(uniqueStyles.filter(s => !/[\/(]/.test(s) && s.length <= 30));
+  const mapping = {};
+  let skipped = 0;
+
+  async function mapBatch(tags) {
+    const known = [...canonical].slice(0, 60);
+    const prompt = `You are an art historian. These style tags were auto-generated and are too specific — many use a compound "Primary / Secondary" format. Map every tag to one concise, museum-standard canonical art movement name (e.g. "Cubism", "Surrealism", "Abstract Expressionism", "Pop Art", "Minimalism", "Contemporary Art"), aiming for roughly 15–20 core movements overall.
+
+Rules:
+1. For compound "X / Y" tags, pick the most historically significant primary movement.
+2. Collapse overly specific sub-variants into their parent movement.
+3. Group regional or era qualifiers under the core movement.
+4. Keep genuinely distinct movements separate (Impressionism vs Post-Impressionism).
+5. Prefer reusing a name from this list of already-chosen canonical names when it fits: ${JSON.stringify(known)}
+
+Return ONLY a valid JSON object mapping every input tag to its canonical name. Raw JSON only — no markdown fences, no explanation.
+
+Tags: ${JSON.stringify(tags)}`;
+
+    try {
+      const res = await fetchWithRetry(`${serverUrl}/api/analyze`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({
+          model: 'claude-opus-5',
+          max_tokens: 4096,
+          messages: [{ role: 'user', content: [{ type: 'text', text: prompt }] }]
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error?.message || `HTTP ${res.status}`);
+      // Skip any leading "thinking" block; a reply cut off by the token limit has no
+      // balanced JSON object, which triggers the split-and-retry below.
+      const text = data.content?.find(b => b.type === 'text')?.text || '';
+      const objText = extractJsonObject(text);
+      if (!objText) throw new Error(data.stop_reason === 'max_tokens' ? 'truncated' : 'no JSON in reply');
+      const part = JSON.parse(objText);
+      for (const t of tags) {
+        const c = typeof part[t] === 'string' ? part[t].trim() : '';
+        if (c) { mapping[t] = c; canonical.add(c); }
+        else skipped++;
+      }
+    } catch (err) {
+      if (err.message && /HTTP 4|not permitted|Too many|Network connection lost/.test(err.message)) throw err; // real API errors: stop
+      if (tags.length > 1) {                // truncated / unreadable → retry in two smaller halves
+        const mid = Math.ceil(tags.length / 2);
+        await mapBatch(tags.slice(0, mid));
+        await mapBatch(tags.slice(mid));
+      } else {
+        skipped++;
+        console.warn('Style consolidation: could not map', tags[0], err.message);
+      }
+    }
   }
 
   try {
-    // Ask Claude to map every compound/specific style tag to a canonical art movement
-    const res = await fetch(`${serverUrl}/api/analyze`, {
-      method: 'POST',
-      headers: authHeaders(),
-      body: JSON.stringify({
-        model: 'claude-opus-5',
-        max_tokens: 4096,
-        messages: [{
-          role: 'user',
-          content: [{ type: 'text', text: `You are an art historian. The following style tags were auto-generated and are far too specific — many use a compound "Primary / Secondary" format. Your job is to map every tag to one concise, well-known canonical art movement name, reducing the full list down to roughly 15–20 core movements.
-
-Rules:
-1. For compound "X / Y" tags, pick the most historically significant primary movement (e.g. "Mexican Muralism / Social Realism" → "Mexican Muralism").
-2. Collapse overly specific sub-variants into their parent movement (e.g. "Abstract Expressionism / Gestural Abstraction" → "Abstract Expressionism").
-3. Group regional or era qualifiers under the core movement (e.g. "Contemporary Figurative / Afrofuturism" → "Afrofuturism", "Fauvism / Post-Impressionism" → "Fauvism").
-4. Keep genuinely distinct movements separate (Impressionism vs Post-Impressionism, Surrealism vs Cubism).
-5. Use short, museum-standard names (e.g. "Cubism", "Surrealism", "Abstract Expressionism", "Pop Art", "Minimalism", "Contemporary Art").
-
-Return ONLY a valid JSON object mapping every input tag to its canonical name. Raw JSON only — no markdown fences, no explanation, no extra keys.
-
-Tags: ${JSON.stringify(uniqueStyles)}` }]
-        }]
-      })
-    });
-
-    const data = await res.json();
-    // Some models (e.g. claude-opus-5) return extended-thinking output as a leading
-    // "thinking" content block before the actual "text" block — find by type instead
-    // of assuming content[0] is the answer.
-    const text = data.content?.find(b => b.type === 'text')?.text || '';
-    if (!text) throw new Error(JSON.stringify(data.error) || 'Empty response from API');
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error('No JSON found in response');
-    let mapping;
-    try {
-      mapping = JSON.parse(jsonMatch[0]);
-    } catch (parseErr) {
-      // Most likely the response got cut off mid-JSON because there were too many
-      // unique style tags to fit in the token budget — surface a clearer message
-      // instead of the raw "Unexpected end of JSON input" parser error.
-      if (data.stop_reason === 'max_tokens') {
-        throw new Error(`Response truncated — too many unique styles (${uniqueStyles.length}) for one request. Try consolidating in smaller batches.`);
-      }
-      throw parseErr;
+    const batches = [];
+    for (let i = 0; i < uniqueStyles.length; i += BATCH) batches.push(uniqueStyles.slice(i, i + BATCH));
+    for (let i = 0; i < batches.length; i++) {
+      btn.textContent = `⏳ Consolidating ${i + 1}/${batches.length}…`;
+      await mapBatch(batches[i]);
     }
 
     // Apply only entries where the canonical name differs from the current one
-    let updateCount = 0;
-    for (const photo of done) {
-      const canonical = mapping[photo.aiData.style];
-      if (canonical && canonical !== photo.aiData.style) {
-        photo.aiData.style = canonical;
-        updatePhotoDB(photo);
-        updateCount++;
-      }
+    const changed = done.filter(p => {
+      const c = mapping[p.aiData.style];
+      return c && c !== p.aiData.style;
+    });
+    changed.forEach(p => { p.aiData.style = mapping[p.aiData.style]; });
+    render();
+
+    // Persist in small parallel chunks so we don't fire hundreds of requests at once
+    for (let i = 0; i < changed.length; i += 5) {
+      await Promise.all(changed.slice(i, i + 5).map(p => updatePhotoDB(p)));
     }
 
-    render();
-    btn.disabled = false;
-    btn.textContent = updateCount ? `✓ ${updateCount} updated` : '✓ Already consolidated';
-    setTimeout(() => { btn.textContent = '🎨 Consolidate Styles'; }, 3000);
+    const label = changed.length
+      ? `✓ ${changed.length} updated${skipped ? ` (${skipped} tags skipped)` : ''}`
+      : '✓ Already consolidated';
+    reset(label, 4000);
   } catch (err) {
     console.error('Style consolidation error:', err);
-    btn.disabled = false;
-    btn.textContent = `⚠ Error: ${err.message.slice(0, 40)}`;
-    setTimeout(() => { btn.textContent = '🎨 Consolidate Styles'; }, 4000);
+    reset(`⚠ Error: ${err.message.slice(0, 40)}`, 5000);
   }
 }
 
