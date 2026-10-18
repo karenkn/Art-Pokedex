@@ -1395,7 +1395,10 @@ async function saveBulkEdit() {
   await Promise.all([...selectedPhotoIds].map(id => {
     const photo = photos.find(p => p.id === id);
     if (!photo?.aiData) return Promise.resolve();
-    if (newLocation) photo.aiData.location = newLocation;
+    if (newLocation) {
+      if (newLocation !== photo.aiData.location) photo.locationEdited = true;
+      photo.aiData.location = newLocation;
+    }
     if (newCountry)  photo.aiData.country  = newCountry;
     photo.aiData.manuallyEdited = true;
     return updatePhotoDB(photo);
@@ -2122,7 +2125,9 @@ function saveEdit() {
 
   p.aiData.paintingName = document.getElementById('editPaintingName').value.trim() || p.aiData.paintingName;
   p.aiData.artist       = document.getElementById('editArtistName').value.trim()   || p.aiData.artist;
+  const prevLocation    = p.aiData.location;
   p.aiData.location     = document.getElementById('editLocation').value.trim()     || p.aiData.location;
+  if (p.aiData.location !== prevLocation) p.locationEdited = true; // original GPS no longer describes it
   p.aiData.country      = document.getElementById('editCountry').value.trim()      || p.aiData.country;
   p.aiData.style        = document.getElementById('editStyle').value.trim()        || p.aiData.style;
   p.aiData.medium       = document.getElementById('editMedium').value.trim()       || p.aiData.medium;
@@ -2377,11 +2382,14 @@ async function updateMap() {
     // Re-use cached coords if marker already exists for this location
     let coords = mapMarkers[loc]?.coords;
     if (!coords) {
-      // Prefer exact GPS coords from any photo in this group
-      const photoWithGPS = items.find(p => p.gpsCoords);
-      coords = photoWithGPS
-        ? photoWithGPS.gpsCoords
-        : await geocodeLocation(loc);
+      // The marker must match the (possibly edited) location name, so geocode that name
+      // first. Original photo GPS is only a fallback, because it describes where the photo
+      // was taken, not where the user says the artwork is.
+      coords = await geocodeLocation(loc);
+      if (!coords) {
+        const photoWithGPS = items.find(p => p.gpsCoords && !p.locationEdited);
+        coords = photoWithGPS ? photoWithGPS.gpsCoords : null;
+      }
     }
     if (!coords) continue;
 
