@@ -1050,7 +1050,7 @@ body.select-mode .photo-card.selected {
 .bulk-edit-grid { grid-template-columns: 1fr; }
 
 /* ── Rating UI (modal) ── */
-#modalRating { margin: 0 0 10px; }
+#modalRating { margin: 10px 0 10px; } /* top gap matches the 10px gap between detail boxes */
 .modal-title-row {
   display: flex; align-items: flex-start; justify-content: space-between; gap: 10px;
 }
