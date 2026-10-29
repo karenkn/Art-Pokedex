@@ -84,6 +84,9 @@ pool.query(`
 }).then(() => {
   // Tier column: 'like' | 'okay' | 'dislike' | NULL (untriaged)
   return pool.query(`ALTER TABLE photos ADD COLUMN IF NOT EXISTS tier TEXT`);
+}).then(() => {
+  // Small gallery thumbnail stored as raw bytes (not base64) — served by GET /api/photos/:id/thumb?size=small
+  return pool.query(`ALTER TABLE photos ADD COLUMN IF NOT EXISTS thumb_small BYTEA`);
 }).catch(err => console.error('Database init error:', err.message));
 
 // Comparisons log — one row per head-to-head decision
@@ -657,10 +660,21 @@ app.patch('/api/submissions/:id', authenticate, async (req, res) => {
 app.get('/health', (_req, res) => res.json({ ok: true }));
 
 // ── GET /api/photos — public: anyone can view ─────────────────────────────────
+// Metadata only: image bytes are NOT included (they made this response >150 MB).
+// Images load separately from GET /api/photos/:id/thumb, which browsers cache.
+// has_image / has_small / img_v let the client build cache-busting image URLs.
 app.get('/api/photos', async (_req, res) => {
   try {
     const result = await pool.query(
-      'SELECT * FROM photos ORDER BY created_at DESC'
+      `SELECT id, name, painting_name, artist, location, country, style, medium, period,
+              confidence, description, artist_hint, manually_edited, location_source,
+              gps_lat, gps_lng, ai_model, likes, pinned, user_submitted, rating,
+              elo_score, tier, created_at,
+              (thumbnail IS NOT NULL AND thumbnail <> '') AS has_image,
+              (thumb_small IS NOT NULL)                   AS has_small,
+              COALESCE(length(thumbnail), 0)              AS img_v
+         FROM photos
+        ORDER BY created_at DESC`
     );
     res.json(result.rows);
   } catch (err) {
@@ -669,9 +683,56 @@ app.get('/api/photos', async (_req, res) => {
   }
 });
 
+// ── GET /api/photos/:id/thumb — public: the photo as a cacheable JPEG ─────────
+// ?size=small returns the compact gallery thumbnail when one exists, else the full one.
+// URLs carry a ?v= version, so responses can be cached by the browser "forever".
+app.get('/api/photos/:id/thumb', async (req, res) => {
+  try {
+    const wantSmall = req.query.size === 'small';
+    const result = await pool.query(
+      `SELECT ${wantSmall ? 'thumb_small,' : ''} thumbnail FROM photos WHERE id = $1`,
+      [req.params.id]
+    );
+    const row = result.rows[0];
+    if (!row) return res.status(404).json({ error: 'Not found' });
+    let buf = wantSmall && row.thumb_small ? row.thumb_small : null;
+    if (!buf && row.thumbnail) buf = Buffer.from(row.thumbnail, 'base64');
+    if (!buf || !buf.length) return res.status(404).json({ error: 'No image' });
+    res.set({
+      'Content-Type':  'image/jpeg',
+      'Cache-Control': 'public, max-age=31536000, immutable',
+      // img tags don't need CORS, but the admin "Optimize Images" tool reads these as blobs
+      'Cross-Origin-Resource-Policy': 'cross-origin'
+    });
+    res.send(buf);
+  } catch (err) {
+    console.error('Load thumb error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── PUT /api/photos/:id/thumb-small — admin only: store the compact gallery thumbnail
+app.put('/api/photos/:id/thumb-small', authenticate, async (req, res) => {
+  const { thumbSmall } = req.body || {};
+  if (typeof thumbSmall !== 'string' || !thumbSmall || thumbSmall.length > 700_000) {
+    return res.status(400).json({ error: 'thumbSmall (base64 JPEG, max ~500 KB) is required.' });
+  }
+  try {
+    const r = await pool.query(
+      'UPDATE photos SET thumb_small = $1 WHERE id = $2',
+      [Buffer.from(thumbSmall, 'base64'), req.params.id]
+    );
+    if (!r.rowCount) return res.status(404).json({ error: 'Not found' });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Save thumb-small error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ── POST /api/photos — admin only ────────────────────────────────────────────
 app.post('/api/photos', authenticate, async (req, res) => {
-  const { id, name, thumbnail, aiData, locationSource, gpsCoords } = req.body;
+  const { id, name, thumbnail, thumbSmall, aiData, locationSource, gpsCoords } = req.body;
   const d = aiData || {};
   try {
     await pool.query(
@@ -709,6 +770,10 @@ app.post('/api/photos', authenticate, async (req, res) => {
         d.model || null
       ]
     );
+    // Optional compact gallery thumbnail sent by the uploader
+    if (typeof thumbSmall === 'string' && thumbSmall && thumbSmall.length <= 700_000) {
+      await pool.query('UPDATE photos SET thumb_small = $1 WHERE id = $2', [Buffer.from(thumbSmall, 'base64'), id]);
+    }
     res.json({ ok: true });
   } catch (err) {
     console.error('Save photo error:', err.message);
