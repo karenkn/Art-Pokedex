@@ -517,6 +517,50 @@ async function normalizeAllLocations() {
   setTimeout(() => { btn.textContent = '🔧 Normalize Locations'; }, 3000);
 }
 
+// Creates the compact gallery thumbnail for saved photos that don't have one yet.
+// Runs in the browser (canvas) so the server needs no image-processing dependency.
+async function optimizeImages() {
+  if (!adminToken) return;
+  const btn = document.getElementById('optimizeImagesBtn');
+  const todo = photos.filter(p => p.fromDB && !p.hasSmall);
+  if (!todo.length) {
+    btn.textContent = '✓ All images optimized';
+    setTimeout(() => { btn.textContent = '🖼 Optimize Images'; }, 3000);
+    return;
+  }
+  btn.disabled = true;
+  let done = 0, failed = 0, i = 0;
+  const label = () => { btn.textContent = `⏳ Optimizing ${done + failed}/${todo.length}…`; };
+  label();
+
+  async function worker() {
+    while (i < todo.length) {
+      const p = todo[i++];
+      try {
+        const full = await (await fetch(p.url)).blob();
+        const { base64 } = await compressAndConvert(full, { maxDimension: SMALL_THUMB_PX, quality: 0.75 });
+        const res = await fetch(`${serverUrl}/api/photos/${encodeURIComponent(p.id)}/thumb-small`, {
+          method: 'PUT', headers: authHeaders(), body: JSON.stringify({ thumbSmall: base64 })
+        });
+        if (res.status === 401) { handleSessionExpired(); i = todo.length; throw new Error('session expired'); }
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        p.hasSmall = true;
+        p.thumbUrl = p.thumbUrl.replace(/v=([^&]*)$/, (_, v) => `v=${v.replace(/s$/, '')}s`);
+        done++;
+      } catch (err) {
+        failed++;
+        console.warn('Optimize image failed for', p.id, err.message);
+      }
+      label();
+    }
+  }
+  await Promise.all([worker(), worker(), worker()]);
+  btn.disabled = false;
+  btn.textContent = failed ? `✓ ${done} optimized · ${failed} failed` : `✓ ${done} optimized`;
+  setTimeout(() => { btn.textContent = '🖼 Optimize Images'; }, 5000);
+  render();
+}
+
 async function consolidateStyles() {
   if (!adminToken) return;
   const btn = document.getElementById('consolidateStylesBtn');
@@ -662,8 +706,11 @@ async function loadSavedPhotos() {
       const photo = {
         id:             row.id,
         name:           row.name,
-        // Thumbnail stored as base64; reconstruct a displayable URL
-        url:            `data:image/jpeg;base64,${row.thumbnail}`,
+        // Images are fetched by URL (browser-cached), not embedded in the list response.
+        // ?v= changes whenever the stored image does, so long caching is safe.
+        url:            `${serverUrl}/api/photos/${encodeURIComponent(row.id)}/thumb?v=${row.img_v || 0}`,
+        thumbUrl:       `${serverUrl}/api/photos/${encodeURIComponent(row.id)}/thumb?size=small&v=${row.img_v || 0}${row.has_small ? 's' : ''}`,
+        hasSmall:       !!row.has_small,
         file:           null,   // no File object for saved photos
         status:         'done',
         locationSource: row.location_source || 'ai',
@@ -762,6 +809,8 @@ async function compressAndConvert(file, { maxDimension = 1920, quality = 0.85 } 
 }
 
 // Thumbnail variant: smaller footprint for DB storage / gallery cards
+const SMALL_THUMB_PX = 480; // longest side of gallery-card thumbnails
+
 async function compressThumbnail(file) {
   try {
     const { base64 } = await compressAndConvert(file, { maxDimension: 900, quality: 0.82 });
@@ -783,6 +832,9 @@ async function savePhotoToDB(photo) {
     }
     const thumbnail = await compressThumbnail(source);
     if (!thumbnail) throw new Error('Could not create a thumbnail for this image.');
+    // Compact version for gallery cards (best-effort; the server falls back to the full one)
+    let thumbSmall = null;
+    try { thumbSmall = (await compressAndConvert(source, { maxDimension: SMALL_THUMB_PX, quality: 0.75 })).base64; } catch (_) {}
 
     const res = await fetchWithRetry(`${serverUrl}/api/photos`, {
       method:  'POST',
@@ -791,6 +843,7 @@ async function savePhotoToDB(photo) {
         id:             photo.id,
         name:           photo.name,
         thumbnail,
+        thumbSmall,
         aiData:         photo.aiData,
         locationSource: photo.locationSource,
         gpsCoords:      photo.gpsCoords || null
@@ -1205,6 +1258,18 @@ async function reanalyzeFromEdit() {
     base64 = parts[1] || null;
     const mimeMatch = parts[0].match(/data:([^;]+);/);
     if (mimeMatch) mediaType = mimeMatch[1];
+  } else if (p.url) {
+    // Saved photo: download the stored image from the server and encode it
+    try {
+      const blob = await (await fetch(p.url)).blob();
+      mediaType = blob.type || 'image/jpeg';
+      base64 = await new Promise((resolve, reject) => {
+        const r = new FileReader();
+        r.onload  = () => resolve(String(r.result).split(',')[1]);
+        r.onerror = reject;
+        r.readAsDataURL(blob);
+      });
+    } catch (_) { base64 = null; }
   }
 
   if (!base64) {
@@ -1949,7 +2014,7 @@ function photoCard(p, featured = false) {
     ${adminToken ? `<button type="button" class="delete-btn" title="Remove photo" onclick="event.stopPropagation(); deletePhoto('${p.id}')">✕</button>` : ''}
     ${adminToken ? `<div class="select-checkbox${selectedPhotoIds.has(p.id) ? ' checked' : ''}" onclick="event.stopPropagation(); toggleCardSelection('${p.id}')">✓</div>` : ''}
     <div class="card-img-wrap">
-      <img src="${p.url}" alt="${escHtml(p.name)}" loading="lazy" />
+      <img src="${p.thumbUrl || p.url}" alt="${escHtml(p.name)}" loading="lazy" decoding="async" />
       ${p.pinned ? `<div class="pinned-badge">★ FEATURED</div>` : ''}
       ${communityBadge}
       ${gpsBadge}
@@ -2547,7 +2612,7 @@ function renderSidebarList(entries) {
     const country = items[0]?.aiData?.country || '';
     const meta = `${country}${country ? ' · ' : ''}${items.length} photo${items.length > 1 ? 's' : ''}`;
     const thumbsHtml = items.slice(0, 3).map(p =>
-      `<img class="sidebar-loc-thumb" src="${p.url}" alt="${escHtml(p.aiData?.paintingName || p.name)}" loading="lazy" />`
+      `<img class="sidebar-loc-thumb" src="${p.thumbUrl || p.url}" alt="${escHtml(p.aiData?.paintingName || p.name)}" loading="lazy" />`
     ).join('');
     const moreHtml = items.length > 3
       ? `<div class="sidebar-loc-thumb sidebar-loc-more">+${items.length - 3}</div>` : '';

@@ -625,6 +625,9 @@
 
   const TIER_LABELS = { like: '👍 Like', okay: '😐 Okay', dislike: '👎 Dislike' };
 
+  // Triage/compare endpoints send raw base64; saved photos are image URLs.
+  function thumbSrc(t) { return /^(https?:|data:)/.test(t || '') ? t : `data:image/jpeg;base64,${t}`; }
+
   function authHeaders() {
     const h = { 'content-type': 'application/json' };
     if (adminToken) h['Authorization'] = `Bearer ${adminToken}`;
@@ -711,9 +714,11 @@
       const res  = await fetch(`${SERVER_URL}/api/photos`);
       const rows = await res.json();
       if (!Array.isArray(rows)) return;
-      photos = rows.filter(r=>r.id&&r.thumbnail).map(r => ({
+      photos = rows.filter(r=>r.id&&r.has_image).map(r => ({
         id: r.id, name: r.name,
-        url: `data:image/jpeg;base64,${r.thumbnail}`,
+        // Fetched by URL (browser-cached) instead of being embedded in the list response
+        url: `${SERVER_URL}/api/photos/${encodeURIComponent(r.id)}/thumb?v=${r.img_v||0}`,
+        thumbUrl: `${SERVER_URL}/api/photos/${encodeURIComponent(r.id)}/thumb?size=small&v=${r.img_v||0}${r.has_small?'s':''}`,
         rating: r.rating ?? null, eloScore: r.elo_score ?? 1500,
         tier: r.tier || null, likes: r.likes || 0,
         locationSource: r.location_source || 'ai',
@@ -757,7 +762,7 @@
     return `
       <div class="rank-row" onclick="openModal('${p.id}')">
         <div class="rank-num">${rank!=null?rank:''}</div>
-        <div class="rank-thumb"><img src="${p.url}" alt="${esc(title)}" loading="lazy"/></div>
+        <div class="rank-thumb"><img src="${p.thumbUrl||p.url}" alt="${esc(title)}" loading="lazy" decoding="async"/></div>
         <div class="rank-info">
           <div class="rank-title">${esc(title)}</div>
           <div class="rank-artist">${esc(artist)}</div>
@@ -909,7 +914,7 @@
       document.getElementById('triageProgressLabel').textContent = `${triaged} of ${total} sorted`;
       document.getElementById('ovSub').textContent               = `${untriaged} remaining`;
 
-      document.getElementById('triageImg').src            = `data:image/jpeg;base64,${data.photo.thumbnail}`;
+      document.getElementById('triageImg').src            = thumbSrc(data.photo.thumbnail);
       document.getElementById('triageTitle').textContent  = data.photo.title  || 'Untitled';
       document.getElementById('triageArtist').textContent = data.photo.artist || '—';
       document.getElementById('triageMeta').textContent   = [data.photo.location, data.photo.style].filter(Boolean).join(' · ');
@@ -1009,12 +1014,12 @@
     }
 
     // Populate new card
-    document.getElementById('plNewImg').src        = `data:image/jpeg;base64,${rankingPhoto.thumbnail}`;
+    document.getElementById('plNewImg').src        = thumbSrc(rankingPhoto.thumbnail);
     document.getElementById('plNewTitle').textContent  = rankingPhoto.title  || 'Untitled';
     document.getElementById('plNewArtist').textContent = rankingPhoto.artist || '—';
 
     // Populate opponent card
-    document.getElementById('plOppImg').src        = `data:image/jpeg;base64,${opp.thumbnail}`;
+    document.getElementById('plOppImg').src        = thumbSrc(opp.thumbnail);
     document.getElementById('plOppTitle').textContent  = opp.title  || 'Untitled';
     document.getElementById('plOppArtist').textContent = opp.artist || '—';
 
@@ -1099,7 +1104,7 @@
       artist:    p.aiData.artist  || '—',
       location:  p.aiData.location || '',
       style:     p.aiData.style   || '',
-      thumbnail: p.url.replace(/^data:image\/[^;]+;base64,/, ''),
+      thumbnail: p.url,
       tier:      p.tier
     };
 
@@ -1141,7 +1146,7 @@
       id:        c.id,
       title:     c.aiData.paintingName || c.name || 'Untitled',
       artist:    c.aiData.artist || '—',
-      thumbnail: c.url.replace(/^data:image\/[^;]+;base64,/, ''),
+      thumbnail: c.url,
       tier:      c.tier,
       elo:       c.eloScore || 1500
     }));
@@ -1205,7 +1210,7 @@
   }
 
   function renderCompareCard(side, data) {
-    document.getElementById(`card${side}Img`).src             = `data:image/jpeg;base64,${data.thumbnail}`;
+    document.getElementById(`card${side}Img`).src             = thumbSrc(data.thumbnail);
     document.getElementById(`card${side}Title`).textContent   = data.title  || 'Untitled';
     document.getElementById(`card${side}Artist`).textContent  = data.artist || '—';
     document.getElementById(`card${side}Meta`).innerHTML      = [data.location, data.style].filter(Boolean)
