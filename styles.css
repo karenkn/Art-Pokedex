@@ -1087,3 +1087,152 @@ body.select-mode .photo-card.selected {
 }
 .rating-pip:hover  { border-color: #1a1a1a; color: #1a1a1a; }
 .rating-pip.active { background: #1a1a1a; border-color: #1a1a1a; color: #fff; }
+
+
+/* ═════════════════════════════════════════════════════════════════════════════
+   Mobile-friendly layout (touch targets, filter bar, admin tools, modal, map sheet)
+   ═════════════════════════════════════════════════════════════════════════════ */
+
+/* Landscape phones: keep content clear of the notch */
+.toolbar, .stats-bar, .location-banner, .main {
+  padding-left:  max(clamp(16px, 4vw, 48px), env(safe-area-inset-left, 0px));
+  padding-right: max(clamp(16px, 4vw, 48px), env(safe-area-inset-right, 0px));
+}
+
+/* Desktop: the admin tool buttons sit inline in the toolbar as before */
+.admin-tools { display: contents; }
+.admin-tools-toggle { display: none; }
+.select-mode-btn { order: 0; }
+
+/* ── Touch targets (≥44px) ── */
+@media (pointer: coarse) {
+  .upload-btn, .clear-btn, .group-btn, .location-banner-btn, .modal-edit-btn, .modal-delete-btn,
+  .retry-btn { min-height: 44px; }
+  .upload-btn { padding: 0 18px; justify-content: center; }
+  .clear-btn  { padding: 0 14px; font-size: 12px; }
+  .filter-btn { min-height: 44px; padding: 0 16px; font-size: 12px; }
+  .group-btn  { padding: 0 14px; font-size: 12px; }
+  .sort-select { min-height: 44px; font-size: 13px; padding-right: 4px; }
+  .location-banner-btn { padding: 0 16px; }
+  .sidebar-loc-row { min-height: 56px; }
+  /* Card controls: visible size stays small, but the tappable area grows */
+  .delete-btn, .select-checkbox { overflow: visible; }
+  .delete-btn::after, .select-checkbox::after { content: ''; position: absolute; inset: -9px; }
+  .delete-btn { width: 32px; height: 32px; line-height: 32px; font-size: 15px; }
+  .select-checkbox { width: 30px; height: 30px; font-size: 15px; }
+  .like-btn { padding: 8px 6px; margin: -8px -6px; }
+}
+/* No hover on touch screens — show the admin delete control so it's reachable */
+@media (hover: none) {
+  .photo-card .delete-btn { display: block; }
+  body.select-mode .photo-card .delete-btn { display: none !important; }
+}
+
+/* ── Phone toolbar: primary row + collapsible admin tools + scrolling filter row ── */
+@media (max-width: 767px) {
+  .toolbar { gap: 8px; padding-top: 10px; padding-bottom: 8px; }
+  .upload-btn { order: 1; }
+  .select-mode-btn { order: 2; }
+  .admin-tools-toggle { order: 3; display: inline-flex; align-items: center; justify-content: center; margin-left: auto; }
+  .admin-tools-toggle[aria-expanded="true"] { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
+  .admin-tools { order: 4; display: none; width: 100%; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .admin-tools.open { display: grid; }
+  .admin-tools .clear-btn { width: 100%; text-align: center; white-space: normal; }
+  .admin-tools .clear-btn[style*="display: none"], .admin-tools .clear-btn[style*="display:none"] { display: none !important; }
+
+  /* Filters: one horizontally scrolling row that snaps, instead of wrapping to several lines */
+  .filter-group {
+    order: 5; width: 100%; margin-left: 0;
+    flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden;
+    scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; overscroll-behavior-x: contain;
+    margin-inline: calc(-1 * max(clamp(16px, 4vw, 48px), env(safe-area-inset-left, 0px)));
+    padding-inline: max(clamp(16px, 4vw, 48px), env(safe-area-inset-left, 0px));
+    -webkit-mask-image: linear-gradient(to right, transparent 0, #000 16px, #000 calc(100% - 28px), transparent 100%);
+            mask-image: linear-gradient(to right, transparent 0, #000 16px, #000 calc(100% - 28px), transparent 100%);
+    border-bottom: 1px solid #e4dfd8;
+  }
+  .filter-group::-webkit-scrollbar { display: none; }
+  .filter-btn { flex: 0 0 auto; scroll-snap-align: start; white-space: nowrap; }
+  .grouping-toggle { order: 6; margin-left: 0; }
+  .sort-wrap { order: 7; margin-left: auto; }
+}
+
+/* ── Modal: sticky action row, slide animation, prev/next, drag-to-close ── */
+.modal-img-wrap, .modal-drag-handle { touch-action: none; }
+.modal-action-bar {
+  position: sticky; bottom: 0; z-index: 5;
+  display: flex; align-items: center; gap: 8px;
+  margin: 16px -24px -22px;
+  padding: 10px 24px calc(10px + env(safe-area-inset-bottom, 0px));
+  background: rgba(255,255,255,0.96);
+  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+  border-top: 1px solid #ece8e2;
+}
+.modal-action-bar .spacer { flex: 1; }
+.modal-action-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  min-height: 40px; padding: 0 16px; border-radius: 22px;
+  border: 1.5px solid #e0dbd5; background: #fff;
+  font-size: 13px; font-weight: 600; color: #555; font-family: inherit;
+  cursor: pointer; transition: border-color 0.15s, color 0.15s, background 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.modal-action-btn:hover { border-color: #1a1a1a; color: #1a1a1a; }
+.modal-action-btn.liked { border-color: #8f0101; color: #8f0101; background: #fff7f6; }
+.modal-action-btn.danger:hover { border-color: #c0392b; color: #c0392b; }
+@media (pointer: coarse) { .modal-action-btn { min-height: 44px; } }
+@media (max-width: 767px) {
+  .modal-action-bar { margin-left: -24px; margin-right: -24px; gap: 6px; }
+  .modal-action-btn { padding: 0 14px; }
+}
+.modal.dragging { transition: none; }
+.modal.snap-back { transition: transform 0.2s ease; }
+.modal.closing { transition: transform 0.2s ease; }
+@keyframes mux-slide-from-right { from { opacity: 0; transform: translateX(36px); } to { opacity: 1; transform: none; } }
+@keyframes mux-slide-from-left  { from { opacity: 0; transform: translateX(-36px); } to { opacity: 1; transform: none; } }
+.modal-img-wrap.slide-from-right img { animation: mux-slide-from-right 0.22s ease; }
+.modal-img-wrap.slide-from-left  img { animation: mux-slide-from-left 0.22s ease; }
+.modal-nav-btn {
+  position: absolute; top: 50%; transform: translateY(-50%);
+  width: 40px; height: 40px; border-radius: 50%; border: none;
+  background: rgba(0,0,0,0.5); color: #fff; font-size: 22px; line-height: 1;
+  display: none; align-items: center; justify-content: center; cursor: pointer;
+}
+.modal-nav-btn:hover { background: rgba(0,0,0,0.8); }
+.modal-nav-btn.prev { left: 12px; }
+.modal-nav-btn.next { right: 12px; }
+@media (hover: hover) and (pointer: fine) { .modal-nav-btn { display: flex; } }
+@media (prefers-reduced-motion: reduce) {
+  .modal-img-wrap.slide-from-right img, .modal-img-wrap.slide-from-left img { animation: none; }
+  .modal.snap-back, .modal.closing { transition: none; }
+}
+
+/* ── Lazy-loaded lists ── */
+.load-more-sentinel { text-align: center; padding: 28px 0 36px; color: #aaa; font-size: 12px; letter-spacing: 0.4px; }
+
+/* ── Map view on phones: full-height map with a draggable bottom sheet ── */
+.sheet-handle { display: none; }
+@media (max-width: 767px) {
+  #mapTop { position: relative; display: block; height: 78vh; height: 78dvh; min-height: 440px; overflow: hidden; }
+  #mapPane { position: absolute; inset: 0; height: auto; order: 0; }
+  #mapSidebar {
+    position: absolute; left: 0; right: 0; bottom: 0; z-index: 5;
+    width: 100%; height: 86%; max-height: none; order: 0;
+    border-right: none; border-top: 1px solid #d6d0c7;
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -6px 24px rgba(0,0,0,0.18);
+    transition: transform 0.28s cubic-bezier(.2,.8,.2,1);
+    will-change: transform;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  #mapSidebar.sheet-peek { transform: translateY(calc(100% - 104px)); }
+  #mapSidebar.sheet-half { transform: translateY(46%); }
+  #mapSidebar.sheet-full { transform: translateY(0); }
+  #mapSidebar.dragging { transition: none; }
+  .sheet-handle { display: block; width: 100%; height: 26px; flex-shrink: 0; cursor: grab; position: relative; touch-action: none; }
+  .sheet-handle::before { content: ''; position: absolute; left: 50%; top: 10px; width: 40px; height: 5px; margin-left: -20px; background: #cfc8be; border-radius: 3px; }
+  #sidebarHeader { touch-action: none; padding-top: 0; }
+  #sidebarList { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
+}
+@media (prefers-reduced-motion: reduce) { #mapSidebar { transition: none; } }

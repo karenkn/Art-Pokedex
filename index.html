@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Art Pokédex, an Inventory of Art in the Wild</title>
   <!-- Google Maps loaded dynamically after fetching API key from server -->
   <script src="https://cdn.jsdelivr.net/npm/exifr/dist/lite.umd.js"></script>
@@ -60,11 +60,15 @@
     ➕ Add Photos
   </button>
   <input type="file" id="fileInput" accept="image/*,.heic,.heif" multiple onchange="handleFiles(this.files)" />
-  <button class="clear-btn admin-only" onclick="clearAll()" style="display:none">🗑 Clear All</button>
-  <button class="clear-btn admin-only" id="normalizeBtn" onclick="normalizeAllLocations()" style="display:none">🔧 Normalize Locations</button>
-  <button class="clear-btn admin-only normalize-artists-btn" onclick="normalizeArtists()" style="display:none">👤 Normalize Artists</button>
-  <button class="clear-btn admin-only" id="optimizeImagesBtn" onclick="optimizeImages()" style="display:none">🖼 Optimize Images</button>
-  <button class="clear-btn admin-only" id="consolidateStylesBtn" onclick="consolidateStyles()" style="display:none">🎨 Consolidate Styles</button>
+  <!-- On phones these collapse behind a single "Admin tools" button -->
+  <button class="clear-btn admin-only admin-tools-toggle" id="adminToolsToggle" type="button" aria-expanded="false" aria-controls="adminTools" onclick="toggleAdminTools()" style="display:none">⚙ Admin tools</button>
+  <div class="admin-tools" id="adminTools">
+    <button class="clear-btn admin-only" onclick="clearAll()" style="display:none">🗑 Clear All</button>
+    <button class="clear-btn admin-only" id="normalizeBtn" onclick="normalizeAllLocations()" style="display:none">🔧 Normalize Locations</button>
+    <button class="clear-btn admin-only normalize-artists-btn" onclick="normalizeArtists()" style="display:none">👤 Normalize Artists</button>
+    <button class="clear-btn admin-only" id="optimizeImagesBtn" onclick="optimizeImages()" style="display:none">🖼 Optimize Images</button>
+    <button class="clear-btn admin-only" id="consolidateStylesBtn" onclick="consolidateStyles()" style="display:none">🎨 Consolidate Styles</button>
+  </div>
   <button class="clear-btn admin-only select-mode-btn" id="selectModeBtn" onclick="toggleSelectMode()" style="display:none">☑ Select</button>
 
   <div class="filter-group">
@@ -117,8 +121,9 @@
 <!-- Map view (shown when Location filter is active) -->
   <div id="mapView">
     <div id="mapTop">
-      <div id="mapSidebar">
-        <div id="sidebarHeader">
+      <div id="mapSidebar" class="sheet-peek">
+        <div class="sheet-handle" id="sheetHandle" data-gesture role="button" aria-label="Drag to expand or collapse the location list"></div>
+        <div id="sidebarHeader" data-gesture>
           <div id="sidebarTitle">Nearby locations</div>
           <div id="sidebarSub">5 closest to map view</div>
         </div>
@@ -140,7 +145,9 @@
     <div class="modal-drag-handle" id="modalDragHandle"></div>
     <div class="modal-img-wrap">
       <img id="modalImg" src="" alt="" />
-      <button class="modal-close-btn" onclick="closeModal()">✕</button>
+      <button class="modal-nav-btn prev" onclick="navigateModal(-1)" aria-label="Previous photo">‹</button>
+      <button class="modal-nav-btn next" onclick="navigateModal(1)" aria-label="Next photo">›</button>
+      <button class="modal-close-btn" onclick="closeModal()" aria-label="Close">✕</button>
     </div>
     <div class="modal-body">
       <div class="modal-title-row">
@@ -156,7 +163,7 @@
         <div class="modal-detail-grid" id="modalDetails"></div>
         <div id="modalRating"></div>
         <p class="modal-note" id="modalNote"></p>
-        <span id="modalAdminActions"></span>
+        <div class="modal-action-bar" id="modalActionBar"></div>
       </div>
 
       <!-- Edit mode -->
@@ -354,6 +361,7 @@
   </div>
 </div>
 
+<script src="mobile-ux.js"></script>
 <script src="script.js"></script>
 <script src="normalize-artists.js"></script>
 </body>

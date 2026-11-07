@@ -58,6 +58,7 @@ function toggleAdminLogin() {
     updateAdminUI();
   } else {
     document.getElementById('loginModalBg').classList.add('open');
+    MobileUX.lockScroll('login');
     document.getElementById('adminPasswordInput').value = '';
     document.getElementById('loginError').style.display = 'none';
     setTimeout(() => document.getElementById('adminPasswordInput').focus(), 50);
@@ -66,6 +67,7 @@ function toggleAdminLogin() {
 
 function closeLoginModal() {
   document.getElementById('loginModalBg').classList.remove('open');
+  MobileUX.unlockScroll('login');
 }
 
 async function submitLogin() {
@@ -94,6 +96,13 @@ async function submitLogin() {
   }
 }
 
+function toggleAdminTools() {
+  const box = document.getElementById('adminTools');
+  const btn = document.getElementById('adminToolsToggle');
+  const open = box.classList.toggle('open');
+  btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+
 function updateAdminUI() {
   const isAdmin = !!adminToken;
   const btn = document.getElementById('adminBtn');
@@ -112,6 +121,8 @@ function updateAdminUI() {
     loadSubmissions();
     updateLocationBanner();
   } else {
+    document.getElementById('adminTools')?.classList.remove('open');
+    document.getElementById('adminToolsToggle')?.setAttribute('aria-expanded', 'false');
     submissions = [];
     updateSubmissionsBadge();
     if (currentFilter === 'submissions') { currentFilter = 'all'; document.querySelector('.filter-btn').classList.add('active'); }
@@ -742,6 +753,7 @@ async function loadSavedPhotos() {
 
     isLoading = false;
     render();
+    openPhotoFromHash(); // honour shared links like …/index.html#photo=<id>
   } catch (err) {
     console.warn('Could not load saved photos:', err.message);
     isLoading = false;
@@ -1435,10 +1447,12 @@ function openBulkEditModal() {
   document.getElementById('bulkCountry').value  = '';
   closeBulkPlacesDropdown();
   document.getElementById('bulkEditModalBg').classList.add('open');
+  MobileUX.lockScroll('bulk');
 }
 
 function closeBulkEditModal() {
   document.getElementById('bulkEditModalBg').classList.remove('open');
+  MobileUX.unlockScroll('bulk');
   const btn = document.getElementById('bulkSaveBtn');
   btn.disabled    = false;
   btn.textContent = 'Save Changes';
@@ -1494,6 +1508,8 @@ function render() {
   }
 
   const donephotos = photos.filter(p => p.status === 'done');
+
+  if (currentFilter === 'submissions' || (currentFilter === 'location' && donephotos.length > 0)) armLoadMore(0);
 
   if (currentFilter === 'submissions') {
     mapView.classList.remove('active');
@@ -1721,6 +1737,27 @@ function renderPendingErrors(container) {
   container.style.display = html ? '' : 'none';
 }
 
+// ── Lazy loading ─────────────────────────────────────────────────────────────
+// Only the first PAGE_SIZE cards are put in the DOM; a sentinel at the bottom loads
+// the next page as the user scrolls near it. Changing filter/sort starts over.
+const lazyPageSize = () => (MobileUX.isMobile() ? 24 : 48);
+let renderLimit = 0;
+function resetRenderLimit() { renderLimit = lazyPageSize(); }
+function cardBudget() {
+  if (!renderLimit) resetRenderLimit();
+  let left = renderLimit;
+  return { take(arr) { const part = arr.slice(0, Math.max(0, left)); left -= part.length; return part; } };
+}
+function loadMoreSentinelHtml(hidden) {
+  return `<div class="load-more-sentinel" id="loadMoreSentinel">Loading more… ${hidden} left</div>`;
+}
+function armLoadMore(hidden) {
+  MobileUX.observeLoadMore(hidden ? document.getElementById('loadMoreSentinel') : null, () => {
+    renderLimit += lazyPageSize();
+    render();
+  });
+}
+
 function renderGrouped(container, _key, icon, keyFn) {
   const analyzing = photos.filter(p => p.status === 'analyzing');
   const queued    = photos.filter(p => p.status === 'queue');
@@ -1836,6 +1873,9 @@ function renderGrouped(container, _key, icon, keyFn) {
     </div>`;
   }
 
+  const budget = cardBudget();
+  let hiddenCount = 0;
+
   sortedGroups(Object.entries(groups)).forEach(([groupName, items]) => {
     const sorted = sortedPhotos(items);
 
@@ -1861,16 +1901,23 @@ function renderGrouped(container, _key, icon, keyFn) {
       ...sorted.filter(p => !p.pinned)
     ];
 
+    // Lazy loading: only render as many cards as the current budget allows
+    const shown = budget.take(pinnedFirst);
+    hiddenCount += pinnedFirst.length - shown.length;
+    if (!shown.length) return;
+
     html += `<div class="location-group">
       <div class="location-header">
         <span class="location-name">${escHtml(groupName)}</span>
         <span class="location-sub">${sub}</span>
       </div>
-      <div class="photo-grid">${pinnedFirst.map((p, i) => photoCard(p, i === 0 && pinnedFirst.length >= 3)).join('')}</div>
+      <div class="photo-grid">${shown.map((p, i) => photoCard(p, i === 0 && pinnedFirst.length >= 3)).join('')}</div>
     </div>`;
   });
 
+  if (hiddenCount) html += loadMoreSentinelHtml(hiddenCount);
   container.innerHTML = html;
+  armLoadMore(hiddenCount);
 }
 
 function dismissJustAdded() {
@@ -1947,11 +1994,15 @@ function renderFlat(container) {
 
   // Flat grid — all done photos sorted by current sort option
   const sorted = sortAllPhotos(done);
-  if (sorted.length) {
-    html += `<div class="photo-grid">${sorted.map((p, i) => photoCard(p, i === 0)).join('')}</div>`;
+  const visible = cardBudget().take(sorted);
+  const hiddenCount = sorted.length - visible.length;
+  if (visible.length) {
+    html += `<div class="photo-grid">${visible.map((p, i) => photoCard(p, i === 0)).join('')}</div>`;
   }
+  if (hiddenCount) html += loadMoreSentinelHtml(hiddenCount);
 
   container.innerHTML = html;
+  armLoadMore(hiddenCount);
 }
 
 function photoCard(p, featured = false) {
@@ -2040,6 +2091,7 @@ function updateStats() {
 // ─────────────────────────────────────────────────────────────────────────────
 function setFilter(filter, btn) {
   currentFilter = filter;
+  resetRenderLimit();
   document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   // Show the grouped/ungrouped toggle only for the "All" view
@@ -2053,6 +2105,7 @@ function setFilter(filter, btn) {
 
 function setAllMode(mode) {
   currentAllMode = mode;
+  resetRenderLimit();
   document.getElementById('groupedBtn').classList.toggle('active', mode === 'grouped');
   document.getElementById('flatBtn').classList.toggle('active', mode === 'flat');
   render();
@@ -2060,6 +2113,7 @@ function setAllMode(mode) {
 
 function setSort(value) {
   currentSort = value;
+  resetRenderLimit();
   render();
 }
 
@@ -2080,7 +2134,8 @@ function openModal(id) {
   document.getElementById('editMode').style.display = 'none';
 
   document.getElementById('modalBg').classList.add('open');
-  document.body.style.overflow = 'hidden';
+  MobileUX.lockScroll('modal');
+  try { history.replaceState(null, '', `#photo=${encodeURIComponent(id)}`); } catch (_) {}
 }
 
 function refreshModalView(p) {
@@ -2141,18 +2196,76 @@ function refreshModalView(p) {
       ${ratingValueHtml}
     </div>`;
 
-  // Like button — sits beside the title, right-aligned
+  // Sticky action row: Like · Share (· Edit · Delete for admins)
   const liked = likedIds.has(p.id);
-  document.getElementById('modalTitleLike').innerHTML = `
-    <button class="modal-like-compact${liked ? ' liked' : ''}" id="modalLikeBtn"
-      onclick="likePhoto('${p.id}', event)">${liked ? '♥' : '♡'} ${p.likes || 0}</button>`;
-
-  // Admin-only actions (edit / delete)
-  document.getElementById('modalAdminActions').innerHTML = adminToken
-    ? `<button class="modal-edit-btn" onclick="startEdit()">✏️ Edit Details</button>
-       <button class="modal-delete-btn" onclick="deleteFromModal()">🗑 Delete</button>`
-    : '';
+  document.getElementById('modalTitleLike').innerHTML = '';
+  document.getElementById('modalActionBar').innerHTML = `
+    <button class="modal-action-btn${liked ? ' liked' : ''}" id="modalLikeBtn"
+      onclick="likePhoto('${p.id}', event)">${liked ? '♥' : '♡'} ${p.likes || 0}</button>
+    <button class="modal-action-btn" onclick="sharePhoto('${p.id}')">⤴ Share</button>
+    ${adminToken ? `<span class="spacer"></span>
+    <button class="modal-action-btn" onclick="startEdit()">✏️ Edit</button>
+    <button class="modal-action-btn danger" onclick="deleteFromModal()">🗑 Delete</button>` : ''}`;
 }
+
+// Share via the native share sheet when available, else copy a deep link
+async function sharePhoto(id) {
+  const p = photos.find(x => x.id === id);
+  if (!p) return;
+  const d = p.aiData || {};
+  const title = d.paintingName || p.name || 'Artwork';
+  const text  = [title, d.artist, d.location].filter(Boolean).join(' — ');
+  const url   = `${location.origin}${location.pathname}#photo=${encodeURIComponent(id)}`;
+  try {
+    if (navigator.share) { await navigator.share({ title, text, url }); return; }
+  } catch (err) {
+    if (err && err.name === 'AbortError') return; // user dismissed the sheet
+  }
+  try {
+    await navigator.clipboard.writeText(url);
+    MobileUX.toast('Link copied');
+  } catch (_) {
+    window.prompt('Copy this link', url);
+  }
+}
+
+// Open a photo from a shared link (#photo=<id>)
+function openPhotoFromHash() {
+  const m = location.hash.match(/^#photo=(.+)$/);
+  if (!m) return;
+  const id = decodeURIComponent(m[1]);
+  if (photos.some(x => x.id === id && x.status === 'done')) openModal(id);
+}
+window.addEventListener('hashchange', () => { if (!activeModalId) openPhotoFromHash(); });
+
+// Previous / next photo in the order currently on screen
+function visiblePhotoIds() {
+  const seen = new Set();
+  return [...document.querySelectorAll('.photo-card.done[data-id]')]
+    .filter(el => el.offsetParent !== null)
+    .map(el => el.dataset.id)
+    .filter(id => !seen.has(id) && seen.add(id));
+}
+function navigateModal(dir) {
+  if (!activeModalId) return;
+  if (document.getElementById('editMode').style.display !== 'none') return; // don't lose edits
+  const ids = visiblePhotoIds();
+  const i = ids.indexOf(activeModalId);
+  const next = i < 0 ? null : ids[i + dir];
+  if (!next) return;
+  const wrap = document.querySelector('#modal .modal-img-wrap');
+  wrap.classList.remove('slide-from-left', 'slide-from-right');
+  openModal(next);
+  void wrap.offsetWidth; // restart the CSS animation
+  wrap.classList.add(dir > 0 ? 'slide-from-right' : 'slide-from-left');
+  document.querySelector('#modal .modal-body').scrollTop = 0;
+}
+document.addEventListener('keydown', e => {
+  if (!activeModalId || /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
+  if (e.key === 'Escape') closeModal();
+  else if (e.key === 'ArrowRight') navigateModal(1);
+  else if (e.key === 'ArrowLeft')  navigateModal(-1);
+});
 
 function startEdit() {
   const p = photos.find(x => x.id === activeModalId);
@@ -2229,7 +2342,10 @@ function cancelEdit() {
 
 function closeModal() {
   document.getElementById('modalBg').classList.remove('open');
-  document.body.style.overflow = '';
+  MobileUX.unlockScroll('modal');
+  if (location.hash.startsWith('#photo=')) {
+    try { history.replaceState(null, '', location.pathname + location.search); } catch (_) {}
+  }
   activeModalId = null;
 }
 function deleteFromModal() {
@@ -2311,30 +2427,62 @@ function refreshModalLikeBtn(photo) {
   const btn = document.getElementById('modalLikeBtn');
   if (!btn || !photo) return;
   const liked = likedIds.has(photo.id);
-  btn.className = 'modal-like-compact' + (liked ? ' liked' : '');
+  btn.className = 'modal-action-btn' + (liked ? ' liked' : '');
   btn.innerHTML = `${liked ? '♥' : '♡'} ${photo.likes || 0}`;
 }
 
 
 function bgClick(e) { if (e.target === document.getElementById('modalBg')) closeModal(); }
 
-// ── Swipe-down on the drag handle / image area to close modal on mobile ──
-(function() {
-  let swipeStartY = 0, swipeStartEl = null;
+// ── Modal gestures on the image / drag handle (phones) ──────────────────────
+//   swipe down  → follow the finger, then close (or snap back)
+//   swipe left  → next photo, swipe right → previous photo
+(function () {
   const modal = document.getElementById('modal');
-  modal.addEventListener('touchstart', function(e) {
-    // Only initiate swipe from image area or drag handle (not from scrollable body)
-    const target = e.target.closest('.modal-img-wrap, #modalDragHandle');
-    if (!target) return;
-    swipeStartY = e.touches[0].clientY;
-    swipeStartEl = target;
+  let startX = 0, startY = 0, startT = 0, mode = null, active = false;
+  const onTarget = e => e.target.closest('.modal-img-wrap, #modalDragHandle') && !e.target.closest('button');
+
+  modal.addEventListener('touchstart', e => {
+    if (e.touches.length !== 1 || !onTarget(e)) return;
+    const t = e.touches[0];
+    startX = t.clientX; startY = t.clientY; startT = Date.now();
+    mode = null; active = true;
   }, { passive: true });
-  modal.addEventListener('touchend', function(e) {
-    if (!swipeStartEl) return;
-    const dy = e.changedTouches[0].clientY - swipeStartY;
-    if (dy > 60) closeModal();
-    swipeStartEl = null;
+
+  modal.addEventListener('touchmove', e => {
+    if (!active) return;
+    const t = e.touches[0], dx = t.clientX - startX, dy = t.clientY - startY;
+    if (!mode) {
+      if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+      mode = Math.abs(dy) > Math.abs(dx) ? (dy > 0 ? 'drag' : 'none') : 'nav';
+      if (mode === 'drag') modal.classList.add('dragging');
+    }
+    if (mode === 'drag') modal.style.transform = `translateY(${Math.max(0, dy)}px)`;
   }, { passive: true });
+
+  const reset = () => { active = false; mode = null; modal.classList.remove('dragging'); };
+
+  modal.addEventListener('touchend', e => {
+    if (!active) return;
+    const t = e.changedTouches[0], dx = t.clientX - startX, dy = t.clientY - startY;
+    const velocity = dy / Math.max(1, Date.now() - startT);
+    if (mode === 'drag') {
+      modal.classList.remove('dragging');
+      if (dy > 110 || (dy > 50 && velocity > 0.5)) {
+        modal.classList.add('closing');
+        modal.style.transform = 'translateY(100%)';
+        setTimeout(() => { closeModal(); modal.classList.remove('closing'); modal.style.transform = ''; }, 200);
+      } else {
+        modal.classList.add('snap-back');
+        modal.style.transform = '';
+        setTimeout(() => modal.classList.remove('snap-back'), 220);
+      }
+    } else if (mode === 'nav' && Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+      navigateModal(dx < 0 ? 1 : -1);
+    }
+    active = false; mode = null;
+  }, { passive: true });
+  modal.addEventListener('touchcancel', () => { modal.style.transform = ''; reset(); }, { passive: true });
 })();
 
 // Close mobile menu when tapping outside
@@ -2408,6 +2556,7 @@ function initMap() {
   googleMap = new google.maps.Map(document.getElementById('map'), {
     center: { lat: 40.7831, lng: -73.9712 },
     zoom: 13,
+    gestureHandling: MobileUX.isMobile() ? 'greedy' : 'auto',
     mapTypeControl: false,
     streetViewControl: false,
     fullscreenControl: false,
@@ -2543,6 +2692,7 @@ function selectLocation(loc, marker, infoWindow) {
 
   // Refresh sidebar list with updated active state
   updateLocationList();
+  collapseSheet(); // phones: tuck the list away so the map and gallery stay in view
 
   // Render gallery below the map
   const items = photos.filter(p => p.status === 'done' && p.aiData.location === loc);
@@ -2625,6 +2775,76 @@ function renderSidebarList(entries) {
       </div>`;
   }).join('');
 }
+
+// ── Phone map: draggable bottom sheet (peek ↔ half ↔ full) ───────────────────
+const SHEET_PEEK_PX = 104;
+const SHEET_STATES = ['sheet-peek', 'sheet-half', 'sheet-full'];
+function setSheetState(state) {
+  const sheet = document.getElementById('mapSidebar');
+  if (!sheet) return;
+  SHEET_STATES.forEach(c => sheet.classList.toggle(c, c === state));
+  sheet.style.transform = '';
+}
+function collapseSheet() { if (MobileUX.isMobile()) setSheetState('sheet-peek'); }
+
+(function initMapSheet() {
+  const sheet  = document.getElementById('mapSidebar');
+  const grips  = [document.getElementById('sheetHandle'), document.getElementById('sidebarHeader')].filter(Boolean);
+  if (!sheet || !grips.length) return;
+  let startY = 0, startT = 0, lastT = 0, dragging = false, moved = false;
+  const currentState = () => SHEET_STATES.find(c => sheet.classList.contains(c)) || 'sheet-peek';
+  const translateOf = state => {
+    const h = sheet.offsetHeight;
+    return state === 'sheet-full' ? 0 : state === 'sheet-half' ? h * 0.46 : h - SHEET_PEEK_PX;
+  };
+
+  grips.forEach(el => {
+    el.addEventListener('touchstart', e => {
+      if (!MobileUX.isMobile() || e.touches.length !== 1) return;
+      dragging = true; moved = false;
+      startY = e.touches[0].clientY;
+      startT = translateOf(currentState());
+      lastT = startT;
+      sheet.classList.add('dragging');
+    }, { passive: true });
+    el.addEventListener('touchmove', e => {
+      if (!dragging) return;
+      const dy = e.touches[0].clientY - startY;
+      if (Math.abs(dy) > 4) moved = true;
+      lastT = Math.min(sheet.offsetHeight - SHEET_PEEK_PX, Math.max(0, startT + dy));
+      sheet.style.transform = `translateY(${lastT}px)`;
+    }, { passive: true });
+    const finish = () => {
+      if (!dragging) return;
+      dragging = false;
+      sheet.classList.remove('dragging');
+      if (!moved) { // a tap toggles peek ↔ half
+        setSheetState(currentState() === 'sheet-peek' ? 'sheet-half' : 'sheet-peek');
+        return;
+      }
+      const nearest = SHEET_STATES
+        .map(st => [st, Math.abs(translateOf(st) - lastT)])
+        .sort((a, b) => a[1] - b[1])[0][0];
+      setSheetState(nearest);
+    };
+    el.addEventListener('touchend', finish, { passive: true });
+    el.addEventListener('touchcancel', finish, { passive: true });
+  });
+
+  // Keyboard access for the handle
+  const handle = document.getElementById('sheetHandle');
+  if (handle) {
+    handle.tabIndex = 0;
+    handle.addEventListener('keydown', e => {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      e.preventDefault();
+      const i = SHEET_STATES.indexOf(currentState());
+      setSheetState(SHEET_STATES[(i + 1) % SHEET_STATES.length]);
+    });
+  }
+  // Leaving phone width: drop any inline drag transform
+  matchMedia('(max-width: 767px)').addEventListener?.('change', ev => { if (!ev.matches) sheet.style.transform = ''; });
+})();
 
 function selectLocationByName(loc) {
   const entry = mapMarkers[loc];

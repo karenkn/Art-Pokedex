@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Top Works, Art Pokédex, an Inventory of Art in the Wild</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -349,6 +349,84 @@
       .rank-thumb { width: 64px; height: 64px; }
       .rank-score { width: 44px; height: 44px; font-size: 14px; }
     }
+
+    /* ═══ Mobile-friendly additions ═══ */
+    /* Modal: sticky action row, gestures, prev/next */
+    .modal-img-wrap, .modal-drag-handle { touch-action: none; }
+    .modal-action-bar {
+      position: sticky; bottom: 0; z-index: 5; display: flex; align-items: center; gap: 8px;
+      margin: 16px -24px -22px; padding: 10px 24px calc(10px + env(safe-area-inset-bottom, 0px));
+      background: rgba(255,255,255,0.96); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+      border-top: 1px solid #ece8e2;
+    }
+    .modal-action-bar .spacer { flex: 1; }
+    .modal-action-btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+      min-height: 40px; padding: 0 16px; border-radius: 22px; border: 1.5px solid #e0dbd5; background: #fff;
+      font-size: 13px; font-weight: 600; color: #555; font-family: inherit; cursor: pointer;
+      transition: border-color 0.15s, color 0.15s, background 0.15s; -webkit-tap-highlight-color: transparent;
+    }
+    .modal-action-btn:hover { border-color: #1a1a1a; color: #1a1a1a; }
+    .modal-action-btn.liked { border-color: #8f0101; color: #8f0101; background: #fff7f6; }
+    @media (pointer: coarse) { .modal-action-btn { min-height: 44px; } }
+    .modal.dragging { transition: none; }
+    .modal.snap-back, .modal.closing { transition: transform 0.2s ease; }
+    @keyframes mux-slide-from-right { from { opacity: 0; transform: translateX(36px); } to { opacity: 1; transform: none; } }
+    @keyframes mux-slide-from-left  { from { opacity: 0; transform: translateX(-36px); } to { opacity: 1; transform: none; } }
+    .modal-img-wrap.slide-from-right img { animation: mux-slide-from-right 0.22s ease; }
+    .modal-img-wrap.slide-from-left  img { animation: mux-slide-from-left 0.22s ease; }
+    .modal-nav-btn {
+      position: absolute; top: 50%; transform: translateY(-50%); width: 40px; height: 40px; border-radius: 50%;
+      border: none; background: rgba(0,0,0,0.5); color: #fff; font-size: 22px; line-height: 1;
+      display: none; align-items: center; justify-content: center; cursor: pointer;
+    }
+    .modal-nav-btn:hover { background: rgba(0,0,0,0.8); }
+    .modal-nav-btn.prev { left: 12px; } .modal-nav-btn.next { right: 12px; }
+    @media (hover: hover) and (pointer: fine) { .modal-nav-btn { display: flex; } }
+    @media (prefers-reduced-motion: reduce) {
+      .modal-img-wrap.slide-from-right img, .modal-img-wrap.slide-from-left img { animation: none; }
+      .modal.snap-back, .modal.closing { transition: none; }
+    }
+
+    /* Rankings list: compact rows, "Rate" reachable on touch, 44px tap targets */
+    @media (hover: none) { .rank-rate-btn { opacity: 1; } }
+    @media (max-width: 599px) {
+      .rank-row { gap: 10px; padding: 10px 12px; }
+      .rank-num { min-width: 24px; font-size: 18px; }
+      .rank-thumb { width: 64px; height: 64px; }
+      .rank-title { font-size: 14px; }
+      .rank-tags { display: none; }
+      .rank-score { width: 44px; height: 44px; font-size: 15px; }
+      .rank-rate-btn { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 0 12px; }
+      .rank-phase { flex-wrap: wrap; gap: 12px; padding: 14px 16px; }
+      .rank-phase-text { flex: 1 1 160px; }
+    }
+    @media (pointer: coarse) {
+      .rank-phase-btn, .ov-stop-btn, .ov-done-btn, .compare-done-btn, .same-btn, .pl-same-btn, .triage-skip { min-height: 44px; }
+      .triage-btn { min-height: 72px; }
+      .rank-rate-btn { min-height: 44px; }
+    }
+
+    /* Triage: swipe hint + draggable card */
+    .triage-card { touch-action: none; will-change: transform; }
+    .triage-hint { display: none; margin-top: 12px; font-size: 11px; color: #555; letter-spacing: 0.3px; }
+    @media (hover: none) { .triage-hint { display: block; } }
+
+    /* Compare & placement on phones: compact side-by-side cards so both fit on one screen */
+    @media (max-width: 599px) {
+      .compare-overlay, .ranking-overlay { padding-top: env(safe-area-inset-top, 0px); }
+      .compare-body { justify-content: flex-start; padding: 12px 12px calc(28px + env(safe-area-inset-bottom, 0px)); }
+      .compare-instruction { margin-bottom: 12px; }
+      .compare-cards { gap: 8px; }
+      .compare-card { max-width: none; flex-direction: row; }
+      .compare-card-img { aspect-ratio: 1; width: 42%; flex-shrink: 0; }
+      .compare-card-body { flex: 1; min-width: 0; padding: 10px 12px; display: flex; flex-direction: column; justify-content: center; }
+      .compare-vs { flex-direction: row; padding: 0; gap: 12px; }
+      .placement-cards .pl-card { flex-direction: row; max-width: none; }
+      .placement-cards .pl-card-img-wrap { aspect-ratio: 1; width: 42%; flex-shrink: 0; }
+      .placement-cards .pl-card-body { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; }
+    }
+    .load-more-sentinel { text-align: center; padding: 28px 0 36px; color: #aaa; font-size: 12px; letter-spacing: 0.4px; }
   </style>
 </head>
 <body>
@@ -427,10 +505,12 @@
 <!-- Detail Modal -->
 <div class="modal-bg" id="modalBg" onclick="bgClick(event)">
   <div class="modal" id="modal">
-    <div class="modal-drag-handle"></div>
+    <div class="modal-drag-handle" id="modalDragHandle"></div>
     <div class="modal-img-wrap">
       <img id="modalImg" src="" alt="" />
-      <button class="modal-close-btn" onclick="closeModal()">✕</button>
+      <button class="modal-nav-btn prev" onclick="navigateModal(-1)" aria-label="Previous photo">‹</button>
+      <button class="modal-nav-btn next" onclick="navigateModal(1)" aria-label="Next photo">›</button>
+      <button class="modal-close-btn" onclick="closeModal()" aria-label="Close">✕</button>
     </div>
     <div class="modal-body">
       <div class="modal-title-row">
@@ -443,7 +523,7 @@
       <div class="modal-detail-grid" id="modalDetails"></div>
       <div id="modalRating"></div>
       <p class="modal-note" id="modalNote"></p>
-      <div class="modal-admin-actions" id="modalActions"></div>
+      <div class="modal-action-bar" id="modalActions"></div>
     </div>
   </div>
 </div>
@@ -483,7 +563,7 @@
       <div class="triage-progress-label" id="triageProgressLabel">0% complete</div>
     </div>
 
-    <div class="triage-card">
+    <div class="triage-card" id="triageCard">
       <div class="triage-card-img"><img id="triageImg" src="" alt="" /></div>
       <div class="triage-card-body">
         <div class="triage-card-title"  id="triageTitle"></div>
@@ -506,6 +586,7 @@
         <span class="triage-btn-label">Like</span>
       </button>
     </div>
+    <div class="triage-hint">Swipe the card: → like · ← dislike · ↑ okay</div>
     <button class="triage-skip" onclick="skipPhoto()">Skip for now</button>
   </div>
 
@@ -611,6 +692,7 @@
   </div>
 </div>
 
+<script src="mobile-ux.js"></script>
 <script>
   const SERVER_URL = (() => {
     if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
@@ -732,6 +814,7 @@
         }
       }));
       renderList();
+      openPhotoFromHash();
     } catch (err) {
       document.getElementById('listWrap').innerHTML =
         `<div class="empty-state"><p>Could not load photos.</p><small>${esc(err.message)}</small></div>`;
@@ -739,18 +822,32 @@
   }
 
   // ── List ─────────────────────────────────────────────────────────────────────
+  // Lazy loading: render a page of rows, then more as the sentinel nears the viewport
+  const listPage = () => (MobileUX.isMobile() ? 30 : 60);
+  let listLimit = 0;
+
   function renderList() {
     const byTier = t => photos.filter(p=>p.tier===t).sort((a,b)=>(b.rating??0)-(a.rating??0));
     const liked=byTier('like'), okay=byTier('okay'), disliked=byTier('dislike');
     const unranked=photos.filter(p=>!p.tier).sort((a,b)=>(a.aiData.artist||'').localeCompare(b.aiData.artist||''));
     const wrap = document.getElementById('listWrap');
-    if (!photos.length) { wrap.innerHTML=`<div class="empty-state"><p>No artworks yet.</p></div>`; return; }
-    let html='', rank=1;
-    if (liked.length)    { html+=`<div class="section-divider">👍 Like</div>`;          liked.forEach(p=>{html+=rowHtml(p,rank++);}); }
-    if (okay.length)     { html+=`<div class="section-divider">😐 Okay</div>`;          okay.forEach(p=>{html+=rowHtml(p,rank++);}); }
-    if (disliked.length) { html+=`<div class="section-divider">👎 Dislike</div>`;       disliked.forEach(p=>{html+=rowHtml(p,rank++);}); }
-    if (unranked.length) { html+=`<div class="section-divider">Not yet sorted</div>`;   unranked.forEach(p=>{html+=rowHtml(p,null);}); }
+    if (!photos.length) { wrap.innerHTML=`<div class="empty-state"><p>No artworks yet.</p></div>`; MobileUX.observeLoadMore(null); return; }
+    if (!listLimit) listLimit = listPage();
+    let left = listLimit, hidden = 0, html = '';
+    const section = (label, arr, firstRank) => {
+      const part = arr.slice(0, Math.max(0, left));
+      left -= part.length; hidden += arr.length - part.length;
+      if (!part.length) return;
+      html += `<div class="section-divider">${label}</div>`;
+      part.forEach((p,i) => { html += rowHtml(p, firstRank==null ? null : firstRank+i); });
+    };
+    section('👍 Like',          liked,    1);
+    section('😐 Okay',          okay,     1 + liked.length);
+    section('👎 Dislike',       disliked, 1 + liked.length + okay.length);
+    section('Not yet sorted',   unranked, null);
+    if (hidden) html += `<div class="load-more-sentinel" id="loadMoreSentinel">Loading more… ${hidden} left</div>`;
     wrap.innerHTML = html;
+    MobileUX.observeLoadMore(hidden ? document.getElementById('loadMoreSentinel') : null, () => { listLimit += listPage(); renderList(); });
   }
 
   function rowHtml(p, rank) {
@@ -760,7 +857,7 @@
     const cls = p.tier ? `tier-${p.tier}` : 'unranked';
     const scoreContent = r!=null ? (r%1===0?r:r.toFixed(1)) : (p.tier?'—':'?');
     return `
-      <div class="rank-row" onclick="openModal('${p.id}')">
+      <div class="rank-row" data-id="${p.id}" onclick="openModal('${p.id}')">
         <div class="rank-num">${rank!=null?rank:''}</div>
         <div class="rank-thumb"><img src="${p.thumbUrl||p.url}" alt="${esc(title)}" loading="lazy" decoding="async"/></div>
         <div class="rank-info">
@@ -782,11 +879,14 @@
     const p=photos.find(x=>x.id===id); if(!p) return;
     activeId=id; renderModal(p);
     document.getElementById('modalBg').classList.add('open');
-    document.body.style.overflow='hidden';
+    MobileUX.lockScroll('modal');
+    try { history.replaceState(null,'',`#photo=${encodeURIComponent(id)}`); } catch(_) {}
   }
   function closeModal() {
     document.getElementById('modalBg').classList.remove('open');
-    document.body.style.overflow=''; activeId=null;
+    MobileUX.unlockScroll('modal');
+    if (location.hash.startsWith('#photo=')) { try { history.replaceState(null,'',location.pathname+location.search); } catch(_) {} }
+    activeId=null;
   }
   function bgClick(e) { if(e.target===document.getElementById('modalBg')) closeModal(); }
 
@@ -830,11 +930,89 @@
       </div>`;
     document.getElementById('modalNote').textContent=`${d.manuallyEdited?'Originally analyzed by':'Analyzed by'} ${d.model||'Claude'} · ${p.locationSource==='gps'?'🛰 GPS':'✦ AI'}`;
     const liked=likedIds.has(p.id);
-    document.getElementById('modalTitleLike').innerHTML=
-      `<button class="modal-like-compact${liked?' liked':''}" id="modalLikeBtn" onclick="likePhoto('${p.id}',event)">${liked?'♥':'♡'} ${p.likes||0}</button>`;
-    document.getElementById('modalActions').innerHTML=
-      adminToken ? `<button class="modal-rerank-btn" onclick="startRerank('${p.id}')">↔ Rate this photo</button>` : '';
+    document.getElementById('modalTitleLike').innerHTML='';
+    document.getElementById('modalActions').innerHTML=`
+      <button class="modal-action-btn${liked?' liked':''}" id="modalLikeBtn" onclick="likePhoto('${p.id}',event)">${liked?'♥':'♡'} ${p.likes||0}</button>
+      <button class="modal-action-btn" onclick="sharePhoto('${p.id}')">⤴ Share</button>
+      ${adminToken ? `<span class="spacer"></span><button class="modal-action-btn" onclick="startRerank('${p.id}')">↔ Rate</button>` : ''}`;
   }
+
+  async function sharePhoto(id) {
+    const p=photos.find(x=>x.id===id); if(!p) return;
+    const d=p.aiData||{};
+    const title=d.paintingName||p.name||'Artwork';
+    const text=[title,d.artist,d.location].filter(Boolean).join(' — ');
+    const url=`${location.origin}${location.pathname}#photo=${encodeURIComponent(id)}`;
+    try { if(navigator.share){ await navigator.share({title,text,url}); return; } }
+    catch(err){ if(err&&err.name==='AbortError') return; }
+    try { await navigator.clipboard.writeText(url); MobileUX.toast('Link copied'); }
+    catch(_) { window.prompt('Copy this link',url); }
+  }
+
+  function openPhotoFromHash() {
+    const m=location.hash.match(/^#photo=(.+)$/); if(!m) return;
+    const id=decodeURIComponent(m[1]);
+    if(photos.some(x=>x.id===id)) openModal(id);
+  }
+  window.addEventListener('hashchange',()=>{ if(!activeId) openPhotoFromHash(); });
+
+  // Previous / next photo in the order currently listed
+  function navigateModal(dir) {
+    if(!activeId) return;
+    const ids=[...document.querySelectorAll('.rank-row[data-id]')].map(el=>el.dataset.id);
+    const i=ids.indexOf(activeId), next=i<0?null:ids[i+dir];
+    if(!next) return;
+    const wrap=document.querySelector('#modal .modal-img-wrap');
+    wrap.classList.remove('slide-from-left','slide-from-right');
+    openModal(next);
+    void wrap.offsetWidth;
+    wrap.classList.add(dir>0?'slide-from-right':'slide-from-left');
+    document.querySelector('#modal .modal-body').scrollTop=0;
+  }
+  document.addEventListener('keydown',e=>{
+    if(!activeId||/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
+    if(e.key==='ArrowRight') navigateModal(1);
+    else if(e.key==='ArrowLeft') navigateModal(-1);
+  });
+
+  // Modal gestures on the image / drag handle: swipe down closes, left/right = next/previous
+  (function(){
+    const modal=document.getElementById('modal');
+    let sx=0,sy=0,st=0,mode=null,active=false;
+    const onTarget=e=>e.target.closest('.modal-img-wrap, #modalDragHandle')&&!e.target.closest('button');
+    modal.addEventListener('touchstart',e=>{
+      if(e.touches.length!==1||!onTarget(e)) return;
+      const t=e.touches[0]; sx=t.clientX; sy=t.clientY; st=Date.now(); mode=null; active=true;
+    },{passive:true});
+    modal.addEventListener('touchmove',e=>{
+      if(!active) return;
+      const t=e.touches[0], dx=t.clientX-sx, dy=t.clientY-sy;
+      if(!mode){
+        if(Math.abs(dx)<8&&Math.abs(dy)<8) return;
+        mode=Math.abs(dy)>Math.abs(dx)?(dy>0?'drag':'none'):'nav';
+        if(mode==='drag') modal.classList.add('dragging');
+      }
+      if(mode==='drag') modal.style.transform=`translateY(${Math.max(0,dy)}px)`;
+    },{passive:true});
+    modal.addEventListener('touchend',e=>{
+      if(!active) return;
+      const t=e.changedTouches[0], dx=t.clientX-sx, dy=t.clientY-sy, v=dy/Math.max(1,Date.now()-st);
+      if(mode==='drag'){
+        modal.classList.remove('dragging');
+        if(dy>110||(dy>50&&v>0.5)){
+          modal.classList.add('closing'); modal.style.transform='translateY(100%)';
+          setTimeout(()=>{ closeModal(); modal.classList.remove('closing'); modal.style.transform=''; },200);
+        } else {
+          modal.classList.add('snap-back'); modal.style.transform='';
+          setTimeout(()=>modal.classList.remove('snap-back'),220);
+        }
+      } else if(mode==='nav'&&Math.abs(dx)>50&&Math.abs(dx)>Math.abs(dy)*1.5){
+        navigateModal(dx<0?1:-1);
+      }
+      active=false; mode=null;
+    },{passive:true});
+    modal.addEventListener('touchcancel',()=>{ modal.style.transform=''; modal.classList.remove('dragging'); active=false; mode=null; },{passive:true});
+  })();
 
   async function likePhoto(id, event) {
     if(event) event.stopPropagation();
@@ -880,13 +1058,13 @@
   function startRanking() {
     if (!adminToken) return;
     document.getElementById('rankingOverlay').classList.add('open');
-    document.body.style.overflow = 'hidden';
+    MobileUX.lockScroll('rank');
     loadNextTriagePhoto();
   }
 
   function stopRanking() {
     document.getElementById('rankingOverlay').classList.remove('open');
-    document.body.style.overflow = '';
+    MobileUX.unlockScroll('rank');
     rankingPhoto = null; placementOpps = []; placementIndex = 0;
     placementInFlight = false;
     isRerankMode = false;
@@ -931,6 +1109,40 @@
       el.classList.remove('chosen'); el.disabled = false;
     });
   }
+
+  // Swipe the triage card: right = like, left = dislike, up = okay
+  (function(){
+    const card=document.getElementById('triageCard');
+    if(!card) return;
+    let sx=0,sy=0,active=false,lastDx=0,lastDy=0;
+    const THRESH=90;
+    card.addEventListener('touchstart',e=>{
+      if(e.touches.length!==1||!rankingPhoto) return;
+      const t=e.touches[0]; sx=t.clientX; sy=t.clientY; lastDx=lastDy=0; active=true;
+      card.style.transition='none';
+    },{passive:true});
+    card.addEventListener('touchmove',e=>{
+      if(!active) return;
+      const t=e.touches[0]; lastDx=t.clientX-sx; lastDy=Math.min(0,t.clientY-sy);
+      card.style.transform=`translate(${lastDx}px,${lastDy}px) rotate(${lastDx/18}deg)`;
+      const tier=Math.abs(lastDx)>Math.abs(lastDy)?(lastDx>0?'like':'dislike'):'okay';
+      const strong=Math.max(Math.abs(lastDx),Math.abs(lastDy))>THRESH;
+      card.style.boxShadow=strong?`0 0 0 3px ${{like:'#2e7d32',dislike:'#c62828',okay:'#f57f17'}[tier]}`:'';
+    },{passive:true});
+    const end=()=>{
+      if(!active) return; active=false;
+      card.style.transition='transform .2s ease, box-shadow .2s';
+      const horiz=Math.abs(lastDx)>Math.abs(lastDy);
+      let tier=null;
+      if(horiz&&lastDx>THRESH) tier='like';
+      else if(horiz&&lastDx<-THRESH) tier='dislike';
+      else if(!horiz&&lastDy<-THRESH) tier='okay';
+      card.style.transform=''; card.style.boxShadow='';
+      if(tier) submitTier(tier);
+    };
+    card.addEventListener('touchend',end,{passive:true});
+    card.addEventListener('touchcancel',end,{passive:true});
+  })();
 
   async function submitTier(tier) {
     if (!rankingPhoto) return;
@@ -1109,7 +1321,7 @@
     };
 
     document.getElementById('rankingOverlay').classList.add('open');
-    document.body.style.overflow = 'hidden';
+    MobileUX.lockScroll('rank');
 
     if (!p.tier) {
       // Unranked — show triage panel pre-loaded with this photo
@@ -1169,13 +1381,13 @@
   function startComparing() {
     if (!adminToken) return;
     document.getElementById('compareOverlay').classList.add('open');
-    document.body.style.overflow = 'hidden';
+    MobileUX.lockScroll('compare');
     showCompareState('loading');
     loadNextPair();
   }
   function stopComparing() {
     document.getElementById('compareOverlay').classList.remove('open');
-    document.body.style.overflow = '';
+    MobileUX.unlockScroll('compare');
     comparePairA = comparePairB = null; compareInFlight = false;
     refreshBannerCounts(); renderList();
   }
