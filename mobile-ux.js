@@ -170,6 +170,22 @@
     }, { passive: true });
   })();
 
+  // Mobile navigation menu: contain it and freeze the page behind it while it is open
+  function initMenuLock() {
+    const menu = document.getElementById('headerMobileMenu');
+    if (!menu) return;
+    menu.style.maxHeight = 'calc(100dvh - var(--header-h))';
+    menu.style.overflowY = 'auto';
+    menu.style.overscrollBehavior = 'contain';
+    const sync = () => {
+      const open = menu.classList.contains('open') && matchMedia('(max-width: 767px)').matches;
+      if (open) locks.add('menu'); else locks.delete('menu');
+      applyLock();
+    };
+    new MutationObserver(sync).observe(menu, { attributes: true, attributeFilter: ['class'] });
+    window.addEventListener('resize', sync);
+  }
+
   window.MobileUX = {
     lockScroll(key = 'default')   { locks.add(key);    applyLock(); },
     unlockScroll(key = 'default') { locks.delete(key); applyLock(); },
@@ -178,6 +194,7 @@
     observeLoadMore
   };
 
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initBackToTop);
-  else initBackToTop();
+  const initAll = () => { initBackToTop(); initMenuLock(); };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initAll);
+  else initAll();
 })();

@@ -427,6 +427,34 @@
       .placement-cards .pl-card-body { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; }
     }
     .load-more-sentinel { text-align: center; padding: 28px 0 36px; color: #aaa; font-size: 12px; letter-spacing: 0.4px; }
+
+    /* ═══ Phones: stacked full-width buttons; tuned for iPhone 13 mini (375px) ═══ */
+    @media (max-width: 767px) {
+      .login-modal-actions { flex-direction: column; }
+      .login-submit-btn, .login-cancel-btn { width: 100%; min-height: 44px; }
+      .rank-phase-btn { width: 100%; min-height: 44px; }
+      .ov-done-btn, .compare-done-btn { width: 100%; max-width: 320px; min-height: 44px; }
+      .triage-skip { width: 100%; max-width: 380px; min-height: 44px; border: 1px solid #2a2a2a; border-radius: 8px; color: #777; }
+      .modal-action-bar .spacer { display: none; }
+      .modal-action-btn { flex: 1; padding: 0 6px; white-space: nowrap; }
+    }
+    @media (max-width: 599px) {
+      .rank-phase { flex-direction: column; align-items: stretch; }
+      .rank-phase-text { flex: none; }
+      .rank-phase-icon { display: none; }
+      /* Rate button spans the full width of its row */
+      .rank-row { flex-wrap: wrap; }
+      .rank-rate-btn { flex: 1 1 100%; width: 100%; }
+      .compare-vs, .placement-cards .pl-vs { width: 100%; }
+      .same-btn, .pl-same-btn { flex: 1; min-height: 44px; }
+    }
+    @media (max-width: 400px) {
+      .rank-banner { margin-top: 14px; }
+      .modal-body { padding: 18px 16px; }
+      .modal-action-bar { margin: 14px -16px -18px; padding-left: 16px; padding-right: 16px; }
+      .modal-img-wrap img { max-height: 200px; }
+      .rank-thumb { width: 56px; height: 56px; }
+    }
   </style>
 </head>
 <body>

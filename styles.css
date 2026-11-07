@@ -1236,3 +1236,80 @@ body.select-mode .photo-card.selected {
   #sidebarList { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
 }
 @media (prefers-reduced-motion: reduce) { #mapSidebar { transition: none; } }
+
+
+/* ═════════════════════════════════════════════════════════════════════════════
+   Phones: stacked full-width buttons, no sideways-scrolling navigation,
+   tuned for iPhone 13 mini (375 × 812 CSS px)
+   ═════════════════════════════════════════════════════════════════════════════ */
+@media (max-width: 767px) {
+  /* Toolbar buttons stack and span the screen */
+  .toolbar > .upload-btn, .toolbar > .select-mode-btn, .toolbar > .admin-tools-toggle {
+    width: 100%; margin-left: 0; justify-content: center; text-align: center;
+  }
+  .admin-tools { grid-template-columns: 1fr; }
+  .admin-tools .clear-btn { min-height: 44px; }
+
+  /* Navigation: a 2 × 2 grid of full-width buttons instead of a row that scrolls sideways */
+  .filter-group {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 6px;
+    overflow: visible; -webkit-mask-image: none; mask-image: none;
+    scroll-snap-type: none; border-bottom: none;
+    margin-inline: 0; padding-inline: 0;
+  }
+  .filter-btn {
+    display: flex; align-items: center; justify-content: center; text-align: center;
+    min-height: 44px; padding: 0 6px; font-size: 11px; letter-spacing: 0.4px;
+    border: 1px solid #d6d0c7; border-radius: 3px; background: #fff; white-space: nowrap;
+  }
+  .filter-btn.active { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
+  .filter-btn:hover { background: #fff; }
+  .filter-btn.active:hover { background: #1a1a1a; color: #fff; }
+  #submissionsFilterBtn { grid-column: 1 / -1; }
+
+  /* Grouping toggle + sort: full-width controls */
+  .grouping-toggle { width: 100%; margin-left: 0; }
+  .group-btn { flex: 1; min-height: 44px; }
+  .sort-wrap { width: 100%; margin-left: 0; gap: 10px; }
+  .sort-label { flex-shrink: 0; }
+  .sort-select {
+    flex: 1; min-height: 44px; padding: 0 34px 0 12px;
+    border: 1px solid #c8c2b8; border-radius: 3px; background-color: #fff; color: #1a1a1a; font-size: 13px;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path d='M1 1l5 5 5-5' fill='none' stroke='%23888' stroke-width='1.6'/></svg>");
+    background-repeat: no-repeat; background-position: right 12px center;
+  }
+
+  /* Stats: 2 × 2 instead of a wrapping line */
+  .stats-bar { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 12px; }
+  #queueStatus { grid-column: 1 / -1; margin-left: 0; }
+
+  /* Banners, login, edit and bulk-edit buttons */
+  .location-banner-btn { width: 100%; text-align: center; }
+  .login-modal-actions { flex-direction: column; }
+  .login-submit-btn, .login-cancel-btn { width: 100%; min-height: 44px; }
+  .modal-save-btn, .modal-cancel-btn, .modal-reanalyze-btn {
+    display: flex; align-items: center; justify-content: center;
+    width: 100%; min-height: 44px; margin: 10px 0 0; text-align: center;
+  }
+  .selection-bar { flex-wrap: wrap; gap: 8px; padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px)); }
+  .selection-bar-count { flex: 1 1 100%; }
+  .selection-bar-edit, .selection-bar-clear { flex: 1; min-height: 44px; }
+
+  /* Modal action row: equal-width buttons across the sheet (kept in one row so it stays short) */
+  .modal-action-bar .spacer { display: none; }
+  .modal-action-btn { flex: 1; padding: 0 6px; white-space: nowrap; }
+}
+
+/* iPhone 13 mini and other ≤400px phones */
+@media (max-width: 400px) {
+  .main { padding: 12px 14px; }
+  .toolbar { padding-left: max(14px, env(safe-area-inset-left, 0px)); padding-right: max(14px, env(safe-area-inset-right, 0px)); }
+  .stats-bar, .location-banner { padding-left: max(14px, env(safe-area-inset-left, 0px)); padding-right: max(14px, env(safe-area-inset-right, 0px)); }
+  .logo-text { font-size: 15px; }
+  .modal-body { padding: 18px 16px; }
+  .modal-action-bar { margin: 14px -16px -18px; padding-left: 16px; padding-right: 16px; }
+  .modal-img-wrap img { max-height: 200px; }
+  .modal-title { font-size: 19px; }
+  .location-header { flex-wrap: wrap; row-gap: 2px; }
+  #mapTop { min-height: 420px; }
+}
