@@ -2452,7 +2452,7 @@ function bgClick(e) { if (e.target === document.getElementById('modalBg')) close
   const onTarget = e => e.target.closest('.modal-img-wrap, #modalDragHandle') && !e.target.closest('button');
 
   modal.addEventListener('touchstart', e => {
-    if (MobileUX.photoPage.active) return; // phone page view: no swipe gestures, just the Back button
+    if (MobileUX.photoPage.active || !MobileUX.isMobile()) return; // no swipe gestures: Back button on phones, two-pane layout elsewhere
     if (e.touches.length !== 1 || !onTarget(e)) return;
     const t = e.touches[0];
     startX = t.clientX; startY = t.clientY; startT = Date.now();
