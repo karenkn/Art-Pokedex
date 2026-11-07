@@ -2121,10 +2121,12 @@ function setSort(value) {
 // Modal
 // ─────────────────────────────────────────────────────────────────────────────
 let activeModalId = null;
+let modalNavIds = [];   // photo order captured when the detail view opens (for prev/next + "3 of 24")
 
 function openModal(id) {
   const p = photos.find(x => x.id === id);
   if (!p || p.status !== 'done') return;
+  if (!activeModalId) modalNavIds = visiblePhotoIds(); // must run before the gallery is hidden
   activeModalId = id;
 
   refreshModalView(p);
@@ -2134,8 +2136,13 @@ function openModal(id) {
   document.getElementById('editMode').style.display = 'none';
 
   document.getElementById('modalBg').classList.add('open');
-  MobileUX.lockScroll('modal');
-  try { history.replaceState(null, '', `#photo=${encodeURIComponent(id)}`); } catch (_) {}
+  const pos = document.getElementById('photoPagePos');
+  if (pos) { const i = modalNavIds.indexOf(id); pos.textContent = i < 0 ? '' : `${i + 1} of ${modalNavIds.length}`; }
+  // Phones: full-page view that scrolls with the page. Larger screens: classic modal.
+  if (!MobileUX.photoPage.enter(id)) {
+    MobileUX.lockScroll('modal');
+    try { history.replaceState(null, '', `#photo=${encodeURIComponent(id)}`); } catch (_) {}
+  }
 }
 
 function refreshModalView(p) {
@@ -2249,7 +2256,7 @@ function visiblePhotoIds() {
 function navigateModal(dir) {
   if (!activeModalId) return;
   if (document.getElementById('editMode').style.display !== 'none') return; // don't lose edits
-  const ids = visiblePhotoIds();
+  const ids = modalNavIds;
   const i = ids.indexOf(activeModalId);
   const next = i < 0 ? null : ids[i + dir];
   if (!next) return;
@@ -2258,7 +2265,8 @@ function navigateModal(dir) {
   openModal(next);
   void wrap.offsetWidth; // restart the CSS animation
   wrap.classList.add(dir > 0 ? 'slide-from-right' : 'slide-from-left');
-  document.querySelector('#modal .modal-body').scrollTop = 0;
+  if (MobileUX.photoPage.active) window.scrollTo(0, 0);
+  else document.querySelector('#modal .modal-body').scrollTop = 0;
 }
 document.addEventListener('keydown', e => {
   if (!activeModalId || /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
@@ -2340,14 +2348,17 @@ function cancelEdit() {
   document.getElementById('editMode').style.display = 'none';
 }
 
-function closeModal() {
+function closeModal(opts) {
   document.getElementById('modalBg').classList.remove('open');
   MobileUX.unlockScroll('modal');
-  if (location.hash.startsWith('#photo=')) {
+  if (MobileUX.photoPage.active) {
+    MobileUX.photoPage.leave(opts && opts.fromPop);
+  } else if (location.hash.startsWith('#photo=')) {
     try { history.replaceState(null, '', location.pathname + location.search); } catch (_) {}
   }
   activeModalId = null;
 }
+MobileUX.photoPage.onPop = () => { if (activeModalId) closeModal({ fromPop: true }); };
 function deleteFromModal() {
   const id = activeModalId;
   if (!id) return;
@@ -2454,7 +2465,7 @@ function bgClick(e) { if (e.target === document.getElementById('modalBg')) close
     const t = e.touches[0], dx = t.clientX - startX, dy = t.clientY - startY;
     if (!mode) {
       if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
-      mode = Math.abs(dy) > Math.abs(dx) ? (dy > 0 ? 'drag' : 'none') : 'nav';
+      mode = Math.abs(dy) > Math.abs(dx) ? (dy > 0 && !MobileUX.photoPage.active ? 'drag' : 'none') : 'nav';
       if (mode === 'drag') modal.classList.add('dragging');
     }
     if (mode === 'drag') modal.style.transform = `translateY(${Math.max(0, dy)}px)`;

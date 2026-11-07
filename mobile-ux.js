@@ -60,6 +60,44 @@
       html.header-compact header img { width: 24px !important; }
     }
 
+    /* ── Phone "page mode": the photo detail replaces the gallery and scrolls with the page ── */
+    .photo-page-bar { display: none; }
+    @media (max-width: 767px) {
+      body.photo-page-open .modal-bg,
+      body.photo-page-open .modal-bg.open {
+        position: static; inset: auto; display: block; background: none; z-index: auto;
+      }
+      body.photo-page-open .modal-bg:not(.open) { display: none; }
+      body.photo-page-open .modal {
+        width: 100%; max-width: none; max-height: none; margin: 0;
+        min-height: calc(100vh - var(--header-h)); min-height: calc(100dvh - var(--header-h));
+        border: none; border-radius: 0; box-shadow: none; overflow: visible;
+        transform: none !important;
+      }
+      body.photo-page-open .modal-body { overflow: visible; }
+      body.photo-page-open .modal-drag-handle,
+      body.photo-page-open .modal-close-btn,
+      body.photo-page-open .modal-nav-btn { display: none; }
+      body.photo-page-open .modal-img-wrap { touch-action: pan-y; }
+      body.photo-page-open .modal-img-wrap img { max-height: 58vh; max-height: 58dvh; }
+      body.photo-page-open #backToTop { display: none; }
+      .photo-page-bar {
+        display: flex; align-items: center; justify-content: space-between; gap: 8px;
+        position: sticky; top: var(--header-h); z-index: 150;
+        padding: 6px max(12px, env(safe-area-inset-right, 0px)) 6px max(8px, env(safe-area-inset-left, 0px));
+        background: #fff; border-bottom: 1px solid #ece8e2;
+      }
+      .photo-page-bar button {
+        min-height: 44px; min-width: 44px; padding: 0 12px; border: none; background: none;
+        font: inherit; font-size: 14px; font-weight: 600; color: #1a1a1a; cursor: pointer;
+        -webkit-tap-highlight-color: transparent;
+      }
+      .photo-page-bar .ppb-back { padding-left: 4px; }
+      .photo-page-bar .ppb-pos { font-size: 12px; color: #999; letter-spacing: 0.3px; }
+      .photo-page-bar .ppb-nav { display: flex; }
+      .photo-page-bar .ppb-nav button { font-size: 22px; padding: 0 10px; }
+    }
+
     /* ── Touch targets: at least 44px on touch screens ── */
     @media (pointer: coarse) {
       .header-hamburger { min-width: 44px; min-height: 44px; display: flex; align-items: center; justify-content: center; }
@@ -186,12 +224,57 @@
     window.addEventListener('resize', sync);
   }
 
+  // ── Photo page mode (phones) ───────────────────────────────────────────────
+  // Instead of a scrolling modal, the detail view takes over the page: the gallery is hidden,
+  // the document itself scrolls, and the phone's Back button returns to the gallery.
+  const photoPage = {
+    active: false, savedY: 0, pushed: false, onPop: null,
+    enter(id) {
+      if (!matchMedia('(max-width: 767px)').matches) return false;
+      const hash = '#photo=' + encodeURIComponent(id);
+      if (!this.active) {
+        this.savedY = window.scrollY;
+        this.active = true;
+        document.body.classList.add('photo-page-open');
+        if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+        try {
+          if (location.hash.startsWith('#photo=')) history.replaceState({ photoPage: true }, '', hash);
+          else { history.pushState({ photoPage: true }, '', hash); this.pushed = true; }
+        } catch (_) {}
+        window.scrollTo(0, 0);
+      } else {
+        try { history.replaceState(history.state, '', hash); } catch (_) {}
+      }
+      return true;
+    },
+    leave(fromPop) {
+      if (!this.active) return;
+      this.active = false;
+      document.body.classList.remove('photo-page-open');
+      const y = this.savedY;
+      if (this.pushed) {
+        this.pushed = false;
+        if (!fromPop) { try { history.back(); } catch (_) {} }
+      } else if (!fromPop) {
+        try { history.replaceState(null, '', location.pathname + location.search); } catch (_) {}
+      }
+      if ('scrollRestoration' in history) history.scrollRestoration = 'auto';
+      requestAnimationFrame(() => window.scrollTo(0, y));
+      setTimeout(() => window.scrollTo(0, y), 60);
+    }
+  };
+  // Phone/OS Back button while a photo is open → return to the gallery
+  window.addEventListener('popstate', () => {
+    if (photoPage.active && !location.hash.startsWith('#photo=') && photoPage.onPop) photoPage.onPop();
+  });
+
   window.MobileUX = {
     lockScroll(key = 'default')   { locks.add(key);    applyLock(); },
     unlockScroll(key = 'default') { locks.delete(key); applyLock(); },
     isMobile: () => matchMedia('(max-width: 767px)').matches,
     toast,
-    observeLoadMore
+    observeLoadMore,
+    photoPage
   };
 
   const initAll = () => { initBackToTop(); initMenuLock(); };

@@ -1313,3 +1313,9 @@ body.select-mode .photo-card.selected {
   .location-header { flex-wrap: wrap; row-gap: 2px; }
   #mapTop { min-height: 420px; }
 }
+
+/* Photo page mode (phones): hide the gallery chrome while a photo is open */
+@media (max-width: 767px) {
+  body.photo-page-open .toolbar, body.photo-page-open .stats-bar, body.photo-page-open .location-banner,
+  body.photo-page-open .main, body.photo-page-open .selection-bar { display: none !important; }
+}

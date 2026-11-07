@@ -426,6 +426,9 @@
       .placement-cards .pl-card-img-wrap { aspect-ratio: 1; width: 42%; flex-shrink: 0; }
       .placement-cards .pl-card-body { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; }
     }
+    @media (max-width: 767px) {
+      body.photo-page-open .hero, body.photo-page-open .rank-banner, body.photo-page-open .ranked-wrap { display: none !important; }
+    }
     .load-more-sentinel { text-align: center; padding: 28px 0 36px; color: #aaa; font-size: 12px; letter-spacing: 0.4px; }
 
     /* ═══ Phones: stacked full-width buttons; tuned for iPhone 13 mini (375px) ═══ */
@@ -533,6 +536,14 @@
 <!-- Detail Modal -->
 <div class="modal-bg" id="modalBg" onclick="bgClick(event)">
   <div class="modal" id="modal">
+    <div class="photo-page-bar">
+      <button type="button" class="ppb-back" onclick="closeModal()" aria-label="Back to gallery">← Back</button>
+      <span class="ppb-pos" id="photoPagePos"></span>
+      <span class="ppb-nav">
+        <button type="button" onclick="navigateModal(-1)" aria-label="Previous photo">‹</button>
+        <button type="button" onclick="navigateModal(1)" aria-label="Next photo">›</button>
+      </span>
+    </div>
     <div class="modal-drag-handle" id="modalDragHandle"></div>
     <div class="modal-img-wrap">
       <img id="modalImg" src="" alt="" />
@@ -903,19 +914,28 @@
   }
 
   // ── Modal ─────────────────────────────────────────────────────────────────────
+  let modalNavIds = [];   // order captured when the detail view opens (prev/next + "3 of 24")
   function openModal(id) {
     const p=photos.find(x=>x.id===id); if(!p) return;
+    if(!activeId) modalNavIds=[...document.querySelectorAll('.rank-row[data-id]')].map(el=>el.dataset.id); // before the list is hidden
     activeId=id; renderModal(p);
     document.getElementById('modalBg').classList.add('open');
-    MobileUX.lockScroll('modal');
-    try { history.replaceState(null,'',`#photo=${encodeURIComponent(id)}`); } catch(_) {}
+    const pos=document.getElementById('photoPagePos');
+    if(pos){ const i=modalNavIds.indexOf(id); pos.textContent=i<0?'':`${i+1} of ${modalNavIds.length}`; }
+    // Phones: full-page view that scrolls with the page. Larger screens: classic modal.
+    if(!MobileUX.photoPage.enter(id)){
+      MobileUX.lockScroll('modal');
+      try { history.replaceState(null,'',`#photo=${encodeURIComponent(id)}`); } catch(_) {}
+    }
   }
-  function closeModal() {
+  function closeModal(opts) {
     document.getElementById('modalBg').classList.remove('open');
     MobileUX.unlockScroll('modal');
-    if (location.hash.startsWith('#photo=')) { try { history.replaceState(null,'',location.pathname+location.search); } catch(_) {} }
+    if(MobileUX.photoPage.active) MobileUX.photoPage.leave(opts&&opts.fromPop);
+    else if (location.hash.startsWith('#photo=')) { try { history.replaceState(null,'',location.pathname+location.search); } catch(_) {} }
     activeId=null;
   }
+  MobileUX.photoPage.onPop=()=>{ if(activeId) closeModal({fromPop:true}); };
   function bgClick(e) { if(e.target===document.getElementById('modalBg')) closeModal(); }
 
   function renderModal(p) {
@@ -987,7 +1007,7 @@
   // Previous / next photo in the order currently listed
   function navigateModal(dir) {
     if(!activeId) return;
-    const ids=[...document.querySelectorAll('.rank-row[data-id]')].map(el=>el.dataset.id);
+    const ids=modalNavIds;
     const i=ids.indexOf(activeId), next=i<0?null:ids[i+dir];
     if(!next) return;
     const wrap=document.querySelector('#modal .modal-img-wrap');
@@ -995,7 +1015,8 @@
     openModal(next);
     void wrap.offsetWidth;
     wrap.classList.add(dir>0?'slide-from-right':'slide-from-left');
-    document.querySelector('#modal .modal-body').scrollTop=0;
+    if(MobileUX.photoPage.active) window.scrollTo(0,0);
+    else document.querySelector('#modal .modal-body').scrollTop=0;
   }
   document.addEventListener('keydown',e=>{
     if(!activeId||/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
@@ -1017,7 +1038,7 @@
       const t=e.touches[0], dx=t.clientX-sx, dy=t.clientY-sy;
       if(!mode){
         if(Math.abs(dx)<8&&Math.abs(dy)<8) return;
-        mode=Math.abs(dy)>Math.abs(dx)?(dy>0?'drag':'none'):'nav';
+        mode=Math.abs(dy)>Math.abs(dx)?(dy>0&&!MobileUX.photoPage.active?'drag':'none'):'nav';
         if(mode==='drag') modal.classList.add('dragging');
       }
       if(mode==='drag') modal.style.transform=`translateY(${Math.max(0,dy)}px)`;
