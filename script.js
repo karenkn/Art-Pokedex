@@ -2136,8 +2136,6 @@ function openModal(id) {
   document.getElementById('editMode').style.display = 'none';
 
   document.getElementById('modalBg').classList.add('open');
-  const pos = document.getElementById('photoPagePos');
-  if (pos) { const i = modalNavIds.indexOf(id); pos.textContent = i < 0 ? '' : `${i + 1} of ${modalNavIds.length}`; }
   // Phones: full-page view that scrolls with the page. Larger screens: classic modal.
   if (!MobileUX.photoPage.enter(id)) {
     MobileUX.lockScroll('modal');
@@ -2454,6 +2452,7 @@ function bgClick(e) { if (e.target === document.getElementById('modalBg')) close
   const onTarget = e => e.target.closest('.modal-img-wrap, #modalDragHandle') && !e.target.closest('button');
 
   modal.addEventListener('touchstart', e => {
+    if (MobileUX.photoPage.active) return; // phone page view: no swipe gestures, just the Back button
     if (e.touches.length !== 1 || !onTarget(e)) return;
     const t = e.touches[0];
     startX = t.clientX; startY = t.clientY; startT = Date.now();

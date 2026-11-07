@@ -82,7 +82,7 @@
       body.photo-page-open .modal-img-wrap img { max-height: 58vh; max-height: 58dvh; }
       body.photo-page-open #backToTop { display: none; }
       .photo-page-bar {
-        display: flex; align-items: center; justify-content: space-between; gap: 8px;
+        display: flex; align-items: center; justify-content: flex-start;
         position: sticky; top: var(--header-h); z-index: 150;
         padding: 6px max(12px, env(safe-area-inset-right, 0px)) 6px max(8px, env(safe-area-inset-left, 0px));
         background: #fff; border-bottom: 1px solid #ece8e2;
@@ -93,9 +93,6 @@
         -webkit-tap-highlight-color: transparent;
       }
       .photo-page-bar .ppb-back { padding-left: 4px; }
-      .photo-page-bar .ppb-pos { font-size: 12px; color: #999; letter-spacing: 0.3px; }
-      .photo-page-bar .ppb-nav { display: flex; }
-      .photo-page-bar .ppb-nav button { font-size: 22px; padding: 0 10px; }
     }
 
     /* ── Touch targets: at least 44px on touch screens ── */
