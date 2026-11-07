@@ -77,8 +77,6 @@
       body.photo-page-open .modal-body { overflow: visible; }
       body.photo-page-open .modal-drag-handle,
       body.photo-page-open .modal-close-btn,
-      body.photo-page-open .modal-nav-btn { display: none; }
-      body.photo-page-open .modal-img-wrap { touch-action: pan-y; }
       body.photo-page-open .modal-img-wrap img { max-height: 58vh; max-height: 58dvh; }
       body.photo-page-open #backToTop { display: none; }
       .photo-page-bar {

@@ -1159,7 +1159,6 @@ body.select-mode .photo-card.selected {
 }
 
 /* ── Modal: sticky action row, slide animation, prev/next, drag-to-close ── */
-.modal-img-wrap, .modal-drag-handle { touch-action: none; }
 .modal-action-bar {
   position: sticky; bottom: 0; z-index: 5;
   display: flex; align-items: center; gap: 8px;
@@ -1186,28 +1185,6 @@ body.select-mode .photo-card.selected {
   .modal-action-bar { margin-left: -24px; margin-right: -24px; gap: 6px; }
   .modal-action-btn { padding: 0 14px; }
 }
-.modal.dragging { transition: none; }
-.modal.snap-back { transition: transform 0.2s ease; }
-.modal.closing { transition: transform 0.2s ease; }
-@keyframes mux-slide-from-right { from { opacity: 0; transform: translateX(36px); } to { opacity: 1; transform: none; } }
-@keyframes mux-slide-from-left  { from { opacity: 0; transform: translateX(-36px); } to { opacity: 1; transform: none; } }
-.modal-img-wrap.slide-from-right img { animation: mux-slide-from-right 0.22s ease; }
-.modal-img-wrap.slide-from-left  img { animation: mux-slide-from-left 0.22s ease; }
-.modal-nav-btn {
-  position: absolute; top: 50%; transform: translateY(-50%);
-  width: 40px; height: 40px; border-radius: 50%; border: none;
-  background: rgba(0,0,0,0.5); color: #fff; font-size: 22px; line-height: 1;
-  display: none; align-items: center; justify-content: center; cursor: pointer;
-}
-.modal-nav-btn:hover { background: rgba(0,0,0,0.8); }
-.modal-nav-btn.prev { left: 12px; }
-.modal-nav-btn.next { right: 12px; }
-@media (hover: hover) and (pointer: fine) { .modal-nav-btn { display: flex; } }
-@media (prefers-reduced-motion: reduce) {
-  .modal-img-wrap.slide-from-right img, .modal-img-wrap.slide-from-left img { animation: none; }
-  .modal.snap-back, .modal.closing { transition: none; }
-}
-
 /* ── Lazy-loaded lists ── */
 .load-more-sentinel { text-align: center; padding: 28px 0 36px; color: #aaa; font-size: 12px; letter-spacing: 0.4px; }
 
@@ -1322,28 +1299,28 @@ body.select-mode .photo-card.selected {
 
 /* ═════════════════════════════════════════════════════════════════════════════
    Modal on iPad & desktop (≥768px): two panes — image left, text right.
-   Actions (Like / Share / Edit) sit under the tags, above the long description.
+   Actions (Like / Share / Edit) sit at the end of the text pane, below the details.
    On phones the same bar stays pinned to the bottom of the page view.
    ═════════════════════════════════════════════════════════════════════════════ */
 @media (min-width: 768px) {
   .modal {
     flex-direction: row;
-    width: 94%; max-width: 1140px;
+    width: 94%; max-width: 1240px;
     height: min(calc(100vh - 110px), 780px); max-height: none;
   }
   .modal-img-wrap {
-    flex: 0 0 46%; display: flex; align-items: center; justify-content: center;
+    flex: 0 0 60%; display: flex; align-items: center; justify-content: center;
     background: #0d0d0d; min-height: 0;
   }
   .modal-img-wrap img { width: 100%; height: 100%; max-height: none; object-fit: contain; }
-  .modal-body { flex: 1 1 54%; min-width: 0; padding: 30px 34px 28px; }
+  .modal-body { flex: 1 1 40%; min-width: 0; padding: 30px 34px 28px; }
 
   /* Action bar: flat row under the tags */
   .modal-action-bar {
-    position: static; order: 0;
-    margin: 4px 0 20px; padding: 14px 0;
+    position: static; order: 99;
+    margin: 22px 0 0; padding: 16px 0 0;
     background: none; -webkit-backdrop-filter: none; backdrop-filter: none;
-    border-top: 1px solid #ece8e2; border-bottom: 1px solid #ece8e2;
+    border-top: 1px solid #ece8e2; border-bottom: none;
   }
 }
 /* Body/viewMode are column flex boxes so the bar can sit under the tags on desktop
@@ -1355,6 +1332,5 @@ body.select-mode .photo-card.selected {
   /* Close button lives at the top-right of the whole modal (the text pane) */
   .modal { position: relative; }
   .modal-img-wrap { position: static; }
-  .modal-nav-btn.next { right: auto; left: calc(46% - 52px); }
   .modal-title-row { padding-right: 44px; }
 }

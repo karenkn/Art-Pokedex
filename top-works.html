@@ -352,7 +352,6 @@
 
     /* ═══ Mobile-friendly additions ═══ */
     /* Modal: sticky action row, gestures, prev/next */
-    .modal-img-wrap, .modal-drag-handle { touch-action: none; }
     .modal-action-bar {
       position: sticky; bottom: 0; z-index: 5; display: flex; align-items: center; gap: 8px;
       margin: 16px -24px -22px; padding: 10px 24px calc(10px + env(safe-area-inset-bottom, 0px));
@@ -369,25 +368,6 @@
     .modal-action-btn:hover { border-color: #1a1a1a; color: #1a1a1a; }
     .modal-action-btn.liked { border-color: #8f0101; color: #8f0101; background: #fff7f6; }
     @media (pointer: coarse) { .modal-action-btn { min-height: 44px; } }
-    .modal.dragging { transition: none; }
-    .modal.snap-back, .modal.closing { transition: transform 0.2s ease; }
-    @keyframes mux-slide-from-right { from { opacity: 0; transform: translateX(36px); } to { opacity: 1; transform: none; } }
-    @keyframes mux-slide-from-left  { from { opacity: 0; transform: translateX(-36px); } to { opacity: 1; transform: none; } }
-    .modal-img-wrap.slide-from-right img { animation: mux-slide-from-right 0.22s ease; }
-    .modal-img-wrap.slide-from-left  img { animation: mux-slide-from-left 0.22s ease; }
-    .modal-nav-btn {
-      position: absolute; top: 50%; transform: translateY(-50%); width: 40px; height: 40px; border-radius: 50%;
-      border: none; background: rgba(0,0,0,0.5); color: #fff; font-size: 22px; line-height: 1;
-      display: none; align-items: center; justify-content: center; cursor: pointer;
-    }
-    .modal-nav-btn:hover { background: rgba(0,0,0,0.8); }
-    .modal-nav-btn.prev { left: 12px; } .modal-nav-btn.next { right: 12px; }
-    @media (hover: hover) and (pointer: fine) { .modal-nav-btn { display: flex; } }
-    @media (prefers-reduced-motion: reduce) {
-      .modal-img-wrap.slide-from-right img, .modal-img-wrap.slide-from-left img { animation: none; }
-      .modal.snap-back, .modal.closing { transition: none; }
-    }
-
     /* Rankings list: compact rows, "Rate" reachable on touch, 44px tap targets */
     @media (hover: none) { .rank-rate-btn { opacity: 1; } }
     @media (max-width: 599px) {
@@ -432,17 +412,17 @@
 
 /* ═════════════════════════════════════════════════════════════════════════════
    Modal on iPad & desktop (≥768px): two panes — image left, text right.
-   Actions (Like / Share / Edit) sit under the tags, above the long description.
+   Actions (Like / Share / Edit) sit at the end of the text pane, below the details.
    On phones the same bar stays pinned to the bottom of the page view.
    ═════════════════════════════════════════════════════════════════════════════ */
 @media (min-width: 768px) {
   .modal {
     flex-direction: row;
-    width: 94%; max-width: 1140px;
+    width: 94%; max-width: 1240px;
     height: min(calc(100vh - 110px), 780px); max-height: none;
   }
   .modal-img-wrap {
-    flex: 0 0 46%; display: flex; align-items: center; justify-content: center;
+    flex: 0 0 60%; display: flex; align-items: center; justify-content: center;
     background: #0d0d0d; min-height: 0;
   }
   .modal-img-wrap img { width: 100%; height: 100%; max-height: none; object-fit: contain; }
@@ -450,10 +430,10 @@
 
   /* Action bar: flat row under the tags */
   .modal-action-bar {
-    position: static; order: 0;
-    margin: 4px 0 20px; padding: 14px 0;
+    position: static; order: 99;
+    margin: 22px 0 0; padding: 16px 0 0;
     background: none; -webkit-backdrop-filter: none; backdrop-filter: none;
-    border-top: 1px solid #ece8e2; border-bottom: 1px solid #ece8e2;
+    border-top: 1px solid #ece8e2; border-bottom: none;
   }
 }
 /* Body/viewMode are column flex boxes so the bar can sit under the tags on desktop
@@ -464,7 +444,6 @@
   /* Close button lives at the top-right of the whole modal (the text pane) */
   .modal { position: relative; }
   .modal-img-wrap { position: static; }
-  .modal-nav-btn.next { right: auto; left: calc(46% - 52px); }
   .modal-title-row { padding-right: 44px; }
 }
     .load-more-sentinel { text-align: center; padding: 28px 0 36px; color: #aaa; font-size: 12px; letter-spacing: 0.4px; }
@@ -580,8 +559,6 @@
     <div class="modal-drag-handle" id="modalDragHandle"></div>
     <div class="modal-img-wrap">
       <img id="modalImg" src="" alt="" />
-      <button class="modal-nav-btn prev" onclick="navigateModal(-1)" aria-label="Previous photo">‹</button>
-      <button class="modal-nav-btn next" onclick="navigateModal(1)" aria-label="Next photo">›</button>
       <button class="modal-close-btn" onclick="closeModal()" aria-label="Close">✕</button>
     </div>
     <div class="modal-body">
@@ -947,10 +924,8 @@
   }
 
   // ── Modal ─────────────────────────────────────────────────────────────────────
-  let modalNavIds = [];   // order captured when the detail view opens (prev/next + "3 of 24")
   function openModal(id) {
     const p=photos.find(x=>x.id===id); if(!p) return;
-    if(!activeId) modalNavIds=[...document.querySelectorAll('.rank-row[data-id]')].map(el=>el.dataset.id); // before the list is hidden
     activeId=id; renderModal(p);
     document.getElementById('modalBg').classList.add('open');
     // Phones: full-page view that scrolls with the page. Larger screens: classic modal.
@@ -1035,65 +1010,9 @@
   }
   window.addEventListener('hashchange',()=>{ if(!activeId) openPhotoFromHash(); });
 
-  // Previous / next photo in the order currently listed
-  function navigateModal(dir) {
-    if(!activeId) return;
-    const ids=modalNavIds;
-    const i=ids.indexOf(activeId), next=i<0?null:ids[i+dir];
-    if(!next) return;
-    const wrap=document.querySelector('#modal .modal-img-wrap');
-    wrap.classList.remove('slide-from-left','slide-from-right');
-    openModal(next);
-    void wrap.offsetWidth;
-    wrap.classList.add(dir>0?'slide-from-right':'slide-from-left');
-    if(MobileUX.photoPage.active) window.scrollTo(0,0);
-    else document.querySelector('#modal .modal-body').scrollTop=0;
-  }
   document.addEventListener('keydown',e=>{
-    if(!activeId||/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
-    if(e.key==='ArrowRight') navigateModal(1);
-    else if(e.key==='ArrowLeft') navigateModal(-1);
+    if(e.key==='Escape'&&activeId&&!/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) closeModal();
   });
-
-  // Modal gestures on the image / drag handle: swipe down closes, left/right = next/previous
-  (function(){
-    const modal=document.getElementById('modal');
-    let sx=0,sy=0,st=0,mode=null,active=false;
-    const onTarget=e=>e.target.closest('.modal-img-wrap, #modalDragHandle')&&!e.target.closest('button');
-    modal.addEventListener('touchstart',e=>{
-      if(MobileUX.photoPage.active||!MobileUX.isMobile()) return; // no swipe gestures: Back button on phones, two-pane layout elsewhere
-      if(e.touches.length!==1||!onTarget(e)) return;
-      const t=e.touches[0]; sx=t.clientX; sy=t.clientY; st=Date.now(); mode=null; active=true;
-    },{passive:true});
-    modal.addEventListener('touchmove',e=>{
-      if(!active) return;
-      const t=e.touches[0], dx=t.clientX-sx, dy=t.clientY-sy;
-      if(!mode){
-        if(Math.abs(dx)<8&&Math.abs(dy)<8) return;
-        mode=Math.abs(dy)>Math.abs(dx)?(dy>0&&!MobileUX.photoPage.active?'drag':'none'):'nav';
-        if(mode==='drag') modal.classList.add('dragging');
-      }
-      if(mode==='drag') modal.style.transform=`translateY(${Math.max(0,dy)}px)`;
-    },{passive:true});
-    modal.addEventListener('touchend',e=>{
-      if(!active) return;
-      const t=e.changedTouches[0], dx=t.clientX-sx, dy=t.clientY-sy, v=dy/Math.max(1,Date.now()-st);
-      if(mode==='drag'){
-        modal.classList.remove('dragging');
-        if(dy>110||(dy>50&&v>0.5)){
-          modal.classList.add('closing'); modal.style.transform='translateY(100%)';
-          setTimeout(()=>{ closeModal(); modal.classList.remove('closing'); modal.style.transform=''; },200);
-        } else {
-          modal.classList.add('snap-back'); modal.style.transform='';
-          setTimeout(()=>modal.classList.remove('snap-back'),220);
-        }
-      } else if(mode==='nav'&&Math.abs(dx)>50&&Math.abs(dx)>Math.abs(dy)*1.5){
-        navigateModal(dx<0?1:-1);
-      }
-      active=false; mode=null;
-    },{passive:true});
-    modal.addEventListener('touchcancel',()=>{ modal.style.transform=''; modal.classList.remove('dragging'); active=false; mode=null; },{passive:true});
-  })();
 
   async function likePhoto(id, event) {
     if(event) event.stopPropagation();

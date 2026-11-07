@@ -2121,12 +2121,10 @@ function setSort(value) {
 // Modal
 // ─────────────────────────────────────────────────────────────────────────────
 let activeModalId = null;
-let modalNavIds = [];   // photo order captured when the detail view opens (for prev/next + "3 of 24")
 
 function openModal(id) {
   const p = photos.find(x => x.id === id);
   if (!p || p.status !== 'done') return;
-  if (!activeModalId) modalNavIds = visiblePhotoIds(); // must run before the gallery is hidden
   activeModalId = id;
 
   refreshModalView(p);
@@ -2243,34 +2241,8 @@ function openPhotoFromHash() {
 }
 window.addEventListener('hashchange', () => { if (!activeModalId) openPhotoFromHash(); });
 
-// Previous / next photo in the order currently on screen
-function visiblePhotoIds() {
-  const seen = new Set();
-  return [...document.querySelectorAll('.photo-card.done[data-id]')]
-    .filter(el => el.offsetParent !== null)
-    .map(el => el.dataset.id)
-    .filter(id => !seen.has(id) && seen.add(id));
-}
-function navigateModal(dir) {
-  if (!activeModalId) return;
-  if (document.getElementById('editMode').style.display !== 'none') return; // don't lose edits
-  const ids = modalNavIds;
-  const i = ids.indexOf(activeModalId);
-  const next = i < 0 ? null : ids[i + dir];
-  if (!next) return;
-  const wrap = document.querySelector('#modal .modal-img-wrap');
-  wrap.classList.remove('slide-from-left', 'slide-from-right');
-  openModal(next);
-  void wrap.offsetWidth; // restart the CSS animation
-  wrap.classList.add(dir > 0 ? 'slide-from-right' : 'slide-from-left');
-  if (MobileUX.photoPage.active) window.scrollTo(0, 0);
-  else document.querySelector('#modal .modal-body').scrollTop = 0;
-}
 document.addEventListener('keydown', e => {
-  if (!activeModalId || /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
-  if (e.key === 'Escape') closeModal();
-  else if (e.key === 'ArrowRight') navigateModal(1);
-  else if (e.key === 'ArrowLeft')  navigateModal(-1);
+  if (e.key === 'Escape' && activeModalId && !/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) closeModal();
 });
 
 function startEdit() {
@@ -2442,58 +2414,6 @@ function refreshModalLikeBtn(photo) {
 
 
 function bgClick(e) { if (e.target === document.getElementById('modalBg')) closeModal(); }
-
-// ── Modal gestures on the image / drag handle (phones) ──────────────────────
-//   swipe down  → follow the finger, then close (or snap back)
-//   swipe left  → next photo, swipe right → previous photo
-(function () {
-  const modal = document.getElementById('modal');
-  let startX = 0, startY = 0, startT = 0, mode = null, active = false;
-  const onTarget = e => e.target.closest('.modal-img-wrap, #modalDragHandle') && !e.target.closest('button');
-
-  modal.addEventListener('touchstart', e => {
-    if (MobileUX.photoPage.active || !MobileUX.isMobile()) return; // no swipe gestures: Back button on phones, two-pane layout elsewhere
-    if (e.touches.length !== 1 || !onTarget(e)) return;
-    const t = e.touches[0];
-    startX = t.clientX; startY = t.clientY; startT = Date.now();
-    mode = null; active = true;
-  }, { passive: true });
-
-  modal.addEventListener('touchmove', e => {
-    if (!active) return;
-    const t = e.touches[0], dx = t.clientX - startX, dy = t.clientY - startY;
-    if (!mode) {
-      if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
-      mode = Math.abs(dy) > Math.abs(dx) ? (dy > 0 && !MobileUX.photoPage.active ? 'drag' : 'none') : 'nav';
-      if (mode === 'drag') modal.classList.add('dragging');
-    }
-    if (mode === 'drag') modal.style.transform = `translateY(${Math.max(0, dy)}px)`;
-  }, { passive: true });
-
-  const reset = () => { active = false; mode = null; modal.classList.remove('dragging'); };
-
-  modal.addEventListener('touchend', e => {
-    if (!active) return;
-    const t = e.changedTouches[0], dx = t.clientX - startX, dy = t.clientY - startY;
-    const velocity = dy / Math.max(1, Date.now() - startT);
-    if (mode === 'drag') {
-      modal.classList.remove('dragging');
-      if (dy > 110 || (dy > 50 && velocity > 0.5)) {
-        modal.classList.add('closing');
-        modal.style.transform = 'translateY(100%)';
-        setTimeout(() => { closeModal(); modal.classList.remove('closing'); modal.style.transform = ''; }, 200);
-      } else {
-        modal.classList.add('snap-back');
-        modal.style.transform = '';
-        setTimeout(() => modal.classList.remove('snap-back'), 220);
-      }
-    } else if (mode === 'nav' && Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) {
-      navigateModal(dx < 0 ? 1 : -1);
-    }
-    active = false; mode = null;
-  }, { passive: true });
-  modal.addEventListener('touchcancel', () => { modal.style.transform = ''; reset(); }, { passive: true });
-})();
 
 // Close mobile menu when tapping outside
 document.addEventListener('click', e => {
