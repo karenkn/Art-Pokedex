@@ -4,7 +4,6 @@
 // Relies on page globals: photos, adminToken, serverUrl (index) or SERVER_URL (top-works).
 (function () {
   const BATCH = 30;
-  const SKIP = /^(unknown|unknown artist|anonymous|unattributed|unidentified|n\/a|—|-)$/i;
 
   const base = () => (typeof serverUrl !== 'undefined' && serverUrl) ? serverUrl
     : (typeof SERVER_URL !== 'undefined' ? SERVER_URL : '');
@@ -61,7 +60,7 @@ Rules:
 2. Merge variants of the SAME person: surname only, "Last, First", abbreviations, alternate transliterations, misspellings.
 3. NEVER merge two different people. Keep catalog suffixes where they apply: "the Elder", "the Younger", "Jr.", "Sr." (e.g. "Pieter Bruegel the Elder", "Pieter Bruegel the Younger").
 4. KEEP attribution qualifiers, in this standard form in front of the name: "School of", "Workshop of", "Studio of", "Circle of", "Follower of", "After" (e.g. "School of Caravaggio"). Tidy the name inside to "First Last". Never merge a qualified name with the master's own name — they are different values.
-5. REMOVE every expression of uncertainty, confidence or commentary: "Attributed to", "Possibly", "Probably", "Likely", "Perhaps", question marks, "(attributed)", "(85% confident)", dates, notes. Return only the clean name.
+5. REMOVE every expression of uncertainty, confidence or commentary: "Attributed to", "Possibly", "Probably", "Likely", "Perhaps", question marks, "(attributed)", "(85% confident)", dates, notes, and any trailing description after a dash or slash. Return only the clean name. Example: "Pablo Picasso (attributed on stylistic grounds) — otherwise Parisian Synthetic Cubist circle" → "Pablo Picasso". If the text names no specific artist (only a school, city or movement), return "Unknown Artist".
 6. For collectives or unknown authorship ("Unknown", "Anonymous", "Unidentified"), return exactly "Unknown Artist".
 7. If a name is already clean, return it unchanged. Prefer reusing a name from this already-chosen list when it is the same person: ${JSON.stringify(known)}
 
@@ -86,6 +85,15 @@ Names: ${JSON.stringify(names)}`;
       }
     } catch (err) {
       if (err.fatal) throw err;
+      // Only an unreadable/truncated reply is worth retrying in smaller halves. Network or
+      // server errors already got several retries; give up on this batch so we don't stall —
+      // its names still receive the deterministic local cleanup.
+      const unreadable = err instanceof SyntaxError || /^(truncated|no JSON)$/.test(err.message);
+      if (!unreadable) {
+        stats.skipped += names.length;
+        console.warn('Normalize artists: AI step failed for a batch —', err.message);
+        return;
+      }
       if (names.length > 1) {
         const mid = Math.ceil(names.length / 2);
         await mapBatch(names.slice(0, mid), canonical, mapping, stats);
@@ -99,33 +107,49 @@ Names: ${JSON.stringify(names)}`;
 
   async function normalizeArtists() {
     if (typeof adminToken === 'undefined' || !adminToken) return;
-    const done = photos.filter(p => p.aiData?.artist && !SKIP.test(p.aiData.artist.trim()));
-    const names = [...new Set(done.map(p => p.aiData.artist.trim()))];
-    if (names.length < 2) { setLabel('✓ Already normalized'); setTimeout(() => setLabel(DEFAULT), 3000); return; }
+    const clean = typeof cleanArtistName === 'function' ? cleanArtistName : (s => s.trim());
+    const withArtist = photos.filter(p => p.aiData?.artist && p.aiData.artist.trim());
+
+    // Step 1 — deterministic cleanup, no AI: strips parentheses, "— commentary", uncertainty
+    // words, "Last, First" ordering, unknown variants. This always applies, even if the AI step fails.
+    const pre = {};                       // raw artist string → locally cleaned name
+    withArtist.forEach(p => { const raw = p.aiData.artist.trim(); if (!(raw in pre)) pre[raw] = clean(raw) || raw; });
+    const freq = {};
+    withArtist.forEach(p => { const k = pre[p.aiData.artist.trim()]; freq[k] = (freq[k] || 0) + 1; });
+    const aiNames = Object.keys(freq).filter(n => n !== 'Unknown Artist').sort((a, b) => freq[b] - freq[a]);
 
     setLabel('⏳ Normalizing…', true);
     try {
-      // Most-used spellings go first so they seed the canonical list.
-      const freq = {};
-      done.forEach(p => { const a = p.aiData.artist.trim(); freq[a] = (freq[a] || 0) + 1; });
-      names.sort((a, b) => freq[b] - freq[a]);
-
+      // Step 2 — AI merges variants of the same person ("Van Gogh" / "Vincent van Gogh").
+      // It only sees the already-cleaned names, most-used first so they seed the canonical list.
       const canonical = new Set();
-      const mapping = {};
+      const aiMap = {};
       const stats = { skipped: 0 };
-      const total = Math.ceil(names.length / BATCH);
-      for (let i = 0; i < total; i++) {
-        setLabel(`⏳ Normalizing ${i + 1}/${total}…`, true);
-        await mapBatch(names.slice(i * BATCH, (i + 1) * BATCH), canonical, mapping, stats);
+      if (aiNames.length >= 2) {
+        const total = Math.ceil(aiNames.length / BATCH);
+        for (let i = 0; i < total; i++) {
+          setLabel(`⏳ Normalizing ${i + 1}/${total}…`, true);
+          await mapBatch(aiNames.slice(i * BATCH, (i + 1) * BATCH), canonical, aiMap, stats);
+        }
       }
 
-      const changes = Object.entries(mapping).filter(([from, to]) => from !== to);
-      const changed = done.filter(p => { const to = mapping[p.aiData.artist.trim()]; return to && to !== p.aiData.artist; });
-      if (!changed.length) { setLabel('✓ Already normalized'); setTimeout(() => setLabel(DEFAULT), 3000); return; }
+      // Final name = AI result (cleaned again) or, if the AI skipped it, the local cleanup.
+      const finalFor = raw => { const p = pre[raw]; return clean(aiMap[p] || p) || p; };
 
-      const preview = changes.slice(0, 25).map(([f, t]) => `• ${f}  →  ${t}`).join('\n');
+      const changed = withArtist.filter(p => finalFor(p.aiData.artist.trim()) !== p.aiData.artist);
+      if (!changed.length) {
+        setLabel(stats.skipped ? `✓ Done · ${stats.skipped} left as-is` : '✓ Already normalized');
+        setTimeout(() => setLabel(DEFAULT), 4000); return;
+      }
+      const changes = [...new Set(changed.map(p => p.aiData.artist.trim()))]
+        .map(raw => [raw, finalFor(raw)])
+        .filter(([from, to]) => from !== to);
+
+      const clip = t => (t.length > 70 ? t.slice(0, 67) + '…' : t);
+      const preview = changes.slice(0, 25).map(([f, t]) => `• ${clip(f)}  →  ${t}`).join('\n');
       const more = changes.length > 25 ? `\n…and ${changes.length - 25} more` : '';
-      if (!confirm(`Rename ${changes.length} artist name${changes.length === 1 ? '' : 's'} across ${changed.length} artwork${changed.length === 1 ? '' : 's'}?\n\n${preview}${more}`)) {
+      const note = stats.skipped ? `\n\n(${stats.skipped} name${stats.skipped === 1 ? '' : 's'} could not be merged by the AI and only got the local cleanup.)` : '';
+      if (!confirm(`Rename ${changes.length} artist name${changes.length === 1 ? '' : 's'} across ${changed.length} artwork${changed.length === 1 ? '' : 's'}?\n\n${preview}${more}${note}`)) {
         setLabel(DEFAULT); return;
       }
 
@@ -133,7 +157,7 @@ Names: ${JSON.stringify(names)}`;
       let failed = 0, applied = 0;
       for (let i = 0; i < changed.length; i += 5) {
         await Promise.all(changed.slice(i, i + 5).map(async p => {
-          const to = mapping[p.aiData.artist.trim()];
+          const to = finalFor(p.aiData.artist.trim());
           try {
             const res = await fetch(`${base()}/api/photos/${p.id}`, {
               method: 'PUT', headers: headers(), body: JSON.stringify({ aiData: { ...p.aiData, artist: to } })
