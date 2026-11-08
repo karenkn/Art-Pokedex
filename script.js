@@ -1035,6 +1035,50 @@ function parseConfidence(v) {
 // ── Robust AI-response handling ───────────────────────────────────────────────
 // Pull the first *balanced* {...} object out of text (ignores braces inside strings,
 // stray prose before/after, and ```json fences). Returns the object text or null.
+// Reduce whatever the model returned for "artist" to a clean name: "First Last".
+// Keeps attribution qualifiers ("School of X", "Workshop of X", "After X"…) and suffixes
+// ("the Elder", "the Younger", "Jr.", "Sr."). Strips every expression of uncertainty,
+// confidence and commentary, converts "Last, First", and returns "Unknown Artist" when unknown.
+function cleanArtistName(raw) {
+  let s = String(raw == null ? '' : raw).trim();
+  if (!s) return '';
+  const UNKNOWN = /^(unknown|anonymous|unattributed|unidentified|n\/a|none)\b/i;
+  const HEDGE_PREFIX = /^(?:(?:attributed to|possibly|probably|probable|presumably|likely|perhaps|maybe)\s+)+/i;
+  s = s.replace(/\([^)]*\)|\[[^\]]*\]/g, ' ');                       // (attributed), [c. 1889], (85%)
+  s = s.split(/\s+[—–-]\s+|\s*;\s*|\s+\|\s+|\s\/\s/)[0];            // " — likely …", "; …"
+  s = s.replace(/\b\d{1,3}\s*%|\bconfiden\w*[^,.;]*/gi, '');          // "85%", "confidence high"
+  s = s.replace(/[?!*"“”]/g, '').replace(/\s{2,}/g, ' ').trim();
+  s = s.replace(HEDGE_PREFIX, '');
+  if (UNKNOWN.test(s)) return 'Unknown Artist';
+
+  // Attribution qualifier ("School of", "After", …) — kept, in standard capitalisation
+  let qualifier = '';
+  const q = s.match(/^(school of|workshop of|studio of|circle of|follower of|style of|manner of|copy after|after)\s+/i);
+  if (q) {
+    const key = q[1].toLowerCase();
+    qualifier = key === 'copy after' ? 'After' : key.charAt(0).toUpperCase() + key.slice(1);
+    s = s.slice(q[0].length).replace(HEDGE_PREFIX, '').trim();
+  }
+
+  // Suffix ("the Elder", "the Younger", "Jr.", "Sr.") — kept
+  let suffix = '';
+  const sx = s.match(/^(.*?)[,\s]+(the elder|the younger|jr\.?|sr\.?)$/i);
+  if (sx && sx[1].trim()) {
+    const k = sx[2].toLowerCase().replace(/\.$/, '');
+    suffix = { 'the elder': 'the Elder', 'the younger': 'the Younger', jr: 'Jr.', sr: 'Sr.' }[k];
+    s = sx[1].trim();
+  }
+
+  const lastFirst = s.match(/^([^,]+),\s*([^,\d]+)$/);                  // "Gogh, Vincent van" → "Vincent van Gogh"
+  if (lastFirst) s = `${lastFirst[2].trim()} ${lastFirst[1].trim()}`;
+  s = s.replace(/[.,:;]+$/, '').trim();
+  if (s && s === s.toLowerCase()) {                                     // "caravaggio" → "Caravaggio", keeping "van", "de"…
+    s = s.replace(/[\p{L}'’-]+/gu, (w, i) => (i > 0 && /^(van|von|de|da|di|del|della|der|den|la|le|ter|ten|y)$/.test(w)) ? w : w.charAt(0).toUpperCase() + w.slice(1));
+  }
+  if (!s) return UNKNOWN.test(raw) ? 'Unknown Artist' : '';
+  return [qualifier, s, suffix].filter(Boolean).join(' ');
+}
+
 function extractJsonObject(text) {
   const start = text.indexOf('{');
   if (start === -1) return null;
@@ -1147,7 +1191,7 @@ async function analysePhoto(photo) {
 
 Before drawing any conclusions, reason carefully about the visual evidence: examine the brushwork, color palette, composition, subject matter, architectural surroundings, frame style, gallery wall treatment, any visible signage or labels, and stylistic hallmarks of specific artists or movements. Prioritize evidence you can actually see over general assumptions.
 
-Express genuine uncertainty when the evidence is ambiguous — never fabricate a specific artist name or art title without strong visual justification. If you cannot identify the specific artwork or artist, describe the style and the closest likely school or movement instead.`;
+Express genuine uncertainty when the evidence is ambiguous — never fabricate a specific artist name or art title without strong visual justification. If you cannot identify the specific artwork or artist, describe the style and the closest likely school or movement in the style field, and set the artist field to exactly 'Unknown Artist' — the artist field must only ever contain a bare name (optionally with a 'School of'-type qualifier or 'the Elder/the Younger' suffix) — never confidence, uncertainty or commentary.`;
 
     // Build a location instruction for Claude
     const locationInstruction = gpsCoords
@@ -1159,7 +1203,7 @@ Express genuine uncertainty when the evidence is ambiguous — never fabricate a
 Return a JSON object with EXACTLY these fields (no markdown, raw JSON only):
 {
   "paintingName": "The specific title of the artwork if identifiable, or a descriptive title like 'Unknown portrait' if not",
-  "artist": "The artist's full name if identifiable, or the closest matching school/movement, e.g. 'Rembrandt van Rijn' or 'School of Caravaggio'",
+  "artist": "The artist's name in standard 'First Last' form, as commonly cataloged — e.g. 'Vincent van Gogh', 'Yayoi Kusama', 'Pablo Picasso', 'Jean-Michel Basquiat'; use the single name for artists known by one (e.g. 'Banksy', 'Rembrandt'). Include a suffix only when it is part of how the artist is cataloged ('the Elder', 'the Younger', 'Jr.', 'Sr.', e.g. 'Pieter Bruegel the Elder'). If the work is by the circle of a master rather than the master, use one attribution qualifier in front of the name: 'School of', 'Workshop of', 'Studio of', 'Circle of', 'Follower of' or 'After' (e.g. 'School of Caravaggio'). Otherwise no middle names, initials, titles, dates, nationality, parentheses, or any wording about confidence, uncertainty or commentary (no 'possibly', 'likely', 'attributed to', '?'). If you cannot identify a specific artist, return exactly 'Unknown Artist' and put the movement in the style field.",
   "location": "The most specific venue name you can determine — for GPS photos use the coordinates to identify the museum/gallery; for non-GPS photos infer from visual clues. Format: 'Venue Name, City'",
   "country": "Country name",
   "style": "Art style/movement, e.g. 'Dutch Golden Age', 'Impressionism', 'Baroque'",
@@ -1183,7 +1227,7 @@ Return a JSON object with EXACTLY these fields (no markdown, raw JSON only):
 
     photo.aiData = {
       paintingName: parsed.paintingName || '',
-      artist:       parsed.artist       || '',
+      artist:       cleanArtistName(parsed.artist),
       // Location is now canonicalized via Google Places (falls back to Claude's value)
       location:     parsed.location  || 'Unknown Location',
       country:      parsed.country   || 'Unknown',

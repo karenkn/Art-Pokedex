@@ -4,7 +4,7 @@
 // Relies on page globals: photos, adminToken, serverUrl (index) or SERVER_URL (top-works).
 (function () {
   const BATCH = 30;
-  const SKIP = /^(unknown|unknown artist|anonymous|unattributed|n\/a|—|-)$/i;
+  const SKIP = /^(unknown|unknown artist|anonymous|unattributed|unidentified|n\/a|—|-)$/i;
 
   const base = () => (typeof serverUrl !== 'undefined' && serverUrl) ? serverUrl
     : (typeof SERVER_URL !== 'undefined' ? SERVER_URL : '');
@@ -57,12 +57,13 @@
 Map EVERY input name to one standard canonical name.
 
 Rules:
-1. Standard format: the artist's most commonly used full name in natural order, with proper diacritics and capitalization (e.g. "Vincent van Gogh", "Claude Monet", "Pablo Picasso", "Yayoi Kusama", "Jean-Michel Basquiat").
-2. Merge variants of the SAME person: surname only, "Last, First", abbreviations, alternate transliterations, misspellings, "(attributed)" noise.
-3. NEVER merge two different people (e.g. Pieter Bruegel the Elder vs the Younger; father/son with the same surname). Keep suffixes like "the Elder" when needed to distinguish.
-4. Keep attribution qualifiers as distinct values: "School of X", "Workshop of X", "After X", "Follower of X" stay as written (only tidy the capitalization/name inside).
-5. For collectives or unknown authorship ("Unknown", "Anonymous", "Unknown Artist"), return the input unchanged.
-6. If a name is already clean, return it unchanged. Prefer reusing a name from this already-chosen list when it is the same person: ${JSON.stringify(known)}
+1. Standard format: the artist's name as "First Last", the way it is most commonly cataloged, with proper diacritics and capitalization (e.g. "Vincent van Gogh", "Claude Monet", "Pablo Picasso", "Yayoi Kusama", "Jean-Michel Basquiat"). Use a single name for artists known by one (e.g. "Banksy", "Rembrandt"). No middle names, initials, titles, dates or nationality.
+2. Merge variants of the SAME person: surname only, "Last, First", abbreviations, alternate transliterations, misspellings.
+3. NEVER merge two different people. Keep catalog suffixes where they apply: "the Elder", "the Younger", "Jr.", "Sr." (e.g. "Pieter Bruegel the Elder", "Pieter Bruegel the Younger").
+4. KEEP attribution qualifiers, in this standard form in front of the name: "School of", "Workshop of", "Studio of", "Circle of", "Follower of", "After" (e.g. "School of Caravaggio"). Tidy the name inside to "First Last". Never merge a qualified name with the master's own name — they are different values.
+5. REMOVE every expression of uncertainty, confidence or commentary: "Attributed to", "Possibly", "Probably", "Likely", "Perhaps", question marks, "(attributed)", "(85% confident)", dates, notes. Return only the clean name.
+6. For collectives or unknown authorship ("Unknown", "Anonymous", "Unidentified"), return exactly "Unknown Artist".
+7. If a name is already clean, return it unchanged. Prefer reusing a name from this already-chosen list when it is the same person: ${JSON.stringify(known)}
 
 Return ONLY a valid JSON object mapping every input name (exact string) to its canonical name. Raw JSON only — no markdown, no explanation.
 
@@ -79,7 +80,8 @@ Names: ${JSON.stringify(names)}`;
       if (!obj) throw new Error(data.stop_reason === 'max_tokens' ? 'truncated' : 'no JSON');
       const part = JSON.parse(obj);
       for (const n of names) {
-        const c = typeof part[n] === 'string' ? part[n].trim() : '';
+        let c = typeof part[n] === 'string' ? part[n].trim() : '';
+        if (c && typeof cleanArtistName === 'function') c = cleanArtistName(c) || c; // safety net: drop any commentary the model slipped in
         if (c) { mapping[n] = c; canonical.add(c); } else stats.skipped++;
       }
     } catch (err) {
