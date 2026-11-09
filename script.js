@@ -2141,6 +2141,12 @@ function setFilter(filter, btn) {
   // Show the grouped/ungrouped toggle only for the "All" view
   const toggle = document.getElementById('groupingToggle');
   if (toggle) toggle.style.display = (filter === 'all') ? '' : 'none';
+  // Selecting "All" always starts ungrouped (the toggle can still switch to Grouped afterwards)
+  if (filter === 'all') {
+    currentAllMode = 'flat';
+    document.getElementById('groupedBtn')?.classList.remove('active');
+    document.getElementById('flatBtn')?.classList.add('active');
+  }
   render();
   if (filter === 'location' && googleMap) {
     setTimeout(() => google.maps.event.trigger(googleMap, 'resize'), 50);
