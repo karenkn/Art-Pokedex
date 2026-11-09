@@ -8,7 +8,7 @@ let currentSort   = 'liked';
 let serverUrl = '';
 let analysisQueue = Promise.resolve();  // serialise API calls
 let recentlyAddedIds = new Set();       // IDs of photos that finished analysis this session
-let currentAllMode  = 'grouped';        // 'grouped' | 'flat' — only applies when currentFilter === 'all'
+let currentAllMode  = 'flat';         // 'grouped' | 'flat' — only applies when currentFilter === 'all'
 let adminToken = null;  // set on successful login; null = view-only mode
 const likedIds = new Set(); // track photos liked this session to prevent duplicates
 const TIER_LABELS = { like: '👍 Like', okay: '😐 Okay', dislike: '👎 Dislike' };
