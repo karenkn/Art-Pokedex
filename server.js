@@ -514,6 +514,12 @@ app.post('/api/analyze', publicRateLimit(analyzeLimit), async (req, res) => {
   if (typeof system === 'string' && system.length > 0) {
     safePayload.system = system.slice(0, 4000);  // cap system prompt length
   }
+  // Opus 5 thinks adaptively by default (thinking tokens bill as output). Turn it off to
+  // cut cost/latency; accepted at the default effort. The other allowed models
+  // (opus-4-6, sonnet-4-6, haiku-4-5) already default to no thinking, so nothing to send.
+  if (model === 'claude-opus-5') {
+    safePayload.thinking = { type: 'disabled' };
+  }
 
   try {
     const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {

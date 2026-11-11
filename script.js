@@ -822,6 +822,10 @@ async function compressAndConvert(file, { maxDimension = 1920, quality = 0.85 } 
 
 // Thumbnail variant: smaller footprint for DB storage / gallery cards
 const SMALL_THUMB_PX = 480; // longest side of gallery-card thumbnails
+// Longest side of the copy of a photo that is sent to Claude. Smaller than the stored gallery
+// image (which stays at 1920px source / 900px thumbnail) because every extra pixel is billed as
+// input tokens. ~1280px ≈ 1,600 tokens vs ~3,600 at 1920px. Raise it if labels/signage get hard to read.
+const ANALYSIS_PX = 1280;
 
 async function compressThumbnail(file) {
   try {
@@ -1184,8 +1188,13 @@ async function analysePhoto(photo) {
     }
 
     // ── 2. Build Claude prompts ────────────────────────────────────────────
-    const { base64, mediaType } = await compressAndConvert(photo.file, { maxDimension: 1920 });
-    photo.jpegBase64 = base64; // reused by savePhotoToDB for the thumbnail (avoids a 2nd HEIC decode)
+    // Full-size JPEG: kept for the gallery. savePhotoToDB derives the stored thumbnails from it
+    // (and it avoids a 2nd HEIC decode), so gallery image quality is unchanged.
+    const full = await compressAndConvert(photo.file, { maxDimension: 1920 });
+    photo.jpegBase64 = full.base64;
+    // Smaller copy used ONLY for the Claude request, to cut input tokens.
+    const fullBlob = await (await fetch(`data:image/jpeg;base64,${full.base64}`)).blob();
+    const { base64, mediaType } = await compressAndConvert(fullBlob, { maxDimension: ANALYSIS_PX, quality: 0.8 });
 
     const systemPrompt = `Act as a museum curator interested in identifying art, which can include paintings, sculptures, art installations, murals, and street art. For each artwork fed into the API, try to identify the artist that most closely matches the style of the art, the name of the artwork, and the location where the artwork was taken.
 
@@ -1307,7 +1316,7 @@ async function reanalyzeFromEdit() {
   let base64    = null;
   let mediaType = 'image/jpeg';
   if (p.file) {
-    ({ base64, mediaType } = await compressAndConvert(p.file, { maxDimension: 1920 }));
+    ({ base64, mediaType } = await compressAndConvert(p.file, { maxDimension: ANALYSIS_PX, quality: 0.8 }));
   } else if (p.url && p.url.startsWith('data:')) {
     // Stored thumbnail: data:image/jpeg;base64,<data>
     const parts = p.url.split(',');

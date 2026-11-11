@@ -417,7 +417,9 @@
 
   // ── Module state ────────────────────────────────────────────────────────────
   let currentFile      = null;
-  let currentBase64    = null;
+  let currentBase64    = null;   // 1920px JPEG: preview + the image stored if the submission is approved
+  let currentAnalysisBase64 = null; // smaller copy sent to Claude only (fewer input tokens)
+  const ANALYSIS_PX    = 1280;
   let currentMediaType = 'image/jpeg';
   let currentId        = null;
   const PAGE_LOAD_TIME = Date.now();
@@ -560,6 +562,9 @@
       const { base64, mediaType, previewUrl, _blob } = await compressAndConvert(file);
       currentBase64     = base64;
       currentMediaType  = mediaType;   // always 'image/jpeg' after conversion
+      // Smaller copy for Claude; the 1920px version above is what gets stored/shown
+      try { currentAnalysisBase64 = (await compressAndConvert(_blob, { maxDimension: ANALYSIS_PX, quality: 0.8 })).base64; }
+      catch (_) { currentAnalysisBase64 = null; }
       window.__previewBlob = _blob;    // keep blob alive so iOS doesn't GC it before preview loads
       // Update both preview images to the compressed JPEG (works on all browsers)
       document.getElementById('analyzePreviewImg').src = previewUrl;
@@ -598,7 +603,7 @@ Return a JSON object with EXACTLY these fields (no markdown, raw JSON only):
           model: 'claude-opus-4-6', max_tokens: 800, temperature: 0,
           system: systemPrompt,
           messages: [{ role: 'user', content: [
-            { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } },
+            { type: 'image', source: { type: 'base64', media_type: mediaType, data: currentAnalysisBase64 || base64 } },
             { type: 'text',  text: userPrompt }
           ]}]
         })
@@ -733,7 +738,7 @@ Return ONLY a valid JSON object with ALL of these keys (raw JSON, no markdown fe
         body: JSON.stringify({
           model: 'claude-opus-4-6', max_tokens: 900, temperature: 0,
           messages: [{ role: 'user', content: [
-            { type: 'image', source: { type: 'base64', media_type: currentMediaType, data: currentBase64 } },
+            { type: 'image', source: { type: 'base64', media_type: currentMediaType, data: currentAnalysisBase64 || currentBase64 } },
             { type: 'text',  text: userPrompt }
           ]}]
         })
@@ -829,7 +834,7 @@ Return ONLY a valid JSON object with ALL of these keys (raw JSON, no markdown fe
 
   // ── Start over ────────────────────────────────────────────────────────────────
   function startOver() {
-    currentFile = null; currentBase64 = null; currentId = null; currentMediaType = 'image/jpeg';
+    currentFile = null; currentBase64 = null; currentAnalysisBase64 = null; currentId = null; currentMediaType = 'image/jpeg';
     fileInput.value = '';
     aiBaseline  = {}; dirtyFields = new Set();
     AI_FIELDS.forEach(id => { const w = document.getElementById('wrap-' + id); if (w) w.classList.remove('dirty'); });
