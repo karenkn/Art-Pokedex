@@ -87,7 +87,29 @@ pool.query(`
 }).then(() => {
   // Small gallery thumbnail stored as raw bytes (not base64) — served by GET /api/photos/:id/thumb?size=small
   return pool.query(`ALTER TABLE photos ADD COLUMN IF NOT EXISTS thumb_small BYTEA`);
-}).catch(err => console.error('Database init error:', err.message));
+}).then(() => {
+  // Model-improvement data: human verification flag, the AI's original answer, and which prompt made it
+  return pool.query(`ALTER TABLE photos ADD COLUMN IF NOT EXISTS verified BOOLEAN DEFAULT FALSE`);
+}).then(() => pool.query(`ALTER TABLE photos ADD COLUMN IF NOT EXISTS verified_at TIMESTAMPTZ`))
+  .then(() => pool.query(`ALTER TABLE photos ADD COLUMN IF NOT EXISTS ai_original JSONB`))
+  .then(() => pool.query(`ALTER TABLE photos ADD COLUMN IF NOT EXISTS prompt_version TEXT`))
+  .catch(err => console.error('Database init error:', err.message));
+
+// Corrections log — one row per field the admin changed (ai_value → human_value)
+pool.query(`
+  CREATE TABLE IF NOT EXISTS corrections (
+    id             SERIAL PRIMARY KEY,
+    photo_id       TEXT NOT NULL,
+    field          TEXT NOT NULL,
+    ai_value       TEXT,
+    human_value    TEXT,
+    model          TEXT,
+    prompt_version TEXT,
+    source         TEXT DEFAULT 'edit',
+    created_at     TIMESTAMPTZ DEFAULT NOW()
+  )
+`).then(() => pool.query(`CREATE INDEX IF NOT EXISTS idx_corrections_photo ON corrections(photo_id)`))
+  .catch(err => console.error('Corrections table init error:', err.message));
 
 // Comparisons log — one row per head-to-head decision
 pool.query(`
@@ -662,6 +684,28 @@ app.patch('/api/submissions/:id', authenticate, async (req, res) => {
   }
 });
 
+// ── Model-improvement helpers ────────────────────────────────────────────────
+const TRACKED_FIELDS = ['paintingName', 'artist', 'location', 'country', 'style', 'medium', 'period', 'description', 'artistHint'];
+function snapshotFields(d) {
+  const o = {};
+  for (const f of TRACKED_FIELDS) o[f] = (d && typeof d[f] === 'string') ? d[f] : '';
+  return o;
+}
+// Loose equality used for accuracy: ignore case, accents, punctuation and spacing
+function normCompare(v) {
+  return String(v ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ').trim();
+}
+// Fields where `next` differs from `prev`; the AI value is the stored original when known.
+function diffCorrections(original, prev, next) {
+  const out = [];
+  for (const f of TRACKED_FIELDS) {
+    if ((prev[f] || '') === (next[f] || '')) continue;
+    out.push({ field: f, ai: (original && original[f] !== undefined ? original[f] : prev[f]) || '', human: next[f] || '' });
+  }
+  return out;
+}
+
 // ── GET /health — lightweight keep-alive ping (use with UptimeRobot etc.) ─────
 app.get('/health', (_req, res) => res.json({ ok: true }));
 
@@ -675,7 +719,7 @@ app.get('/api/photos', async (_req, res) => {
       `SELECT id, name, painting_name, artist, location, country, style, medium, period,
               confidence, description, artist_hint, manually_edited, location_source,
               gps_lat, gps_lng, ai_model, likes, pinned, user_submitted, rating,
-              elo_score, tier, created_at,
+              elo_score, tier, created_at, verified, verified_at, prompt_version,
               (thumbnail IS NOT NULL AND thumbnail <> '') AS has_image,
               (thumb_small IS NOT NULL)                   AS has_small,
               COALESCE(length(thumbnail), 0)              AS img_v
@@ -738,15 +782,16 @@ app.put('/api/photos/:id/thumb-small', authenticate, async (req, res) => {
 
 // ── POST /api/photos — admin only ────────────────────────────────────────────
 app.post('/api/photos', authenticate, async (req, res) => {
-  const { id, name, thumbnail, thumbSmall, aiData, locationSource, gpsCoords } = req.body;
+  const { id, name, thumbnail, thumbSmall, aiData, locationSource, gpsCoords, promptVersion } = req.body;
   const d = aiData || {};
   try {
     await pool.query(
       `INSERT INTO photos
          (id, name, thumbnail, painting_name, artist, location, country,
           style, medium, period, confidence, description, artist_hint,
-          manually_edited, location_source, gps_lat, gps_lng, ai_model)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
+          manually_edited, location_source, gps_lat, gps_lng, ai_model,
+          ai_original, prompt_version)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
        ON CONFLICT (id) DO UPDATE SET
          painting_name   = EXCLUDED.painting_name,
          artist          = EXCLUDED.artist,
@@ -761,7 +806,9 @@ app.post('/api/photos', authenticate, async (req, res) => {
          manually_edited = EXCLUDED.manually_edited,
          location_source = EXCLUDED.location_source,
          gps_lat         = EXCLUDED.gps_lat,
-         gps_lng         = EXCLUDED.gps_lng`,
+         gps_lng         = EXCLUDED.gps_lng,
+         ai_original     = COALESCE(photos.ai_original, EXCLUDED.ai_original),
+         prompt_version  = COALESCE(photos.prompt_version, EXCLUDED.prompt_version)`,
       [
         id, name, thumbnail,
         d.paintingName || '', d.artist    || '',
@@ -773,7 +820,10 @@ app.post('/api/photos', authenticate, async (req, res) => {
         locationSource || 'ai',
         gpsCoords ? gpsCoords[0] : null,
         gpsCoords ? gpsCoords[1] : null,
-        d.model || null
+        d.model || null,
+        // Snapshot of what the AI said, before any human edits (used to measure accuracy)
+        JSON.stringify(snapshotFields(d)),
+        typeof promptVersion === 'string' ? promptVersion.slice(0, 40) : null
       ]
     );
     // Optional compact gallery thumbnail sent by the uploader
@@ -788,28 +838,104 @@ app.post('/api/photos', authenticate, async (req, res) => {
 });
 
 // ── PUT /api/photos/:id — admin only ─────────────────────────────────────────
+// Besides saving the edit, this records every field the admin changed in the
+// `corrections` table and (optionally) marks the photo verified/unverified.
+//   body: { aiData, verified?: boolean, source?: 'edit' | 'normalize' | 'verify' }
 app.put('/api/photos/:id', authenticate, async (req, res) => {
-  const { aiData } = req.body;
+  const { aiData, verified, source } = req.body || {};
   const d = aiData || {};
   try {
+    const cur = (await pool.query(
+      `SELECT painting_name, artist, location, country, style, medium, period, description,
+              artist_hint, ai_model, manually_edited, ai_original, prompt_version
+         FROM photos WHERE id = $1`, [req.params.id])).rows[0];
+    if (!cur) return res.status(404).json({ error: 'Not found' });
+
+    const next = {
+      paintingName: d.paintingName || '', artist: d.artist || '', location: d.location || '',
+      country: d.country || '', style: d.style || '', medium: d.medium || '',
+      period: d.period || '', description: d.description || '', artistHint: d.artistHint || ''
+    };
+    const prev = {
+      paintingName: cur.painting_name || '', artist: cur.artist || '', location: cur.location || '',
+      country: cur.country || '', style: cur.style || '', medium: cur.medium || '',
+      period: cur.period || '', description: cur.description || '', artistHint: cur.artist_hint || ''
+    };
+    // First edit of a photo that has no stored original: the pre-edit values ARE the AI's answer
+    // (unless it was already hand-edited, in which case the original is unknown).
+    const baseline = cur.ai_original || (!cur.manually_edited ? prev : null);
+    const rows = diffCorrections(baseline || prev, prev, next);
+
     await pool.query(
       `UPDATE photos SET
          painting_name   = $1, artist     = $2, location  = $3,
          country         = $4, style      = $5, medium    = $6,
          period          = $7, confidence = $8, description = $9,
-         artist_hint     = $10, manually_edited = $11
+         artist_hint     = $10, manually_edited = $11,
+         ai_original     = COALESCE(ai_original, $13::jsonb),
+         verified        = COALESCE($14::boolean, verified),
+         verified_at     = CASE WHEN $14::boolean IS TRUE THEN NOW()
+                                WHEN $14::boolean IS FALSE THEN NULL ELSE verified_at END
        WHERE id = $12`,
       [
         d.paintingName || '', d.artist   || '', d.location  || '',
         d.country      || '', d.style    || '', d.medium    || '',
         d.period       || '', d.confidence ?? null, d.description || '',
         d.artistHint   || '', d.manuallyEdited || false,
-        req.params.id
+        req.params.id,
+        baseline ? JSON.stringify(snapshotFields(baseline)) : null,
+        typeof verified === 'boolean' ? verified : null
       ]
     );
-    res.json({ ok: true });
+    const src = ['edit', 'normalize', 'verify'].includes(source) ? source : 'edit';
+    for (const r of rows) {
+      await pool.query(
+        `INSERT INTO corrections (photo_id, field, ai_value, human_value, model, prompt_version, source)
+         VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+        [req.params.id, r.field, r.ai, r.human, cur.ai_model || null, cur.prompt_version || null, src]
+      );
+    }
+    res.json({ ok: true, corrections: rows.length });
   } catch (err) {
     console.error('Update photo error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── GET /api/quality — admin only: how often the AI's answers survive review ──
+app.get('/api/quality', authenticate, async (_req, res) => {
+  try {
+    const counts = (await pool.query(
+      `SELECT COUNT(*)::int AS total,
+              COUNT(*) FILTER (WHERE verified)::int AS verified,
+              COUNT(*) FILTER (WHERE verified AND ai_original IS NOT NULL)::int AS measurable
+         FROM photos WHERE NOT COALESCE(user_submitted, FALSE)`)).rows[0];
+    const rows = (await pool.query(
+      `SELECT ai_original, artist, style, period, country, medium, location, painting_name
+         FROM photos WHERE verified AND ai_original IS NOT NULL`)).rows;
+    const map = { artist: 'artist', style: 'style', period: 'period', country: 'country',
+                  medium: 'medium', location: 'location', paintingName: 'painting_name' };
+    const fields = {};
+    for (const f of Object.keys(map)) {
+      let ok = 0, n = 0;
+      for (const r of rows) {
+        const a = (r.ai_original || {})[f];
+        if (a === undefined) continue;
+        n++;
+        if (normCompare(a) === normCompare(r[map[f]])) ok++;
+      }
+      fields[f] = { checked: n, matched: ok, rate: n ? ok / n : null };
+    }
+    const top = (await pool.query(
+      `SELECT field, ai_value, human_value, MAX(source) AS source, COUNT(*)::int AS n
+         FROM corrections WHERE source IN ('edit','normalize') AND ai_value IS DISTINCT FROM human_value
+        GROUP BY field, ai_value, human_value ORDER BY n DESC, MAX(created_at) DESC LIMIT 15`)).rows;
+    const byVersion = (await pool.query(
+      `SELECT COALESCE(prompt_version, 'unknown') AS version, COUNT(*)::int AS photos
+         FROM photos WHERE verified GROUP BY 1 ORDER BY 1`)).rows;
+    res.json({ ...counts, fields, topCorrections: top, byVersion });
+  } catch (err) {
+    console.error('Quality error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });

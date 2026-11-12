@@ -65,6 +65,8 @@
   <div class="admin-tools" id="adminTools">
     <button class="clear-btn admin-only" onclick="clearAll()" style="display:none">🗑 Clear All</button>
     <button class="clear-btn admin-only" id="normalizeBtn" onclick="normalizeAllLocations()" style="display:none">🔧 Normalize Locations</button>
+    <button class="clear-btn admin-only review-btn" id="reviewBtn" onclick="startReview()" style="display:none">✅ Review AI results</button>
+    <button class="clear-btn admin-only" onclick="openQualityPanel()" style="display:none">📊 Model Quality</button>
     <button class="clear-btn admin-only normalize-artists-btn" onclick="normalizeArtists()" style="display:none">👤 Normalize Artists</button>
     <button class="clear-btn admin-only" id="optimizeImagesBtn" onclick="optimizeImages()" style="display:none">🖼 Optimize Images</button>
     <button class="clear-btn admin-only" id="consolidateStylesBtn" onclick="consolidateStyles()" style="display:none">🎨 Consolidate Styles</button>
@@ -318,6 +320,7 @@
             <textarea id="editDesc" placeholder="Add notes about this artwork…"></textarea>
           </div>
         </div>
+        <p class="verify-hint">Saving also marks this photo as verified.</p>
         <button class="modal-save-btn" onclick="saveEdit()">💾 Save Changes</button>
         <button class="modal-cancel-btn" onclick="cancelEdit()">Cancel</button>
         <button class="modal-reanalyze-btn" id="reanalyzeBtn" onclick="reanalyzeFromEdit()" title="Ask Claude to regenerate the description using the details you've filled in above">
@@ -362,7 +365,19 @@
   </div>
 </div>
 
+<!-- Model quality panel (admin) -->
+<div class="modal-bg" id="qualityModalBg" onclick="if (event.target === this) closeQualityPanel()">
+  <div class="modal bulk-edit-modal quality-modal">
+    <div class="modal-body">
+      <div class="modal-title bulk-edit-title">Model Quality</div>
+      <div id="qualityBody"></div>
+      <button type="button" class="modal-cancel-btn" onclick="closeQualityPanel()">Close</button>
+    </div>
+  </div>
+</div>
+
 <script src="mobile-ux.js"></script>
+<script src="prompts.js"></script>
 <script src="script.js"></script>
 <script src="normalize-artists.js"></script>
 </body>

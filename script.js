@@ -517,7 +517,7 @@ async function normalizeAllLocations() {
       photo.aiData.location = norm.location;
       if (norm.country) photo.aiData.country = norm.country;
       if (norm.coords)  geocodeCache[norm.location] = norm.coords;
-      updatePhotoDB(photo);
+      updatePhotoDB(photo, { source: 'normalize' });
       updateCount++;
     }
   }
@@ -664,7 +664,7 @@ Tags: ${JSON.stringify(tags)}`;
 
     // Persist in small parallel chunks so we don't fire hundreds of requests at once
     for (let i = 0; i < changed.length; i += 5) {
-      await Promise.all(changed.slice(i, i + 5).map(p => updatePhotoDB(p)));
+      await Promise.all(changed.slice(i, i + 5).map(p => updatePhotoDB(p, { source: 'normalize' })));
     }
 
     const label = changed.length
@@ -733,6 +733,8 @@ async function loadSavedPhotos() {
         tier:           row.tier || null,
         eloScore:       row.elo_score ?? 1500,
         userSubmitted:  row.user_submitted || false,
+        verified:       !!row.verified,
+        promptVersion:  row.prompt_version || null,
         aiData: {
           paintingName:   row.painting_name  || '',
           artist:         row.artist         || '',
@@ -862,7 +864,8 @@ async function savePhotoToDB(photo) {
         thumbSmall,
         aiData:         photo.aiData,
         locationSource: photo.locationSource,
-        gpsCoords:      photo.gpsCoords || null
+        gpsCoords:      photo.gpsCoords || null,
+        promptVersion:  photo.promptVersion || null
       })
     });
     if (res.status === 401) { handleSessionExpired(); return; }
@@ -878,15 +881,22 @@ async function savePhotoToDB(photo) {
   }
 }
 
-async function updatePhotoDB(photo) {
+// opts.verified: true/false to set the verified flag; opts.source: 'edit' | 'verify' (for the corrections log)
+async function updatePhotoDB(photo, opts = {}) {
   try {
-    await fetch(`${serverUrl}/api/photos/${photo.id}`, {
+    const body = { aiData: photo.aiData };
+    if (typeof opts.verified === 'boolean') body.verified = opts.verified;
+    if (opts.source) body.source = opts.source;
+    const res = await fetch(`${serverUrl}/api/photos/${photo.id}`, {
       method:  'PUT',
       headers: authHeaders(),
-      body: JSON.stringify({ aiData: photo.aiData })
+      body: JSON.stringify(body)
     });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return true;
   } catch (err) {
     console.warn('Could not update photo in DB:', err.message);
+    return false;
   }
 }
 
@@ -1196,32 +1206,9 @@ async function analysePhoto(photo) {
     const fullBlob = await (await fetch(`data:image/jpeg;base64,${full.base64}`)).blob();
     const { base64, mediaType } = await compressAndConvert(fullBlob, { maxDimension: ANALYSIS_PX, quality: 0.8 });
 
-    const systemPrompt = `Act as a museum curator interested in identifying art, which can include paintings, sculptures, art installations, murals, and street art. For each artwork fed into the API, try to identify the artist that most closely matches the style of the art, the name of the artwork, and the location where the artwork was taken.
-
-Before drawing any conclusions, reason carefully about the visual evidence: examine the brushwork, color palette, composition, subject matter, architectural surroundings, frame style, gallery wall treatment, any visible signage or labels, and stylistic hallmarks of specific artists or movements. Prioritize evidence you can actually see over general assumptions.
-
-Express genuine uncertainty when the evidence is ambiguous — never fabricate a specific artist name or art title without strong visual justification. If you cannot identify the specific artwork or artist, describe the style and the closest likely school or movement in the style field, and set the artist field to exactly 'Unknown Artist' — the artist field must only ever contain a bare name (optionally with a 'School of'-type qualifier or 'the Elder/the Younger' suffix) — never confidence, uncertainty or commentary.`;
-
-    // Build a location instruction for Claude
-    const locationInstruction = gpsCoords
-      ? `This photo contains GPS metadata: latitude ${gpsCoords[0].toFixed(6)}, longitude ${gpsCoords[1].toFixed(6)}. Using your knowledge of museums, galleries, and art institutions worldwide, determine the most specific and accurate venue name for these coordinates (e.g. "Rijksmuseum, Amsterdam" rather than just "Amsterdam"). A nearby reverse-geocode hint is: "${gpsLocation ? gpsLocation.name : 'unavailable'}". Populate the location and country fields based on your best identification of these GPS coordinates.`
-      : `Identify the location from visual clues in the image (gallery architecture, signage, frame styles, wall treatment, etc.).`;
-
-    const userPrompt = `Analyze this artwork photo. ${locationInstruction}
-
-Return a JSON object with EXACTLY these fields (no markdown, raw JSON only):
-{
-  "paintingName": "The specific title of the artwork if identifiable, or a descriptive title like 'Unknown portrait' if not",
-  "artist": "The artist's name in standard 'First Last' form, as commonly cataloged — e.g. 'Vincent van Gogh', 'Yayoi Kusama', 'Pablo Picasso', 'Jean-Michel Basquiat'; use the single name for artists known by one (e.g. 'Banksy', 'Rembrandt'). Include a suffix only when it is part of how the artist is cataloged ('the Elder', 'the Younger', 'Jr.', 'Sr.', e.g. 'Pieter Bruegel the Elder'). If the work is by the circle of a master rather than the master, use one attribution qualifier in front of the name: 'School of', 'Workshop of', 'Studio of', 'Circle of', 'Follower of' or 'After' (e.g. 'School of Caravaggio'). Otherwise no middle names, initials, titles, dates, nationality, parentheses, or any wording about confidence, uncertainty or commentary (no 'possibly', 'likely', 'attributed to', '?'). If you cannot identify a specific artist, return exactly 'Unknown Artist' and put the movement in the style field.",
-  "location": "The most specific venue name you can determine — for GPS photos use the coordinates to identify the museum/gallery; for non-GPS photos infer from visual clues. Format: 'Venue Name, City'",
-  "country": "Country name",
-  "style": "Art style/movement, e.g. 'Dutch Golden Age', 'Impressionism', 'Baroque'",
-  "medium": "Medium used, e.g. 'Oil on Canvas', 'Watercolor', 'Bronze Sculpture'",
-  "period": "Time period or century, e.g. '17th century', 'Late 19th c.', 'Contemporary'",
-  "confidence": <integer 0-100 for confidence in the artwork/artist identification only>,
-  "description": "3-4 sentences: (1) key visual clues observed, (2) why this artist/style matches, (3) notable features of the work.",
-  "artistHint": "Additional context about the artist — nationality, active period, signature techniques"
-}`;
+    // Prompts live in prompts.js (shared with eval.js); bump PROMPT_VERSION there when you change them.
+    const systemPrompt = ArtPrompts.SYSTEM_PROMPT;
+    const userPrompt   = ArtPrompts.buildUserPrompt(gpsCoords, gpsLocation ? gpsLocation.name : null);
 
     const { parsed, data } = await requestArtworkJson({ systemPrompt, userPrompt, base64, mediaType });
 
@@ -1249,6 +1236,7 @@ Return a JSON object with EXACTLY these fields (no markdown, raw JSON only):
       model:        data.model          || 'claude-haiku',
       locationSource: photo.locationSource || 'ai'
     };
+    photo.promptVersion = ArtPrompts.PROMPT_VERSION;
     photo.status = 'done';
     recentlyAddedIds.add(photo.id); // spotlight it at the top of the gallery
     savePhotoToDB(photo); // persist asynchronously — don't block the UI
@@ -2080,6 +2068,7 @@ function photoCard(p, featured = false) {
     const d = p.aiData;
     const confClass = d.confidence >= 80 ? 'confidence-high' : d.confidence >= 55 ? 'confidence-med' : 'confidence-low';
     const editedBadge = d.manuallyEdited ? `<span class="manually-edited-badge">✎ edited</span>` : '';
+    const verifiedBadge = (p.verified && adminToken) ? `<span class="verified-badge" title="Reviewed and confirmed">✓ verified</span>` : '';
     const artistHtml = d.artist ? `<div class="card-artist">${escHtml(d.artist)}</div>` : '';
     // Movement · medium on one italic line
     const movementHtml = d.style ? `<div class="card-movement">${escHtml(d.style)}${d.medium ? ' · ' + escHtml(d.medium) : ''}</div>` : '';
@@ -2090,7 +2079,7 @@ function photoCard(p, featured = false) {
       ${locationHtml}
       <div class="photo-meta">
         <div class="photo-meta-left">
-          <span>${escHtml(d.period)}${editedBadge}</span>
+          <span>${escHtml(d.period)}${editedBadge}${verifiedBadge}</span>
         </div>
         <div class="photo-meta-right">
           <span class="${confClass}">✓ ${d.confidence}%</span>
@@ -2129,6 +2118,7 @@ function photoCard(p, featured = false) {
 }
 
 function updateStats() {
+  updateReviewBtn();
   const done = photos.filter(p => p.status === 'done');
   document.getElementById('totalCount').textContent    = photos.length;
   document.getElementById('locationCount').textContent = new Set(done.map(p => p.aiData.location)).size;
@@ -2205,7 +2195,8 @@ function refreshModalView(p) {
   document.getElementById('modalImg').src = p.url;
   const displayTitle = d.paintingName || p.name;
   document.getElementById('modalTitle').innerHTML =
-    escHtml(displayTitle) + (d.manuallyEdited ? ' <span class="manually-edited-badge">✎ edited</span>' : '');
+    escHtml(displayTitle) + (d.manuallyEdited ? ' <span class="manually-edited-badge">✎ edited</span>' : '')
+    + ((p.verified && adminToken) ? ' <span class="verified-badge">✓ verified</span>' : '');
 
   document.getElementById('modalTags').innerHTML = `
     <span class="tag location" style="font-size:13px">📍 ${escHtml(d.location)}</span>
@@ -2258,16 +2249,145 @@ function refreshModalView(p) {
       ${ratingValueHtml}
     </div>`;
 
-  // Sticky action row: Like · Share (· Edit · Delete for admins)
+  // Sticky action row: Like · Share (· Verify · Edit · Delete for admins)
   const liked = likedIds.has(p.id);
   document.getElementById('modalTitleLike').innerHTML = '';
-  document.getElementById('modalActionBar').innerHTML = `
+  const bar = document.getElementById('modalActionBar');
+  if (adminToken && review.active) {
+    // Review mode: one-tap confirm / fix / skip, with progress
+    bar.innerHTML = `
+      <span class="review-progress">Review ${review.index + 1} of ${review.ids.length}</span>
+      <button class="modal-action-btn verify" onclick="reviewConfirm()">✓ Looks right</button>
+      <button class="modal-action-btn" onclick="startEdit()">✏️ Fix</button>
+      <button class="modal-action-btn" onclick="reviewSkip()">Skip →</button>
+      <button class="modal-action-btn" onclick="exitReview()">Done</button>`;
+  } else {
+    bar.innerHTML = `
     <button class="modal-action-btn${liked ? ' liked' : ''}" id="modalLikeBtn"
       onclick="likePhoto('${p.id}', event)">${liked ? '♥' : '♡'} ${p.likes || 0}</button>
     <button class="modal-action-btn" onclick="sharePhoto('${p.id}')">⤴ Share</button>
     ${adminToken ? `<span class="spacer"></span>
+    <button class="modal-action-btn${p.verified ? ' verified' : ' verify'}" onclick="toggleVerify('${p.id}')">${p.verified ? '✓ Verified' : '✓ Verify'}</button>
     <button class="modal-action-btn" onclick="startEdit()">✏️ Edit</button>
     <button class="modal-action-btn danger" onclick="deleteFromModal()">🗑 Delete</button>` : ''}`;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Verification & review — lets the admin confirm (or fix) the AI's answers.
+// Every confirmed/fixed photo becomes training + evaluation data (see eval.js).
+// ─────────────────────────────────────────────────────────────────────────────
+const review = { active: false, ids: [], index: 0 };
+
+function unverifiedIds() {
+  return photos.filter(p => p.status === 'done' && !p.verified && !p.userSubmitted && p.aiData).map(p => p.id);
+}
+
+function updateReviewBtn() {
+  const btn = document.getElementById('reviewBtn');
+  if (!btn) return;
+  const n = unverifiedIds().length;
+  btn.textContent = n ? `✅ Review AI results (${n})` : '✅ All reviewed';
+  btn.disabled = !n;
+}
+
+async function setVerified(p, value, source = 'verify') {
+  const prev = p.verified;
+  p.verified = value;
+  const ok = await updatePhotoDB(p, { verified: value, source });
+  if (!ok) { p.verified = prev; MobileUX.toast('Could not save — try again'); return false; }
+  updateReviewBtn();
+  return true;
+}
+
+async function toggleVerify(id) {
+  const p = photos.find(x => x.id === id);
+  if (!p || !adminToken) return;
+  if (await setVerified(p, !p.verified)) {
+    refreshModalView(p);
+    render();
+    MobileUX.toast(p.verified ? 'Marked as verified' : 'Verification removed');
+  }
+}
+
+function startReview() {
+  if (!adminToken) return;
+  const ids = unverifiedIds();
+  if (!ids.length) { MobileUX.toast('Everything is already reviewed'); return; }
+  review.active = true; review.ids = ids; review.index = 0;
+  reviewShow();
+}
+
+function reviewShow() {
+  const id = review.ids[review.index];
+  if (!id) { exitReview(true); return; }
+  if (!document.getElementById('modalBg').classList.contains('open')) {
+    openModal(id);                       // first photo: open the usual photo view
+  } else {
+    activeModalId = id;
+    const p = photos.find(x => x.id === id);
+    refreshModalView(p);
+    document.getElementById('viewMode').style.display = '';
+    document.getElementById('editMode').style.display = 'none';
+    document.getElementById('modal').scrollTop = 0;
+    window.scrollTo?.(0, 0);
+  }
+}
+
+function reviewNext() { review.index++; reviewShow(); }
+function reviewSkip() { reviewNext(); }
+
+async function reviewConfirm() {
+  const p = photos.find(x => x.id === activeModalId);
+  if (!p) return;
+  if (await setVerified(p, true)) { render(); reviewNext(); }
+}
+
+function exitReview(finished) {
+  const wasActive = review.active;
+  review.active = false;
+  if (wasActive && finished) MobileUX.toast('Review complete 🎉');
+  const p = photos.find(x => x.id === activeModalId);
+  if (p && document.getElementById('modalBg').classList.contains('open') && !finished) refreshModalView(p);
+  else if (finished) closeModal();
+  updateReviewBtn();
+}
+
+// ── Model quality panel ─────────────────────────────────────────────────────
+async function openQualityPanel() {
+  if (!adminToken) return;
+  const bg = document.getElementById('qualityModalBg');
+  const body = document.getElementById('qualityBody');
+  body.innerHTML = '<p class="quality-note">Loading…</p>';
+  bg.classList.add('open');
+  MobileUX.lockScroll('quality');
+  try {
+    const res = await fetch(`${serverUrl}/api/quality`, { headers: authHeaders() });
+    if (res.status === 401) { closeQualityPanel(); handleSessionExpired(); return; }
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const q = await res.json();
+    const pct = v => v == null ? '—' : Math.round(v * 100) + '%';
+    const labels = { artist: 'Artist', style: 'Style', period: 'Period', country: 'Country', medium: 'Medium', location: 'Location', paintingName: 'Title' };
+    const rows = Object.entries(q.fields).map(([f, v]) => `
+      <div class="quality-row"><span>${labels[f] || f}</span>
+        <div class="quality-bar"><div style="width:${v.rate == null ? 0 : Math.round(v.rate * 100)}%"></div></div>
+        <b>${pct(v.rate)}</b></div>`).join('');
+    const tops = (q.topCorrections || []).map(c =>
+      `<li><span class="q-field">${escHtml(c.field)}${c.source === 'normalize' ? ' · normalized' : ''}</span> ${escHtml(c.ai_value || '∅')} → <b>${escHtml(c.human_value || '∅')}</b>${c.n > 1 ? ` <i>×${c.n}</i>` : ''}</li>`).join('');
+    body.innerHTML = `
+      <p class="quality-note"><b>${q.verified}</b> of ${q.total} photos verified${q.measurable < q.verified ? ` · ${q.verified - q.measurable} have no saved AI original yet` : ''}.
+        Verify more photos to make these numbers reliable (aim for 100+).</p>
+      <div class="quality-sub">How often the AI's answer was kept as-is</div>
+      ${q.measurable ? rows : '<p class="quality-note">Not enough data yet — verify some photos first.</p>'}
+      ${tops ? `<div class="quality-sub">Most common corrections</div><ul class="quality-list">${tops}</ul>` : ''}
+      <p class="quality-note">Run <code>node eval.js</code> to score a new prompt against your verified photos.</p>`;
+  } catch (err) {
+    body.innerHTML = `<p class="quality-note">Could not load: ${escHtml(err.message)}</p>`;
+  }
+}
+function closeQualityPanel() {
+  document.getElementById('qualityModalBg').classList.remove('open');
+  MobileUX.unlockScroll('quality');
 }
 
 // Share via the native share sheet when available, else copy a deep link
@@ -2301,6 +2421,11 @@ function openPhotoFromHash() {
 window.addEventListener('hashchange', () => { if (!activeModalId) openPhotoFromHash(); });
 
 document.addEventListener('keydown', e => {
+  if (review.active && activeModalId && !/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)
+      && document.getElementById('editMode').style.display === 'none') {
+    if (e.key === 'Enter' || e.key.toLowerCase() === 'v') { e.preventDefault(); reviewConfirm(); return; }
+    if (e.key === 'ArrowRight') { e.preventDefault(); reviewSkip(); return; }
+  }
   if (e.key === 'Escape' && activeModalId && !/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) closeModal();
 });
 
@@ -2357,11 +2482,13 @@ function saveEdit() {
   document.getElementById('editMode').style.display = 'none';
   refreshModalView(p);
 
-  // Persist the edited metadata to the database
-  updatePhotoDB(p);
+  // Saving an edit means the admin has reviewed this photo, so it counts as verified.
+  p.verified = true;
+  updatePhotoDB(p, { verified: true, source: 'edit' }).then(ok => { if (!ok) p.verified = false; updateReviewBtn(); });
 
   // Re-render cards so grouping updates to reflect new location/style
   render();
+  if (review.active) { reviewNext(); return; }
   // If map is visible, refresh it too (location may have changed)
   if (currentFilter === 'location') {
     selectedLocation = p.aiData.location;
@@ -2386,6 +2513,8 @@ function closeModal(opts) {
     try { history.replaceState(null, '', location.pathname + location.search); } catch (_) {}
   }
   activeModalId = null;
+  review.active = false;
+  updateReviewBtn();
 }
 MobileUX.photoPage.onPop = () => { if (activeModalId) closeModal({ fromPop: true }); };
 function deleteFromModal() {

@@ -1334,3 +1334,31 @@ body.select-mode .photo-card.selected {
   .modal-img-wrap { position: static; }
   .modal-title-row { padding-right: 44px; }
 }
+
+
+/* ── Verification & review (admin) ───────────────────────────────────────── */
+.verified-badge {
+  display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 999px;
+  font-size: 10px; font-weight: 600; letter-spacing: .02em; vertical-align: middle;
+  color: #1b6e3c; background: #e8f5ec; border: 1px solid #b9dfc6;
+}
+.modal-action-btn.verify { border-color: #1b6e3c; color: #1b6e3c; }
+.modal-action-btn.verify:hover { background: #e8f5ec; border-color: #1b6e3c; color: #1b6e3c; }
+.modal-action-btn.verified { border-color: #b9dfc6; color: #1b6e3c; background: #e8f5ec; }
+.review-progress { align-self: center; font-size: 12px; color: #666; margin-right: auto; white-space: nowrap; }
+.verify-hint { margin: 0 0 8px; font-size: 12px; color: #1b6e3c; }
+.review-btn:disabled { opacity: .55; cursor: default; }
+.quality-modal .modal-body { max-height: 80vh; overflow-y: auto; }
+.quality-note { font-size: 13px; color: #555; line-height: 1.45; margin: 8px 0; }
+.quality-note code { background: #f3f3f3; padding: 1px 5px; border-radius: 4px; }
+.quality-sub { margin: 14px 0 6px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: #888; }
+.quality-row { display: grid; grid-template-columns: 78px 1fr 42px; gap: 10px; align-items: center; font-size: 13px; margin: 5px 0; }
+.quality-row b { text-align: right; }
+.quality-bar { height: 8px; background: #eee; border-radius: 4px; overflow: hidden; }
+.quality-bar > div { height: 100%; background: #1b6e3c; border-radius: 4px; }
+.quality-list { margin: 0; padding-left: 18px; font-size: 13px; line-height: 1.6; }
+.quality-list .q-field { font-size: 11px; color: #888; text-transform: uppercase; margin-right: 4px; }
+@media (max-width: 767px) {
+  .review-progress { flex: 1 0 100%; margin: 0 0 2px; }
+  .modal-action-bar:has(.review-progress) { flex-wrap: wrap; }
+}

@@ -160,7 +160,7 @@ Names: ${JSON.stringify(names)}`;
           const to = finalFor(p.aiData.artist.trim());
           try {
             const res = await fetch(`${base()}/api/photos/${p.id}`, {
-              method: 'PUT', headers: headers(), body: JSON.stringify({ aiData: { ...p.aiData, artist: to } })
+              method: 'PUT', headers: headers(), body: JSON.stringify({ aiData: { ...p.aiData, artist: to }, source: 'normalize' })
             });
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             p.aiData.artist = to; applied++;
