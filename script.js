@@ -2367,7 +2367,7 @@ async function openQualityPanel() {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const q = await res.json();
     const pct = v => v == null ? '—' : Math.round(v * 100) + '%';
-    const labels = { artist: 'Artist', style: 'Style', period: 'Period', country: 'Country', medium: 'Medium', location: 'Location', paintingName: 'Title' };
+    const labels = { artist: 'Artist', style: 'Style', period: 'Period', location: 'Location', paintingName: 'Title' };
     const rows = Object.entries(q.fields).map(([f, v]) => `
       <div class="quality-row"><span>${labels[f] || f}</span>
         <div class="quality-bar"><div style="width:${v.rate == null ? 0 : Math.round(v.rate * 100)}%"></div></div>

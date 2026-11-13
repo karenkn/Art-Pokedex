@@ -33,7 +33,7 @@ const LABEL = opt('label', '');
 const OUT_DIR = path.join(__dirname, 'evals');
 const HISTORY = path.join(OUT_DIR, 'history.json');
 
-const FIELDS = ['artist', 'style', 'period', 'medium', 'country', 'location'];
+const FIELDS = ['artist', 'style', 'period', 'location'];
 
 // ── helpers (exported for tests) ────────────────────────────────────────────
 function hashId(id) { let h = 0; for (const c of String(id)) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h; }
@@ -171,7 +171,7 @@ async function main() {
         const img = Buffer.from(await (await fetch(`${API}/api/photos/${row.id}/thumb?v=${row.img_v}`)).arrayBuffer()).toString('base64');
         const { parsed, usage } = await analyse(row, img, key);
         tokensIn += usage.input_tokens || 0; tokensOut += usage.output_tokens || 0;
-        const human = { artist: row.artist, style: row.style, period: row.period, medium: row.medium, country: row.country, location: row.location };
+        const human = { artist: row.artist, style: row.style, period: row.period, location: row.location };
         results.push({ id: row.id, ai: parsed, human, scores: scorePhoto(parsed, human) });
       } catch (e) { failed++; console.warn(`  ✗ ${row.id}: ${e.message}`); }
       process.stdout.write(`\r  ${++done}/${gold.length}`);

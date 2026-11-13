@@ -913,8 +913,8 @@ app.get('/api/quality', authenticate, async (_req, res) => {
     const rows = (await pool.query(
       `SELECT ai_original, artist, style, period, country, medium, location, painting_name
          FROM photos WHERE verified AND ai_original IS NOT NULL`)).rows;
-    const map = { artist: 'artist', style: 'style', period: 'period', country: 'country',
-                  medium: 'medium', location: 'location', paintingName: 'painting_name' };
+    const map = { artist: 'artist', style: 'style', period: 'period',
+                  location: 'location', paintingName: 'painting_name' };
     const fields = {};
     for (const f of Object.keys(map)) {
       let ok = 0, n = 0;
