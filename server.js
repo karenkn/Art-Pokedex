@@ -902,7 +902,24 @@ app.put('/api/photos/:id', authenticate, async (req, res) => {
   }
 });
 
-// ── GET /api/quality — admin only: how often the AI's answers survive review ──
+// ── GET /api/quality — admin only: aggregated metrics on how the AI's answers fare in review ──
+// Only counts and rates are returned (no photo text), for the Model Quality dashboard.
+const QUALITY_FIELDS = ['artist', 'style', 'period', 'location'];          // fields that are scored
+function tokenSet(v) { return new Set(normCompare(v).split(' ').filter(t => t.length > 1 && t !== 'the' && t !== 'of')); }
+// Why did a value change? → 'format' | 'filled' | 'different'
+function classifyCorrection(field, ai, human) {
+  if (!ai || /^unknown/i.test(String(ai).trim())) return 'filled';
+  if (normCompare(ai) === normCompare(human)) return 'format';
+  const a = tokenSet(ai), h = tokenSet(human);
+  if (a.size && h.size) {
+    const inter = [...a].filter(t => h.has(t)).length;
+    if (field === 'artist') {
+      const suffix = ['elder', 'younger', 'jr', 'sr'].some(x => a.has(x) !== h.has(x));
+      if (!suffix && inter === Math.min(a.size, h.size)) return 'format';   // e.g. "Van Gogh" → "Vincent van Gogh"
+    } else { const j = inter / (a.size + h.size - inter); if (field === 'location' ? j >= 0.5 : j > 0.5) return 'format'; }    // mostly the same words
+  }
+  return 'different';
+}
 app.get('/api/quality', authenticate, async (_req, res) => {
   try {
     const counts = (await pool.query(
@@ -910,30 +927,53 @@ app.get('/api/quality', authenticate, async (_req, res) => {
               COUNT(*) FILTER (WHERE verified)::int AS verified,
               COUNT(*) FILTER (WHERE verified AND ai_original IS NOT NULL)::int AS measurable
          FROM photos WHERE NOT COALESCE(user_submitted, FALSE)`)).rows[0];
+
+    // Accuracy: compare the AI's original answer to the final (verified) value
     const rows = (await pool.query(
-      `SELECT ai_original, artist, style, period, country, medium, location, painting_name
+      `SELECT ai_original, artist, style, period, location, prompt_version
          FROM photos WHERE verified AND ai_original IS NOT NULL`)).rows;
-    const map = { artist: 'artist', style: 'style', period: 'period',
-                  location: 'location', paintingName: 'painting_name' };
-    const fields = {};
-    for (const f of Object.keys(map)) {
-      let ok = 0, n = 0;
-      for (const r of rows) {
+    const fields = {}, ver = {};
+    let fullyRight = 0;
+    for (const f of QUALITY_FIELDS) fields[f] = { checked: 0, matched: 0, rate: null };
+    for (const r of rows) {
+      let all = true;
+      for (const f of QUALITY_FIELDS) {
         const a = (r.ai_original || {})[f];
         if (a === undefined) continue;
-        n++;
-        if (normCompare(a) === normCompare(r[map[f]])) ok++;
+        const ok = normCompare(a) === normCompare(r[f]);
+        fields[f].checked++; if (ok) fields[f].matched++; else all = false;
       }
-      fields[f] = { checked: n, matched: ok, rate: n ? ok / n : null };
+      if (all) fullyRight++;
+      const k = r.prompt_version || 'unknown';
+      ver[k] = ver[k] || { version: k, photos: 0, fullyRight: 0 };
+      ver[k].photos++; if (all) ver[k].fullyRight++;
     }
-    const top = (await pool.query(
-      `SELECT field, ai_value, human_value, MAX(source) AS source, COUNT(*)::int AS n
-         FROM corrections WHERE source IN ('edit','normalize') AND ai_value IS DISTINCT FROM human_value
-        GROUP BY field, ai_value, human_value ORDER BY n DESC, MAX(created_at) DESC LIMIT 15`)).rows;
-    const byVersion = (await pool.query(
-      `SELECT COALESCE(prompt_version, 'unknown') AS version, COUNT(*)::int AS photos
-         FROM photos WHERE verified GROUP BY 1 ORDER BY 1`)).rows;
-    res.json({ ...counts, fields, topCorrections: top, byVersion });
+    for (const f of QUALITY_FIELDS) fields[f].rate = fields[f].checked ? fields[f].matched / fields[f].checked : null;
+
+    // Corrections: aggregated by field, type, source and week
+    const cor = (await pool.query(
+      `SELECT field, ai_value, human_value, source
+         FROM corrections
+        WHERE source IN ('edit','normalize') AND field = ANY($1) AND ai_value IS DISTINCT FROM human_value`,
+      [QUALITY_FIELDS])).rows;
+    const byField = {}, byType = { format: 0, filled: 0, different: 0 }, bySource = { edit: 0, normalize: 0 };
+    for (const c of cor) {
+      byField[c.field] = (byField[c.field] || 0) + 1;
+      byType[classifyCorrection(c.field, c.ai_value, c.human_value)]++;
+      bySource[c.source]++;
+    }
+    const weekly = (await pool.query(
+      `SELECT to_char(date_trunc('week', created_at), 'Mon DD') AS week, COUNT(*)::int AS n
+         FROM corrections
+        WHERE source IN ('edit','normalize') AND field = ANY($1) AND ai_value IS DISTINCT FROM human_value
+        GROUP BY date_trunc('week', created_at) ORDER BY date_trunc('week', created_at) DESC LIMIT 8`,
+      [QUALITY_FIELDS])).rows.reverse();
+
+    res.json({
+      ...counts, fields, fullyRight,
+      correctionTotal: cor.length, byField, byType, bySource, weekly,
+      byVersion: Object.values(ver).sort((x, y) => String(x.version).localeCompare(String(y.version), undefined, { numeric: true }))
+    });
   } catch (err) {
     console.error('Quality error:', err.message);
     res.status(500).json({ error: err.message });

@@ -2353,7 +2353,40 @@ function exitReview(finished) {
   updateReviewBtn();
 }
 
-// ── Model quality panel ─────────────────────────────────────────────────────
+// ── Model quality panel (dashboard) ─────────────────────────────────────────
+const Q_COLORS = ['#1b6e3c', '#d98324', '#3b6fb6', '#b04a7a', '#7a7a7a'];
+const Q_FIELD_LABELS = { artist: 'Artist', style: 'Style', period: 'Period', location: 'Location' };
+
+function qDonut(segments, centerBig, centerSmall) {
+  const total = segments.reduce((a, s) => a + s.value, 0);
+  const R = 42, C = 2 * Math.PI * R;
+  let offset = 0;
+  const arcs = total ? segments.map((s, i) => {
+    const len = (s.value / total) * C;
+    const arc = `<circle cx="60" cy="60" r="${R}" fill="none" stroke="${s.color || Q_COLORS[i % Q_COLORS.length]}" stroke-width="16"
+      stroke-dasharray="${len} ${C - len}" stroke-dashoffset="${-offset}" transform="rotate(-90 60 60)"/>`;
+    offset += len; return arc;
+  }).join('') : '';
+  const legend = segments.map((s, i) => `<li><i style="background:${s.color || Q_COLORS[i % Q_COLORS.length]}"></i>${escHtml(s.label)} <b>${s.value}</b></li>`).join('');
+  return `<div class="q-donut-wrap">
+    <svg viewBox="0 0 120 120" class="q-donut" role="img">
+      <circle cx="60" cy="60" r="${R}" fill="none" stroke="#eee" stroke-width="16"/>${arcs}
+      <text x="60" y="58" text-anchor="middle" class="q-big">${escHtml(centerBig)}</text>
+      <text x="60" y="73" text-anchor="middle" class="q-small">${escHtml(centerSmall || '')}</text>
+    </svg><ul class="q-legend">${legend}</ul></div>`;
+}
+
+// rows: [{label, value, text?}] ; max = scale (defaults to the largest value)
+function qBars(rows, { max, color } = {}) {
+  const m = max ?? Math.max(1, ...rows.map(r => r.value));
+  return rows.map(r => `<div class="quality-row"><span>${escHtml(r.label)}</span>
+    <div class="quality-bar"><div style="width:${Math.round(Math.min(1, r.value / m) * 100)}%;${color ? 'background:' + color : ''}"></div></div>
+    <b>${escHtml(r.text ?? String(r.value))}</b></div>`).join('');
+}
+
+const qCard = (title, body, sub) => `<section class="q-card"><h4>${title}</h4>${sub ? `<p class="q-sub">${sub}</p>` : ''}${body}</section>`;
+const qEmpty = '<p class="quality-note">Not enough data yet.</p>';
+
 async function openQualityPanel() {
   if (!adminToken) return;
   const bg = document.getElementById('qualityModalBg');
@@ -2367,20 +2400,62 @@ async function openQualityPanel() {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const q = await res.json();
     const pct = v => v == null ? '—' : Math.round(v * 100) + '%';
-    const labels = { artist: 'Artist', style: 'Style', period: 'Period', location: 'Location', paintingName: 'Title' };
-    const rows = Object.entries(q.fields).map(([f, v]) => `
-      <div class="quality-row"><span>${labels[f] || f}</span>
-        <div class="quality-bar"><div style="width:${v.rate == null ? 0 : Math.round(v.rate * 100)}%"></div></div>
-        <b>${pct(v.rate)}</b></div>`).join('');
-    const tops = (q.topCorrections || []).map(c =>
-      `<li><span class="q-field">${escHtml(c.field)}${c.source === 'normalize' ? ' · normalized' : ''}</span> ${escHtml(c.ai_value || '∅')} → <b>${escHtml(c.human_value || '∅')}</b>${c.n > 1 ? ` <i>×${c.n}</i>` : ''}</li>`).join('');
+    const measurable = q.measurable || 0;
+    const cards = [];
+
+    // 1. Review progress
+    cards.push(qCard('Review progress', qDonut([
+      { label: 'Verified', value: q.verified, color: '#1b6e3c' },
+      { label: 'To review', value: Math.max(0, q.total - q.verified), color: '#d8d8d8' }
+    ], q.total ? Math.round(q.verified / q.total * 100) + '%' : '—', 'verified')));
+
+    // 2. AI answers kept
+    cards.push(qCard('AI answers kept as-is', measurable ? qDonut([
+      { label: 'Fully correct', value: q.fullyRight, color: '#1b6e3c' },
+      { label: 'Needed changes', value: measurable - q.fullyRight, color: '#d98324' }
+    ], pct(q.fullyRight / measurable), 'of photos') : qEmpty,
+      measurable ? 'Artist, style, period and location all matched' : ''));
+
+    // 3. Accuracy by field
+    const accRows = Object.entries(q.fields).filter(([, v]) => v.rate != null)
+      .map(([f, v]) => ({ label: Q_FIELD_LABELS[f] || f, value: v.rate, text: pct(v.rate) }));
+    cards.push(qCard('Accuracy by field', accRows.length ? qBars(accRows, { max: 1 }) : qEmpty));
+
+    // 4. Corrections by field
+    const byField = Object.entries(q.byField || {}).map(([f, n]) => ({ label: Q_FIELD_LABELS[f] || f, value: n }))
+      .sort((a, b) => b.value - a.value);
+    cards.push(qCard('Corrections by field', byField.length ? qBars(byField, { color: '#d98324' }) : qEmpty,
+      byField.length ? `${q.correctionTotal} changes in total` : ''));
+
+    // 5. Type of correction
+    const t = q.byType || {};
+    const types = [
+      { label: 'Format / normalization', value: t.format || 0, color: '#3b6fb6' },
+      { label: 'Filled in "Unknown"', value: t.filled || 0, color: '#b04a7a' },
+      { label: 'Different answer', value: t.different || 0, color: '#d98324' }
+    ];
+    cards.push(qCard('Type of correction', q.correctionTotal ? qDonut(types, String(q.correctionTotal), 'changes') : qEmpty,
+      q.correctionTotal ? 'Format changes are things like "Van Gogh" → "Vincent van Gogh"' : ''));
+
+    // 6. Source of corrections
+    const s = q.bySource || {};
+    cards.push(qCard('Where changes came from', q.correctionTotal ? qDonut([
+      { label: 'Your edits', value: s.edit || 0, color: '#1b6e3c' },
+      { label: 'Normalize tools', value: s.normalize || 0, color: '#7a7a7a' }
+    ], String(q.correctionTotal), 'changes') : qEmpty));
+
+    // 7. Changes per week
+    const wk = (q.weekly || []).map(w => ({ label: w.week, value: w.n }));
+    cards.push(qCard('Changes per week', wk.length ? qBars(wk, { color: '#3b6fb6' }) : qEmpty, wk.length ? 'Should trend down as the AI improves' : ''));
+
+    // 8. Prompt versions
+    const vr = (q.byVersion || []).map(v => ({ label: `${v.version} (${v.photos})`, value: v.photos ? v.fullyRight / v.photos : 0, text: pct(v.photos ? v.fullyRight / v.photos : null) }));
+    cards.push(qCard('Fully correct by prompt version', vr.length ? qBars(vr, { max: 1 }) : qEmpty, vr.length ? 'Number of verified photos in brackets' : ''));
+
     body.innerHTML = `
-      <p class="quality-note"><b>${q.verified}</b> of ${q.total} photos verified${q.measurable < q.verified ? ` · ${q.verified - q.measurable} have no saved AI original yet` : ''}.
-        Verify more photos to make these numbers reliable (aim for 100+).</p>
-      <div class="quality-sub">How often the AI's answer was kept as-is</div>
-      ${q.measurable ? rows : '<p class="quality-note">Not enough data yet — verify some photos first.</p>'}
-      ${tops ? `<div class="quality-sub">Most common corrections</div><ul class="quality-list">${tops}</ul>` : ''}
-      <p class="quality-note">Run <code>node eval.js</code> to score a new prompt against your verified photos.</p>`;
+      <p class="quality-note">Based on <b>${q.verified}</b> verified photos${q.verified > measurable ? ` (${q.verified - measurable} have no saved AI original and aren't scored)` : ''}. Aim for 100+ for reliable numbers.</p>
+      <div class="q-grid">${cards.join('')}</div>
+      <p class="quality-note">Run <code>node eval.js</code> to score a new prompt against your held-out verified photos.</p>`;
   } catch (err) {
     body.innerHTML = `<p class="quality-note">Could not load: ${escHtml(err.message)}</p>`;
   }

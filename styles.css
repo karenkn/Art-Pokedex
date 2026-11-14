@@ -1362,3 +1362,19 @@ body.select-mode .photo-card.selected {
   .review-progress { flex: 1 0 100%; margin: 0 0 2px; }
   .modal-action-bar:has(.review-progress) { flex-wrap: wrap; }
 }
+
+/* Model Quality dashboard */
+.quality-modal { max-width: 760px; }
+.q-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 10px 0 6px; }
+.q-card { border: 1px solid #ece8e2; border-radius: 10px; padding: 12px 14px; background: #fff; min-width: 0; }
+.q-card h4 { margin: 0 0 8px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: #777; }
+.q-sub { margin: -4px 0 8px; font-size: 11px; color: #999; }
+.q-donut-wrap { display: flex; align-items: center; gap: 12px; }
+.q-donut { width: 104px; height: 104px; flex: none; }
+.q-big { font-size: 20px; font-weight: 700; fill: #1a1a1a; }
+.q-small { font-size: 9px; fill: #888; }
+.q-legend { list-style: none; margin: 0; padding: 0; font-size: 12px; line-height: 1.7; color: #444; min-width: 0; }
+.q-legend i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; }
+.q-legend b { margin-left: 4px; }
+.q-card .quality-row { grid-template-columns: 72px 1fr 38px; margin: 6px 0; }
+@media (max-width: 640px) { .q-grid { grid-template-columns: 1fr; } }
