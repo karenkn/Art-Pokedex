@@ -26,8 +26,27 @@
     .mq-stack-row b { text-align: right; }
     .mq-legend-inline { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 10px; font-size: 12px; color: #555; }
     .mq-legend-inline i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; }
+    /* Per-field breakdown tables (wide cards) */
+    .mq-ft { width: 100%; }
+    .mq-ft-head, .mq-ft-row { display: grid; grid-template-columns: 84px minmax(120px, 1fr) repeat(var(--cols), 74px); gap: 10px; align-items: center; }
+    .mq-ft-head { font-size: 10px; text-transform: uppercase; letter-spacing: .05em; color: #999; padding-bottom: 6px; border-bottom: 1px solid #ece8e2; }
+    .mq-ft-head span, .mq-ft-row .num { text-align: right; }
+    .mq-ft-row { padding: 10px 0; border-bottom: 1px solid #f3f0eb; font-size: 14px; }
+    .mq-ft-row:last-child { border-bottom: none; }
+    .mq-ft-row .num { font-variant-numeric: tabular-nums; font-weight: 600; }
+    .mq-ft-row .num.zero { color: #bbb; font-weight: 400; }
+    .mq-ft .mq-stack { height: 16px; border-radius: 8px; }
+    .mq-ft-sub { display: block; font-size: 11px; color: #999; font-weight: 400; }
     .mq-foot { margin-top: 22px; font-size: 12px; color: #888; line-height: 1.6; }
     .mq-foot code { background: #f3f3f3; padding: 1px 5px; border-radius: 4px; }
+    @media (max-width: 700px) {
+      .mq-ft-head { display: none; }
+      .mq-ft-row { grid-template-columns: repeat(var(--cols), 1fr); row-gap: 6px; }
+      .mq-ft-row > :first-child { grid-column: 1 / -1; font-weight: 600; }
+      .mq-ft-row .mq-stack { grid-column: 1 / -1; }
+      .mq-ft-row .num { text-align: left; font-size: 12px; font-weight: 500; }
+      .mq-ft-row .num::before { content: attr(data-l) ' '; color: #999; font-weight: 400; }
+    }
     .mq-status { font-size: 13px; color: #888; margin: 0 0 12px; }
   </style>
 </head>
@@ -176,14 +195,20 @@ function bars(rows, { max, color } = {}) {
     <div class="quality-bar"><div style="width:${Math.round(Math.min(1, r.value / m) * 100)}%;${color ? 'background:' + color : ''}"></div></div>
     <b>${escHtml(r.text ?? String(r.value))}</b></div>`).join('');
 }
-function stacked(rows) {   // rows: [{label, parts:{format,filled,different}}]
-  const out = rows.map(r => {
-    const tot = r.parts.format + r.parts.filled + r.parts.different;
-    const seg = k => `<div style="width:${tot ? r.parts[k] / tot * 100 : 0}%;background:${TYPE_COLORS[k]}"></div>`;
-    return `<div class="mq-stack-row"><span>${escHtml(r.label)}</span><div class="mq-stack">${seg('format')}${seg('filled')}${seg('different')}</div><b>${tot}</b></div>`;
+const KEEP_COLOR = '#1b6e3c', CHANGE_COLOR = '#d98324';
+// One row per field: a stacked bar plus a count in every column.
+// cols: [{label, key, color?}] — a row's value for a column is row.vals[key]; bar segments use cols that have a color.
+function fieldTable(rows, cols, { total } = {}) {
+  const head = `<div class="mq-ft-head" style="--cols:${cols.length}"><span style="text-align:left">Field</span><span style="text-align:left"></span>${cols.map(c => `<span>${escHtml(c.label)}</span>`).join('')}</div>`;
+  const body = rows.map(r => {
+    const segs = cols.filter(c => c.color);
+    const sum = segs.reduce((a, c) => a + (r.vals[c.key] || 0), 0);
+    const bar = `<div class="mq-stack">${segs.map(c => `<div style="width:${sum ? (r.vals[c.key] || 0) / sum * 100 : 0}%;background:${c.color}" title="${escHtml(c.label)}: ${r.vals[c.key] || 0}"></div>`).join('')}</div>`;
+    const nums = cols.map(c => { const v = r.vals[c.key] || 0; return `<span class="num${v ? '' : ' zero'}" data-l="${escHtml(c.label)}">${v}</span>`; }).join('');
+    return `<div class="mq-ft-row" style="--cols:${cols.length}"><span>${escHtml(r.label)}${r.sub ? `<span class="mq-ft-sub">${escHtml(r.sub)}</span>` : ''}</span>${bar}${nums}</div>`;
   }).join('');
-  const legend = Object.keys(TYPE_LABELS).map(k => `<span><i style="background:${TYPE_COLORS[k]}"></i>${TYPE_LABELS[k]}</span>`).join('');
-  return out + `<div class="mq-legend-inline">${legend}</div>`;
+  const legend = cols.filter(c => c.color).map(c => `<span><i style="background:${c.color}"></i>${escHtml(c.label)}</span>`).join('');
+  return `<div class="mq-ft">${head}${body}</div><div class="mq-legend-inline">${legend}</div>`;
 }
 const card = (title, body, sub, cls = '') => `<section class="q-card ${cls}"><h4>${title}</h4>${sub ? `<p class="q-sub">${sub}</p>` : ''}${body}</section>`;
 const empty = '<p class="quality-note">Not enough data yet.</p>';
@@ -247,8 +272,22 @@ function render(q) {
     .map(([f, v]) => ({ label: FIELD_LABELS[f] || f, value: v.rate, text: pct(v.rate) }));
   cards.push(card('Accuracy by field', acc.length ? bars(acc, { max: 1 }) : empty, acc.length ? 'Share of AI answers kept unchanged' : ''));
 
-  const byField = Object.entries(q.byField || {}).map(([f, n]) => ({ label: FIELD_LABELS[f] || f, value: n })).sort((a, b) => b.value - a.value);
-  cards.push(card('Corrections by field', byField.length ? bars(byField, { color: '#d98324' }) : empty, byField.length ? `${q.correctionTotal} changes in total` : ''));
+  // Per-field counts: corrections made, and fields verified and left unchanged
+  const fieldKeys = Object.keys(FIELD_LABELS);
+  const fieldRows = fieldKeys.map(f => {
+    const fb = (q.fields || {})[f] || {};
+    const ty = (q.typeByField || {})[f] || {};
+    const corrections = (q.byField || {})[f] || 0;
+    return { f, label: FIELD_LABELS[f], sub: fb.checked ? `${fb.checked} verified` : '',
+      vals: { unchanged: fb.matched || 0, corrections, format: ty.format || 0, filled: ty.filled || 0, different: ty.different || 0 } };
+  }).sort((a, b) => b.vals.corrections - a.vals.corrections);
+  const hasFieldData = fieldRows.some(r => r.vals.corrections || r.vals.unchanged);
+
+  cards.push(card('Corrections by field', hasFieldData ? fieldTable(fieldRows, [
+      { label: 'Unchanged', key: 'unchanged', color: KEEP_COLOR },
+      { label: 'Corrected', key: 'corrections', color: CHANGE_COLOR }
+    ]) : empty,
+    hasFieldData ? `${q.correctionTotal} corrections in total. "Unchanged" = verified photos where the AI's answer for that field was kept` : '', 'wide'));
 
   const t = q.byType || {};
   cards.push(card('Type of correction', q.correctionTotal ? donut(
@@ -262,9 +301,13 @@ function render(q) {
     { label: 'Normalize tools', value: s.normalize || 0, color: '#7a7a7a' }
   ], String(q.correctionTotal), 'changes') : empty));
 
-  const tbf = Object.entries(q.typeByField || {}).map(([f, parts]) => ({ label: FIELD_LABELS[f] || f, parts }))
-    .sort((a, b) => (b.parts.format + b.parts.filled + b.parts.different) - (a.parts.format + a.parts.filled + a.parts.different));
-  cards.push(card('Correction type by field', tbf.length ? stacked(tbf) : empty, tbf.length ? 'Where format fixes vs real errors happen' : ''));
+  cards.push(card('Correction type by field', hasFieldData ? fieldTable(fieldRows, [
+      { label: 'Unchanged', key: 'unchanged', color: KEEP_COLOR },
+      { label: 'Format', key: 'format', color: TYPE_COLORS.format },
+      { label: 'Filled in', key: 'filled', color: TYPE_COLORS.filled },
+      { label: 'Different', key: 'different', color: TYPE_COLORS.different }
+    ]) : empty,
+    hasFieldData ? 'Format = same answer, standardized ("Van Gogh" → "Vincent van Gogh") · Filled in = "Unknown" replaced · Different = a different answer' : '', 'wide'));
 
   const c = q.confidence || {};
   const confRows = [['low', 'Low (<55%)'], ['mid', 'Medium (55–79%)'], ['high', 'High (80%+)']]
