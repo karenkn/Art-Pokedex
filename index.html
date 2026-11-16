@@ -24,6 +24,7 @@
     <a href="index.html" class="active">Collection</a>
     <a href="top-works.html">Top Works</a>
     <a href="blog.html">Design & Process</a>
+    <a href="model-quality.html">Model Quality</a>
     <a href="submit.html">Submit a Photo</a>
     <button class="admin-btn" id="adminBtn" onclick="toggleAdminLogin()">🔒 Admin</button>
   </nav>
@@ -33,6 +34,7 @@
   <a href="index.html" class="active">Collection</a>
   <a href="top-works.html">Top Works</a>
   <a href="blog.html">Design & Process</a>
+  <a href="model-quality.html">Model Quality</a>
   <a href="submit.html">Submit a Photo</a>
   <button onclick="toggleAdminLogin(); document.getElementById('headerMobileMenu').classList.remove('open')">🔒 Admin Login</button>
 </div>
@@ -66,7 +68,6 @@
     <button class="clear-btn admin-only" onclick="clearAll()" style="display:none">🗑 Clear All</button>
     <button class="clear-btn admin-only" id="normalizeBtn" onclick="normalizeAllLocations()" style="display:none">🔧 Normalize Locations</button>
     <button class="clear-btn admin-only review-btn" id="reviewBtn" onclick="startReview()" style="display:none">✅ Review AI results</button>
-    <button class="clear-btn admin-only" onclick="openQualityPanel()" style="display:none">📊 Model Quality</button>
     <button class="clear-btn admin-only normalize-artists-btn" onclick="normalizeArtists()" style="display:none">👤 Normalize Artists</button>
     <button class="clear-btn admin-only" id="optimizeImagesBtn" onclick="optimizeImages()" style="display:none">🖼 Optimize Images</button>
     <button class="clear-btn admin-only" id="consolidateStylesBtn" onclick="consolidateStyles()" style="display:none">🎨 Consolidate Styles</button>
@@ -361,17 +362,6 @@
       </div>
       <button type="button" class="modal-save-btn" id="bulkSaveBtn" onclick="saveBulkEdit()">Save Changes</button>
       <button type="button" class="modal-cancel-btn" onclick="closeBulkEditModal()">Cancel</button>
-    </div>
-  </div>
-</div>
-
-<!-- Model quality panel (admin) -->
-<div class="modal-bg" id="qualityModalBg" onclick="if (event.target === this) closeQualityPanel()">
-  <div class="modal bulk-edit-modal quality-modal">
-    <div class="modal-body">
-      <div class="modal-title bulk-edit-title">Model Quality</div>
-      <div id="qualityBody"></div>
-      <button type="button" class="modal-cancel-btn" onclick="closeQualityPanel()">Close</button>
     </div>
   </div>
 </div>

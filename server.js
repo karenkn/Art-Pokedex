@@ -904,7 +904,8 @@ app.put('/api/photos/:id', authenticate, async (req, res) => {
 
 // ── GET /api/quality — admin only: aggregated metrics on how the AI's answers fare in review ──
 // Only counts and rates are returned (no photo text), for the Model Quality dashboard.
-const QUALITY_FIELDS = ['artist', 'style', 'period', 'location'];          // fields that are scored
+const QUALITY_FIELDS = ['paintingName', 'artist', 'style', 'period', 'location'];   // fields shown on the dashboard
+const CORE_FIELDS = ['artist', 'style', 'period', 'location'];                      // "fully correct" = all of these matched
 function tokenSet(v) { return new Set(normCompare(v).split(' ').filter(t => t.length > 1 && t !== 'the' && t !== 'of')); }
 // Why did a value change? → 'format' | 'filled' | 'different'
 function classifyCorrection(field, ai, human) {
@@ -930,9 +931,11 @@ app.get('/api/quality', authenticate, async (_req, res) => {
 
     // Accuracy: compare the AI's original answer to the final (verified) value
     const rows = (await pool.query(
-      `SELECT ai_original, artist, style, period, location, prompt_version
+      `SELECT ai_original, painting_name, artist, style, period, location, confidence, prompt_version
          FROM photos WHERE verified AND ai_original IS NOT NULL`)).rows;
+    const col = { paintingName: 'painting_name', artist: 'artist', style: 'style', period: 'period', location: 'location' };
     const fields = {}, ver = {};
+    const conf = { low: { n: 0, ok: 0 }, mid: { n: 0, ok: 0 }, high: { n: 0, ok: 0 } };
     let fullyRight = 0;
     for (const f of QUALITY_FIELDS) fields[f] = { checked: 0, matched: 0, rate: null };
     for (const r of rows) {
@@ -940,13 +943,19 @@ app.get('/api/quality', authenticate, async (_req, res) => {
       for (const f of QUALITY_FIELDS) {
         const a = (r.ai_original || {})[f];
         if (a === undefined) continue;
-        const ok = normCompare(a) === normCompare(r[f]);
-        fields[f].checked++; if (ok) fields[f].matched++; else all = false;
+        const ok = normCompare(a) === normCompare(r[col[f]]);
+        fields[f].checked++; if (ok) fields[f].matched++;
+        if (!ok && CORE_FIELDS.includes(f)) all = false;
       }
       if (all) fullyRight++;
-      const k = r.prompt_version || 'unknown';
+      // Every photo so far was made with the first prompt, so unlabeled ones count as Version 1
+      const k = (!r.prompt_version || r.prompt_version === 'unknown') ? 'v1' : r.prompt_version;
       ver[k] = ver[k] || { version: k, photos: 0, fullyRight: 0 };
       ver[k].photos++; if (all) ver[k].fullyRight++;
+      if (typeof r.confidence === 'number') {
+        const b = r.confidence >= 80 ? conf.high : r.confidence >= 55 ? conf.mid : conf.low;
+        b.n++; if (all) b.ok++;
+      }
     }
     for (const f of QUALITY_FIELDS) fields[f].rate = fields[f].checked ? fields[f].matched / fields[f].checked : null;
 
@@ -956,22 +965,19 @@ app.get('/api/quality', authenticate, async (_req, res) => {
          FROM corrections
         WHERE source IN ('edit','normalize') AND field = ANY($1) AND ai_value IS DISTINCT FROM human_value`,
       [QUALITY_FIELDS])).rows;
-    const byField = {}, byType = { format: 0, filled: 0, different: 0 }, bySource = { edit: 0, normalize: 0 };
+    const byField = {}, byType = { format: 0, filled: 0, different: 0 }, bySource = { edit: 0, normalize: 0 }, typeByField = {};
     for (const c of cor) {
+      const t = classifyCorrection(c.field, c.ai_value, c.human_value);
       byField[c.field] = (byField[c.field] || 0) + 1;
-      byType[classifyCorrection(c.field, c.ai_value, c.human_value)]++;
+      byType[t]++;
       bySource[c.source]++;
+      typeByField[c.field] = typeByField[c.field] || { format: 0, filled: 0, different: 0 };
+      typeByField[c.field][t]++;
     }
-    const weekly = (await pool.query(
-      `SELECT to_char(date_trunc('week', created_at), 'Mon DD') AS week, COUNT(*)::int AS n
-         FROM corrections
-        WHERE source IN ('edit','normalize') AND field = ANY($1) AND ai_value IS DISTINCT FROM human_value
-        GROUP BY date_trunc('week', created_at) ORDER BY date_trunc('week', created_at) DESC LIMIT 8`,
-      [QUALITY_FIELDS])).rows.reverse();
 
     res.json({
       ...counts, fields, fullyRight,
-      correctionTotal: cor.length, byField, byType, bySource, weekly,
+      correctionTotal: cor.length, byField, byType, bySource, typeByField, confidence: conf,
       byVersion: Object.values(ver).sort((x, y) => String(x.version).localeCompare(String(y.version), undefined, { numeric: true }))
     });
   } catch (err) {

@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Model Quality, Art Pokédex</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    .mq-wrap { max-width: 1120px; margin: 0 auto; padding: 28px 20px 60px; }
+    .mq-wrap h1 { font-family: 'Playfair Display', serif; font-weight: 600; font-size: 30px; margin: 0 0 4px; }
+    .mq-lead { color: #666; font-size: 14px; margin: 0 0 22px; max-width: 720px; line-height: 1.5; }
+    .mq-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 14px; }
+    .mq-kpi { border: 1px solid #ece8e2; border-radius: 10px; padding: 14px 16px; background: #fff; }
+    .mq-kpi b { display: block; font-size: 26px; line-height: 1.1; color: #1a1a1a; }
+    .mq-kpi span { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: #888; }
+    .mq-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
+    .mq-grid .q-card.wide { grid-column: 1 / -1; }
+    .mq-gate { border: 1px solid #ece8e2; border-radius: 12px; padding: 40px 24px; text-align: center; background: #fff; }
+    .mq-gate button { margin-top: 14px; }
+    .mq-stack { display: flex; height: 10px; border-radius: 5px; overflow: hidden; background: #eee; }
+    .mq-stack div { height: 100%; }
+    .mq-stack-row { display: grid; grid-template-columns: 80px 1fr 34px; gap: 10px; align-items: center; font-size: 13px; margin: 7px 0; }
+    .mq-stack-row b { text-align: right; }
+    .mq-legend-inline { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 10px; font-size: 12px; color: #555; }
+    .mq-legend-inline i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; }
+    .mq-foot { margin-top: 22px; font-size: 12px; color: #888; line-height: 1.6; }
+    .mq-foot code { background: #f3f3f3; padding: 1px 5px; border-radius: 4px; }
+    .mq-status { font-size: 13px; color: #888; margin: 0 0 12px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <a href="index.html" class="header-logo" style="text-decoration:none;color:inherit">
+    <img src="pokedex_pixel_art_palette_repositioned.svg" style="width:30px" alt="">
+    <span>
+      <span class="logo-text">Art Pokédex</span>
+      <span class="logo-sub" style="display:block">✦ An Inventory of Art in the Wild</span>
+    </span>
+  </a>
+  <nav class="header-nav">
+    <a href="index.html">Collection</a>
+    <a href="top-works.html">Top Works</a>
+    <a href="blog.html">Design &amp; Process</a>
+    <a href="model-quality.html" class="active">Model Quality</a>
+    <a href="submit.html">Submit a Photo</a>
+    <button class="admin-btn" id="adminBtn" onclick="toggleAdminLogin()">🔒 Admin</button>
+  </nav>
+  <button class="header-hamburger" onclick="document.getElementById('headerMobileMenu').classList.toggle('open')" aria-label="Menu">☰</button>
+</header>
+<div class="header-mobile-menu" id="headerMobileMenu">
+  <a href="index.html">Collection</a>
+  <a href="top-works.html">Top Works</a>
+  <a href="blog.html">Design &amp; Process</a>
+  <a href="model-quality.html" class="active">Model Quality</a>
+  <a href="submit.html">Submit a Photo</a>
+  <button onclick="toggleAdminLogin(); document.getElementById('headerMobileMenu').classList.remove('open')">🔒 Admin Login</button>
+</div>
+
+<!-- Login Modal -->
+<div class="login-modal-bg" id="loginModalBg">
+  <div class="login-modal">
+    <h2>Admin Login</h2>
+    <p>Enter your admin password to view model quality.</p>
+    <div class="login-error" id="loginError"></div>
+    <input type="password" id="adminPasswordInput" placeholder="Admin password"
+           onkeydown="if(event.key==='Enter') submitLogin()" />
+    <div class="login-modal-actions">
+      <button class="login-submit-btn" onclick="submitLogin()">Log In</button>
+      <button class="login-cancel-btn" onclick="closeLoginModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<main class="mq-wrap">
+  <h1>Model Quality</h1>
+  <p class="mq-lead">How often the AI's answers hold up once you've reviewed them. Every photo you verify is compared with what the AI originally said, so these numbers get more reliable as you verify more.</p>
+  <div id="mqRoot"></div>
+</main>
+
+<script src="mobile-ux.js"></script>
+<script>
+const serverUrl = 'https://art-pokedex-production.up.railway.app';
+let adminToken = null;
+
+// ── Admin session (shared with the other pages through localStorage) ────────
+function isTokenExpired(token) {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+    return !payload.exp || payload.exp * 1000 <= Date.now() + 30000;
+  } catch (_) { return true; }
+}
+const authHeaders = () => ({ 'content-type': 'application/json', Authorization: `Bearer ${adminToken}` });
+function escHtml(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+
+function updateAdminUI() {
+  const on = !!adminToken;
+  const btn = document.getElementById('adminBtn');
+  btn.textContent = on ? '🔓 Logged In (Logout)' : '🔒 Admin Login';
+  btn.classList.toggle('logged-in', on);
+  const mob = document.querySelector('#headerMobileMenu button');
+  if (mob) mob.textContent = on ? '🔓 Logout' : '🔒 Admin Login';
+  if (on) loadDashboard(); else showGate();
+}
+function toggleAdminLogin() {
+  if (adminToken) {
+    adminToken = null;
+    try { localStorage.removeItem('adminToken'); } catch (_) {}
+    updateAdminUI();
+  } else {
+    document.getElementById('loginModalBg').classList.add('open');
+    MobileUX.lockScroll('login');
+    document.getElementById('adminPasswordInput').value = '';
+    document.getElementById('loginError').style.display = 'none';
+    setTimeout(() => document.getElementById('adminPasswordInput').focus(), 50);
+  }
+}
+function closeLoginModal() {
+  document.getElementById('loginModalBg').classList.remove('open');
+  MobileUX.unlockScroll('login');
+}
+async function submitLogin() {
+  const password = document.getElementById('adminPasswordInput').value;
+  const errEl = document.getElementById('loginError');
+  errEl.style.display = 'none';
+  try {
+    const res = await fetch(`${serverUrl}/api/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ password }) });
+    const data = await res.json();
+    if (!res.ok) { errEl.textContent = data.error || 'Login failed.'; errEl.style.display = 'block'; return; }
+    adminToken = data.token;
+    try { localStorage.setItem('adminToken', adminToken); } catch (_) {}
+    closeLoginModal();
+    updateAdminUI();
+  } catch (_) { errEl.textContent = 'Could not reach server.'; errEl.style.display = 'block'; }
+}
+async function refreshAdminToken() {
+  if (!adminToken) return;
+  try {
+    const res = await fetch(`${serverUrl}/api/refresh`, { method: 'POST', headers: authHeaders() });
+    if (!res.ok) return;
+    const data = await res.json();
+    if (data.token) { adminToken = data.token; try { localStorage.setItem('adminToken', adminToken); } catch (_) {} }
+  } catch (_) {}
+}
+
+// ── Chart helpers ───────────────────────────────────────────────────────────
+const COLORS = ['#1b6e3c', '#d98324', '#3b6fb6', '#b04a7a', '#7a7a7a'];
+const FIELD_LABELS = { paintingName: 'Title', artist: 'Artist', style: 'Style', period: 'Period', location: 'Location' };
+const TYPE_COLORS = { format: '#3b6fb6', filled: '#b04a7a', different: '#d98324' };
+const TYPE_LABELS = { format: 'Format / normalization', filled: 'Filled in "Unknown"', different: 'Different answer' };
+const pct = v => v == null ? '—' : Math.round(v * 100) + '%';
+
+function donut(segments, big, small) {
+  const total = segments.reduce((a, s) => a + s.value, 0);
+  const R = 42, C = 2 * Math.PI * R;
+  let offset = 0;
+  const arcs = total ? segments.filter(s => s.value > 0).map((s, i) => {
+    const len = (s.value / total) * C;
+    const arc = `<circle cx="60" cy="60" r="${R}" fill="none" stroke="${s.color || COLORS[i % COLORS.length]}" stroke-width="16"
+      stroke-dasharray="${len} ${C - len}" stroke-dashoffset="${-offset}" transform="rotate(-90 60 60)"/>`;
+    offset += len; return arc;
+  }).join('') : '';
+  const legend = segments.map((s, i) => `<li><i style="background:${s.color || COLORS[i % COLORS.length]}"></i>${escHtml(s.label)} <b>${s.value}</b></li>`).join('');
+  return `<div class="q-donut-wrap"><svg viewBox="0 0 120 120" class="q-donut" role="img">
+      <circle cx="60" cy="60" r="${R}" fill="none" stroke="#eee" stroke-width="16"/>${arcs}
+      <text x="60" y="58" text-anchor="middle" class="q-big">${escHtml(big)}</text>
+      <text x="60" y="73" text-anchor="middle" class="q-small">${escHtml(small || '')}</text>
+    </svg><ul class="q-legend">${legend}</ul></div>`;
+}
+function bars(rows, { max, color } = {}) {
+  const m = max ?? Math.max(1, ...rows.map(r => r.value));
+  return rows.map(r => `<div class="quality-row"><span>${escHtml(r.label)}</span>
+    <div class="quality-bar"><div style="width:${Math.round(Math.min(1, r.value / m) * 100)}%;${color ? 'background:' + color : ''}"></div></div>
+    <b>${escHtml(r.text ?? String(r.value))}</b></div>`).join('');
+}
+function stacked(rows) {   // rows: [{label, parts:{format,filled,different}}]
+  const out = rows.map(r => {
+    const tot = r.parts.format + r.parts.filled + r.parts.different;
+    const seg = k => `<div style="width:${tot ? r.parts[k] / tot * 100 : 0}%;background:${TYPE_COLORS[k]}"></div>`;
+    return `<div class="mq-stack-row"><span>${escHtml(r.label)}</span><div class="mq-stack">${seg('format')}${seg('filled')}${seg('different')}</div><b>${tot}</b></div>`;
+  }).join('');
+  const legend = Object.keys(TYPE_LABELS).map(k => `<span><i style="background:${TYPE_COLORS[k]}"></i>${TYPE_LABELS[k]}</span>`).join('');
+  return out + `<div class="mq-legend-inline">${legend}</div>`;
+}
+const card = (title, body, sub, cls = '') => `<section class="q-card ${cls}"><h4>${title}</h4>${sub ? `<p class="q-sub">${sub}</p>` : ''}${body}</section>`;
+const empty = '<p class="quality-note">Not enough data yet.</p>';
+const kpi = (value, label) => `<div class="mq-kpi"><b>${escHtml(value)}</b><span>${escHtml(label)}</span></div>`;
+// "v1" → "Version 1"; anything unlabeled counts as Version 1
+const versionLabel = v => { const m = /^v(\d+)$/i.exec(String(v || '')); return m ? `Version ${m[1]}` : (!v || v === 'unknown' ? 'Version 1' : String(v)); };
+
+// ── Render ──────────────────────────────────────────────────────────────────
+function showGate() {
+  document.getElementById('mqRoot').innerHTML = `<div class="mq-gate">
+    <h2 style="margin:0 0 6px;font-family:'Playfair Display',serif">Admin only</h2>
+    <p class="quality-note">Log in to see how well the AI's answers hold up.</p>
+    <button class="login-submit-btn" onclick="toggleAdminLogin()">Log in</button></div>`;
+}
+
+async function loadDashboard() {
+  const root = document.getElementById('mqRoot');
+  root.innerHTML = '<p class="mq-status">Loading…</p>';
+  try {
+    const res = await fetch(`${serverUrl}/api/quality`, { headers: authHeaders() });
+    if (res.status === 401) {
+      adminToken = null; try { localStorage.removeItem('adminToken'); } catch (_) {}
+      updateAdminUI(); return;
+    }
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    render(await res.json());
+  } catch (err) {
+    root.innerHTML = `<div class="mq-gate"><p class="quality-note">Could not load: ${escHtml(err.message)}</p>
+      <button class="login-submit-btn" onclick="loadDashboard()">Try again</button></div>`;
+  }
+}
+
+function render(q) {
+  const measurable = q.measurable || 0;
+  const unscored = Math.max(0, q.verified - measurable);
+  const changesPerPhoto = q.verified ? (q.correctionTotal / q.verified) : null;
+
+  const kpis = `<div class="mq-kpis">
+    ${kpi(q.total, 'Photos')}
+    ${kpi(q.verified, 'Verified')}
+    ${kpi(q.total ? pct(q.verified / q.total) : '—', 'Reviewed')}
+    ${kpi(measurable ? pct(q.fullyRight / measurable) : '—', 'AI right first time')}
+    ${kpi(q.correctionTotal, 'Changes made')}
+    ${kpi(changesPerPhoto == null ? '—' : changesPerPhoto.toFixed(1), 'Changes per verified photo')}
+  </div>`;
+
+  const cards = [];
+
+  cards.push(card('Review progress', donut([
+    { label: 'Verified', value: q.verified, color: '#1b6e3c' },
+    { label: 'To review', value: Math.max(0, q.total - q.verified), color: '#d8d8d8' }
+  ], q.total ? pct(q.verified / q.total) : '—', 'verified')));
+
+  cards.push(card('AI answers kept as-is', measurable ? donut([
+    { label: 'Fully correct', value: q.fullyRight, color: '#1b6e3c' },
+    { label: 'Needed changes', value: measurable - q.fullyRight, color: '#d98324' }
+  ], pct(q.fullyRight / measurable), 'of photos') : empty,
+    measurable ? 'Artist, style, period and location all matched' : ''));
+
+  const acc = Object.entries(q.fields || {}).filter(([, v]) => v.rate != null)
+    .map(([f, v]) => ({ label: FIELD_LABELS[f] || f, value: v.rate, text: pct(v.rate) }));
+  cards.push(card('Accuracy by field', acc.length ? bars(acc, { max: 1 }) : empty, acc.length ? 'Share of AI answers kept unchanged' : ''));
+
+  const byField = Object.entries(q.byField || {}).map(([f, n]) => ({ label: FIELD_LABELS[f] || f, value: n })).sort((a, b) => b.value - a.value);
+  cards.push(card('Corrections by field', byField.length ? bars(byField, { color: '#d98324' }) : empty, byField.length ? `${q.correctionTotal} changes in total` : ''));
+
+  const t = q.byType || {};
+  cards.push(card('Type of correction', q.correctionTotal ? donut(
+    Object.keys(TYPE_LABELS).map(k => ({ label: TYPE_LABELS[k], value: t[k] || 0, color: TYPE_COLORS[k] })),
+    String(q.correctionTotal), 'changes') : empty,
+    q.correctionTotal ? 'Format changes are things like "Van Gogh" → "Vincent van Gogh"' : ''));
+
+  const s = q.bySource || {};
+  cards.push(card('Where changes came from', q.correctionTotal ? donut([
+    { label: 'Your edits', value: s.edit || 0, color: '#1b6e3c' },
+    { label: 'Normalize tools', value: s.normalize || 0, color: '#7a7a7a' }
+  ], String(q.correctionTotal), 'changes') : empty));
+
+  const tbf = Object.entries(q.typeByField || {}).map(([f, parts]) => ({ label: FIELD_LABELS[f] || f, parts }))
+    .sort((a, b) => (b.parts.format + b.parts.filled + b.parts.different) - (a.parts.format + a.parts.filled + a.parts.different));
+  cards.push(card('Correction type by field', tbf.length ? stacked(tbf) : empty, tbf.length ? 'Where format fixes vs real errors happen' : ''));
+
+  const c = q.confidence || {};
+  const confRows = [['low', 'Low (<55%)'], ['mid', 'Medium (55–79%)'], ['high', 'High (80%+)']]
+    .filter(([k]) => c[k] && c[k].n)
+    .map(([k, label]) => ({ label, value: c[k].ok / c[k].n, text: `${pct(c[k].ok / c[k].n)} (${c[k].n})` }));
+  cards.push(card('Fully correct by AI confidence', confRows.length ? bars(confRows, { max: 1 }) : empty,
+    confRows.length ? 'Does higher confidence mean more accurate? Photo count in brackets' : ''));
+
+  const vr = (q.byVersion || []).map(v => ({ label: `${versionLabel(v.version)} (${v.photos})`, value: v.photos ? v.fullyRight / v.photos : 0, text: pct(v.photos ? v.fullyRight / v.photos : null) }));
+  cards.push(card('Fully correct by prompt version', vr.length ? bars(vr, { max: 1 }) : empty, vr.length ? 'Verified photos in brackets' : ''));
+
+  document.getElementById('mqRoot').innerHTML = `${kpis}
+    <div class="mq-grid">${cards.join('')}</div>
+    <p class="mq-foot">Based on <b>${q.verified}</b> verified photos${unscored ? ` — ${unscored} have no saved AI original (for example, photos edited before tracking began) and aren't scored` : ''}.
+      Aim for 100+ for reliable numbers. "Fully correct" means artist, style, period and location were all kept; titles are shown separately because unrecognized works get descriptive titles.<br>
+      To score a new prompt against your held-out photos, run <code>node eval.js</code>.</p>`;
+}
+
+// ── Boot ────────────────────────────────────────────────────────────────────
+try {
+  const saved = localStorage.getItem('adminToken');
+  if (saved && !isTokenExpired(saved)) adminToken = saved;
+  else if (saved) localStorage.removeItem('adminToken');
+} catch (_) {}
+refreshAdminToken().finally(updateAdminUI);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') refreshAdminToken(); });
+</script>
+</body>
+</html>

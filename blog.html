@@ -310,6 +310,7 @@
       .editor-header { gap: 8px; }
     }
   </style>
+  <style>@media (min-width: 768px) and (max-width: 1100px) { .header-nav { gap: 14px; } .logo-sub { display: none !important; } } /* room for the extra nav link */</style>
 </head>
 <body>
 
@@ -323,6 +324,7 @@
     <a href="index.html">Collection</a>
     <a href="top-works.html">Top Works</a>
     <a href="blog.html" class="active">Design & Process</a>
+    <a href="model-quality.html">Model Quality</a>
     <a href="submit.html">Submit a Photo</a>
     <button class="admin-btn" id="adminBtn" onclick="toggleAdminLogin()">🔒 Admin</button>
   </nav>
@@ -332,6 +334,7 @@
   <a href="index.html">Collection</a>
   <a href="top-works.html">Top Works</a>
   <a href="blog.html" class="active">Design & Process</a>
+  <a href="model-quality.html">Model Quality</a>
   <a href="submit.html">Submit a Photo</a>
   <button onclick="toggleAdminLogin(); document.getElementById('headerMobileMenu').classList.remove('open')">🔒 Admin Login</button>
 </div>
