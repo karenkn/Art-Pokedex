@@ -18,6 +18,10 @@
     .mq-kpi span { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: #888; }
     .mq-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
     .mq-grid .q-card.wide { grid-column: 1 / -1; }
+    .mq-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 14px; }
+    .mq-grid2 .q-card { min-width: 0; }
+    @media (max-width: 700px) { .mq-grid2 { grid-template-columns: 1fr; } }
+    .mq-stack-gap { margin-top: 14px; display: grid; gap: 14px; }
     .mq-gate { border: 1px solid #ece8e2; border-radius: 12px; padding: 40px 24px; text-align: center; background: #fff; }
     .mq-gate button { margin-top: 14px; }
     .mq-stack { display: flex; height: 10px; border-radius: 5px; overflow: hidden; background: #eee; }
@@ -204,8 +208,13 @@ function fieldTable(rows, cols, { total } = {}) {
     const segs = cols.filter(c => c.color);
     const sum = segs.reduce((a, c) => a + (r.vals[c.key] || 0), 0);
     const bar = `<div class="mq-stack">${segs.map(c => `<div style="width:${sum ? (r.vals[c.key] || 0) / sum * 100 : 0}%;background:${c.color}" title="${escHtml(c.label)}: ${r.vals[c.key] || 0}"></div>`).join('')}</div>`;
-    const nums = cols.map(c => { const v = r.vals[c.key] || 0; return `<span class="num${v ? '' : ' zero'}" data-l="${escHtml(c.label)}">${v}</span>`; }).join('');
-    return `<div class="mq-ft-row" style="--cols:${cols.length}"><span>${escHtml(r.label)}${r.sub ? `<span class="mq-ft-sub">${escHtml(r.sub)}</span>` : ''}</span>${bar}${nums}</div>`;
+    const nums = cols.map(c => {
+      const raw = r.vals[c.key];
+      if (c.percent) return `<span class="num" data-l="${escHtml(c.label)}">${pct(raw)}</span>`;   // raw is a 0–1 rate or null
+      const v = raw || 0;
+      return `<span class="num${v ? '' : ' zero'}" data-l="${escHtml(c.label)}">${v}</span>`;
+    }).join('');
+    return `<div class="mq-ft-row" style="--cols:${cols.length}"><span>${escHtml(r.label)}</span>${bar}${nums}</div>`;
   }).join('');
   const legend = cols.filter(c => c.color).map(c => `<span><i style="background:${c.color}"></i>${escHtml(c.label)}</span>`).join('');
   return `<div class="mq-ft">${head}${body}</div><div class="mq-legend-inline">${legend}</div>`;
@@ -239,6 +248,19 @@ async function loadDashboard() {
     root.innerHTML = `<div class="mq-gate"><p class="quality-note">Could not load: ${escHtml(err.message)}</p>
       <button class="login-submit-btn" onclick="loadDashboard()">Try again</button></div>`;
   }
+}
+
+
+// Layout: overview cards, then a 2×2 block of correction/confidence/version charts, then the wide per-field tables.
+function layout(cards) {
+  const pick = title => cards.filter(c => c.includes(`<h4>${title}</h4>`));
+  const grid2 = ['Type of correction', 'Where changes came from', 'Fully correct by AI confidence', 'Fully correct by prompt version'];
+  const wide = ['Corrections by field', 'Correction type by field'];
+  const used = new Set([...grid2, ...wide].flatMap(pick));
+  const overview = cards.filter(c => !used.has(c));
+  return `<div class="mq-grid">${overview.join('')}</div>
+    <div class="mq-grid2">${grid2.flatMap(pick).join('')}</div>
+    <div class="mq-stack-gap">${wide.flatMap(pick).join('')}</div>`;
 }
 
 function render(q) {
@@ -278,16 +300,20 @@ function render(q) {
     const fb = (q.fields || {})[f] || {};
     const ty = (q.typeByField || {})[f] || {};
     const corrections = (q.byField || {})[f] || 0;
-    return { f, label: FIELD_LABELS[f], sub: fb.checked ? `${fb.checked} verified` : '',
-      vals: { unchanged: fb.matched || 0, corrections, format: ty.format || 0, filled: ty.filled || 0, different: ty.different || 0 } };
+    return { f, label: FIELD_LABELS[f],
+      vals: { verified: fb.checked || 0, unchanged: fb.matched || 0, corrections,
+              accuracy: fb.checked ? (fb.matched || 0) / fb.checked : null,      // unchanged ÷ verified
+              format: ty.format || 0, filled: ty.filled || 0, different: ty.different || 0 } };
   }).sort((a, b) => b.vals.corrections - a.vals.corrections);
   const hasFieldData = fieldRows.some(r => r.vals.corrections || r.vals.unchanged);
 
   cards.push(card('Corrections by field', hasFieldData ? fieldTable(fieldRows, [
+      { label: 'Verified', key: 'verified' },
       { label: 'Unchanged', key: 'unchanged', color: KEEP_COLOR },
-      { label: 'Corrected', key: 'corrections', color: CHANGE_COLOR }
+      { label: 'Corrected', key: 'corrections', color: CHANGE_COLOR },
+      { label: '% Accuracy', key: 'accuracy', percent: true }
     ]) : empty,
-    hasFieldData ? `${q.correctionTotal} corrections in total. "Unchanged" = verified photos where the AI's answer for that field was kept` : '', 'wide'));
+    hasFieldData ? `${q.correctionTotal} corrections in total. "Unchanged" = verified photos where the AI's answer for that field was kept; % accuracy = unchanged ÷ verified` : '', 'wide'));
 
   const t = q.byType || {};
   cards.push(card('Type of correction', q.correctionTotal ? donut(
@@ -302,10 +328,12 @@ function render(q) {
   ], String(q.correctionTotal), 'changes') : empty));
 
   cards.push(card('Correction type by field', hasFieldData ? fieldTable(fieldRows, [
+      { label: 'Verified', key: 'verified' },
       { label: 'Unchanged', key: 'unchanged', color: KEEP_COLOR },
       { label: 'Format', key: 'format', color: TYPE_COLORS.format },
       { label: 'Filled in', key: 'filled', color: TYPE_COLORS.filled },
-      { label: 'Different', key: 'different', color: TYPE_COLORS.different }
+      { label: 'Different', key: 'different', color: TYPE_COLORS.different },
+      { label: '% Accuracy', key: 'accuracy', percent: true }
     ]) : empty,
     hasFieldData ? 'Format = same answer, standardized ("Van Gogh" → "Vincent van Gogh") · Filled in = "Unknown" replaced · Different = a different answer' : '', 'wide'));
 
@@ -320,7 +348,7 @@ function render(q) {
   cards.push(card('Fully correct by prompt version', vr.length ? bars(vr, { max: 1 }) : empty, vr.length ? 'Verified photos in brackets' : ''));
 
   document.getElementById('mqRoot').innerHTML = `${kpis}
-    <div class="mq-grid">${cards.join('')}</div>
+    ${layout(cards)}
     <p class="mq-foot">Based on <b>${q.verified}</b> verified photos${unscored ? ` — ${unscored} have no saved AI original (for example, photos edited before tracking began) and aren't scored` : ''}.
       Aim for 100+ for reliable numbers. "Fully correct" means artist, style, period and location were all kept; titles are shown separately because unrecognized works get descriptive titles.<br>
       To score a new prompt against your held-out photos, run <code>node eval.js</code>.</p>`;
