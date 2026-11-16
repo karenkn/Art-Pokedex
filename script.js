@@ -2552,14 +2552,24 @@ function saveEdit() {
   p.aiData.confidence   = parseInt(document.getElementById('editConfidence').value, 10);
   p.aiData.manuallyEdited = true;
 
+  // Saving an edit means the admin has reviewed this photo, so it counts as verified.
+  // Set this BEFORE refreshing the view so the ✓ badge and Verified button show immediately.
+  p.verified = true;
+
   // Return to view mode and refresh
   document.getElementById('viewMode').style.display = '';
   document.getElementById('editMode').style.display = 'none';
   refreshModalView(p);
 
-  // Saving an edit means the admin has reviewed this photo, so it counts as verified.
-  p.verified = true;
-  updatePhotoDB(p, { verified: true, source: 'edit' }).then(ok => { if (!ok) p.verified = false; updateReviewBtn(); });
+  updatePhotoDB(p, { verified: true, source: 'edit' }).then(ok => {
+    if (!ok) {                       // save failed: don't claim it's verified
+      p.verified = false;
+      if (activeModalId === p.id) refreshModalView(p);
+      render();
+      MobileUX.toast('Could not save — try again');
+    }
+    updateReviewBtn();
+  });
 
   // Re-render cards so grouping updates to reflect new location/style
   render();
