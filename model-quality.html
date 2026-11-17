@@ -55,6 +55,11 @@
     .q-card .q-donut { width: 168px; height: 168px; }
     .q-card .q-legend { font-size: 13px; line-height: 1.9; }
     .q-card .q-legend i { width: 10px; height: 10px; }
+    /* Bar charts that stretch to fill their card (rows spread evenly, thicker bars) */
+    .q-fill { flex: 1; display: flex; flex-direction: column; justify-content: space-evenly; gap: 6px; padding: 2px 0 6px; }
+    .q-fill .quality-row { grid-template-columns: 76px 1fr 46px; margin: 0; font-size: 14px; }
+    .q-fill .quality-bar { height: 18px; border-radius: 9px; }
+    .q-fill .quality-bar > div { border-radius: 9px; }
     .mq-foot { margin-top: 22px; font-size: 12px; color: #888; line-height: 1.6; }
     .mq-foot code { background: #f3f3f3; padding: 1px 5px; border-radius: 4px; }
     @media (max-width: 700px) {
@@ -351,7 +356,7 @@ function render(q) {
 
   const acc = Object.entries(q.fields || {}).filter(([, v]) => v.rate != null)
     .map(([f, v]) => ({ label: FIELD_LABELS[f] || f, value: v.rate, text: pct(v.rate) }));
-  cards.push(card('Accuracy by field', acc.length ? bars(acc, { max: 1 }) : empty, acc.length ? 'Share of AI answers kept unchanged' : ''));
+  cards.push(card('Accuracy by field', acc.length ? `<div class="q-fill">${bars(acc, { max: 1 })}</div>` : empty, acc.length ? 'Share of AI answers kept unchanged' : ''));
 
   // Per-field counts: corrections made, and fields verified and left unchanged
   const fieldKeys = Object.keys(FIELD_LABELS);
