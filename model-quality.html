@@ -49,6 +49,12 @@
     .mq-pp-row .num.zero { color: #bbb; font-weight: 400; }
     .mq-pp-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .mq-pp .mq-stack { height: 12px; }
+    /* Donut charts: one size everywhere, centered in their card so charts on the same row line up */
+    .q-card { display: flex; flex-direction: column; }
+    .q-card .q-donut-wrap { flex: 1; align-items: center; justify-content: center; gap: 22px; flex-wrap: wrap; padding: 4px 0 8px; }
+    .q-card .q-donut { width: 168px; height: 168px; }
+    .q-card .q-legend { font-size: 13px; line-height: 1.9; }
+    .q-card .q-legend i { width: 10px; height: 10px; }
     .mq-foot { margin-top: 22px; font-size: 12px; color: #888; line-height: 1.6; }
     .mq-foot code { background: #f3f3f3; padding: 1px 5px; border-radius: 4px; }
     @media (max-width: 700px) {
