@@ -186,6 +186,7 @@
     <a href="top-works.html">Top Works</a>
     <a href="blog.html">Design &amp; Process</a>
     <a href="model-quality.html">Model Quality</a>
+    <a href="team.html" class="super-only" style="display:none">Team</a>
     <a href="submit.html" class="active">Submit a Photo</a>
     <button class="admin-btn" id="adminBtn" onclick="toggleAdminLogin()">🔒 Admin</button>
   </nav>
@@ -196,6 +197,7 @@
   <a href="top-works.html">Top Works</a>
   <a href="blog.html">Design &amp; Process</a>
   <a href="model-quality.html">Model Quality</a>
+  <a href="team.html" class="super-only" style="display:none">Team</a>
   <a href="submit.html" class="active">Submit a Photo</a>
   <button onclick="toggleAdminLogin(); document.getElementById('headerMobileMenu').classList.remove('open')">🔒 Admin Login</button>
 </div>
@@ -206,6 +208,8 @@
     <h2>Admin Login</h2>
     <p>Enter your admin password to manage the collection.</p>
     <div class="login-error" id="loginError"></div>
+    <input type="text" id="adminUsernameInput" placeholder="Username (leave blank for main admin)" autocomplete="username"
+           onkeydown="if(event.key==='Enter') document.getElementById('adminUsernameInput').focus()" />
     <input type="password" id="adminPasswordInput" placeholder="Admin password"
            onkeydown="if(event.key==='Enter') submitLogin()" />
     <div class="login-modal-actions">
@@ -1099,9 +1103,9 @@ Return ONLY a valid JSON object with ALL of these keys (raw JSON, no markdown fe
   function toggleAdminLogin() {
     if (adminToken) { adminToken = null; try { localStorage.removeItem('adminToken'); } catch(_){} updateAdminBtn(); return; }
     document.getElementById('loginModalBg').classList.add('open');
-    document.getElementById('adminPasswordInput').value = '';
+    document.getElementById('adminPasswordInput').value = ''; document.getElementById('adminUsernameInput').value = '';
     document.getElementById('loginError').style.display = 'none';
-    setTimeout(() => document.getElementById('adminPasswordInput').focus(), 50);
+    setTimeout(() => document.getElementById('adminUsernameInput').focus(), 50);
   }
   function closeLoginModal() {
     document.getElementById('loginModalBg').classList.remove('open');
@@ -1111,7 +1115,7 @@ Return ONLY a valid JSON object with ALL of these keys (raw JSON, no markdown fe
     const errEl = document.getElementById('loginError');
     errEl.style.display = 'none';
     try {
-      const res  = await fetch(`${SERVER_URL}/api/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ password: pw }) });
+      const res  = await fetch(`${SERVER_URL}/api/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username: document.getElementById('adminUsernameInput').value.trim(), password: pw }) });
       const data = await res.json();
       if (!res.ok) { errEl.textContent = data.error || 'Login failed.'; errEl.style.display = 'block'; return; }
       adminToken = data.token;
@@ -1123,8 +1127,9 @@ Return ONLY a valid JSON object with ALL of these keys (raw JSON, no markdown fe
   function updateAdminBtn() {
     const btn = document.getElementById('adminBtn');
     if (!btn) return;
-    btn.textContent = adminToken ? '🔓 Logged In (Logout)' : '🔒 Admin';
+    btn.textContent = adminToken ? ('🔓 ' + Auth.name() + ' (Logout)') : '🔒 Admin';
     btn.classList.toggle('logged-in', !!adminToken);
+    Auth.apply();
   }
 
   // Restore admin session from localStorage
@@ -1159,6 +1164,7 @@ Return ONLY a valid JSON object with ALL of these keys (raw JSON, no markdown fe
     }
   });
 </script>
+<script src="auth-ui.js"></script>
 <script src="mobile-ux.js"></script>
 </body>
 </html>

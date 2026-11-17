@@ -95,6 +95,27 @@ pool.query(`
   .then(() => pool.query(`ALTER TABLE photos ADD COLUMN IF NOT EXISTS prompt_version TEXT`))
   .catch(err => console.error('Database init error:', err.message));
 
+// Team accounts. The original ADMIN_PASSWORD_HASH login (no username) stays as the main super admin.
+//   superadmin: everything, including managing accounts and deleting photos
+//   editor:     add and edit photos, verify, rank — but no account management and no deleting
+pool.query(`
+  CREATE TABLE IF NOT EXISTS users (
+    id            SERIAL PRIMARY KEY,
+    username      TEXT NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    role          TEXT NOT NULL DEFAULT 'editor',
+    active        BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at    TIMESTAMPTZ DEFAULT NOW()
+  )
+`).catch(err => console.error('Users table init error:', err.message));
+
+// Who added / last edited / verified each photo (stored as usernames)
+pool.query(`ALTER TABLE photos ADD COLUMN IF NOT EXISTS added_by TEXT`)
+  .then(() => pool.query(`ALTER TABLE photos ADD COLUMN IF NOT EXISTS edited_by TEXT`))
+  .then(() => pool.query(`ALTER TABLE photos ADD COLUMN IF NOT EXISTS edited_at TIMESTAMPTZ`))
+  .then(() => pool.query(`ALTER TABLE photos ADD COLUMN IF NOT EXISTS verified_by TEXT`))
+  .catch(err => console.error('Attribution columns error:', err.message));
+
 // Corrections log — one row per field the admin changed (ai_value → human_value)
 pool.query(`
   CREATE TABLE IF NOT EXISTS corrections (
@@ -108,7 +129,8 @@ pool.query(`
     source         TEXT DEFAULT 'edit',
     created_at     TIMESTAMPTZ DEFAULT NOW()
   )
-`).then(() => pool.query(`CREATE INDEX IF NOT EXISTS idx_corrections_photo ON corrections(photo_id)`))
+`).then(() => pool.query(`ALTER TABLE corrections ADD COLUMN IF NOT EXISTS user_name TEXT`))
+  .then(() => pool.query(`CREATE INDEX IF NOT EXISTS idx_corrections_photo ON corrections(photo_id)`))
   .catch(err => console.error('Corrections table init error:', err.message));
 
 // Comparisons log — one row per head-to-head decision
@@ -170,8 +192,11 @@ pool.query(`
 const JWT_SECRET = process.env.JWT_SECRET;
 const ADMIN_TOKEN_TTL = '14d';
 
-// Middleware: verify JWT on write requests
-function authenticate(req, res, next) {
+// Middleware: verify JWT on write requests and work out who is calling.
+// Tokens carry { uid, role, name }. Older tokens ({ role: 'admin' }) and the no-username
+// login count as the main super admin. Team accounts are re-checked in the database on every
+// request, so deactivating someone takes effect immediately.
+async function authenticate(req, res, next) {
   if (!JWT_SECRET) {
     return res.status(500).json({ error: 'JWT_SECRET is not configured on the server.' });
   }
@@ -180,12 +205,36 @@ function authenticate(req, res, next) {
   if (!token) {
     return res.status(401).json({ error: 'Not authenticated. Please log in as admin.' });
   }
-  try {
-    jwt.verify(token, JWT_SECRET);
-    next();
-  } catch {
-    res.status(401).json({ error: 'Session expired or invalid. Please log in again.' });
+  let payload;
+  try { payload = jwt.verify(token, JWT_SECRET); }
+  catch { return res.status(401).json({ error: 'Session expired or invalid. Please log in again.' }); }
+
+  if (payload.uid == null) {                       // main admin (shared password login)
+    req.user = { id: null, role: 'superadmin', name: 'admin' };
+    return next();
   }
+  try {
+    const u = (await pool.query('SELECT id, username, role, active FROM users WHERE id = $1', [payload.uid])).rows[0];
+    if (!u || !u.active) return res.status(401).json({ error: 'This account is no longer active.' });
+    req.user = { id: u.id, role: u.role, name: u.username };
+    next();
+  } catch (err) {
+    console.error('Auth lookup error:', err.message);
+    res.status(500).json({ error: 'Could not verify your account.' });
+  }
+}
+// Only super admins (account management, deleting photos)
+function requireSuper(req, res, next) {
+  if (req.user && req.user.role === 'superadmin') return next();
+  res.status(403).json({ error: 'Only a super admin can do this.' });
+}
+const signToken = u => jwt.sign({ uid: u.id, role: u.role, name: u.name }, JWT_SECRET, { expiresIn: ADMIN_TOKEN_TTL });
+// Is this request from someone holding a valid login token? (decides whether to reveal who edited what)
+function hasValidToken(req) {
+  try {
+    const h = req.headers['authorization'] || '';
+    return !!(JWT_SECRET && h.startsWith('Bearer ') && jwt.verify(h.slice(7), JWT_SECRET));
+  } catch { return false; }
 }
 
 // ── Rate limiting ─────────────────────────────────────────────────────────────
@@ -348,30 +397,110 @@ app.get('/api/reverse-geocode-places', async (req, res) => {
 });
 
 // ── POST /api/login ───────────────────────────────────────────────────────────
-// Body: { password: "..." }
-// Returns: { token: "<jwt>" }  (valid 14 days; renewed via /api/refresh)
+// Body: { username?, password }
+//   with a username → team account (super admin or editor)
+//   without         → the main admin password (ADMIN_PASSWORD_HASH): always a super admin, and the
+//                     emergency way back in if team accounts are ever misconfigured
+// Returns: { token, role, name }  (valid 14 days; renewed via /api/refresh)
 app.post('/api/login', loginLimit, async (req, res) => {
   if (!JWT_SECRET) {
     return res.status(500).json({ error: 'JWT_SECRET is not configured on the server.' });
   }
-  const { password } = req.body;
-  const hash = process.env.ADMIN_PASSWORD_HASH;
-  if (!hash) {
-    return res.status(500).json({ error: 'ADMIN_PASSWORD_HASH is not configured on the server.' });
+  const { username, password } = req.body || {};
+  const uname = typeof username === 'string' ? username.trim().toLowerCase() : '';
+  try {
+    if (uname) {
+      const u = (await pool.query('SELECT id, username, password_hash, role, active FROM users WHERE username = $1', [uname])).rows[0];
+      const ok = u && u.active && await bcrypt.compare(String(password || ''), u.password_hash);
+      if (!ok) return res.status(401).json({ error: 'Incorrect username or password.' });
+      const user = { id: u.id, role: u.role, name: u.username };
+      return res.json({ token: signToken(user), role: user.role, name: user.name });
+    }
+    const hash = process.env.ADMIN_PASSWORD_HASH;
+    if (!hash) {
+      return res.status(500).json({ error: 'ADMIN_PASSWORD_HASH is not configured on the server.' });
+    }
+    if (!(await bcrypt.compare(String(password || ''), hash))) {
+      return res.status(401).json({ error: 'Incorrect password.' });
+    }
+    const user = { id: null, role: 'superadmin', name: 'admin' };
+    res.json({ token: signToken(user), role: user.role, name: user.name });
+  } catch (err) {
+    console.error('Login error:', err.message);
+    res.status(500).json({ error: 'Login failed.' });
   }
-  const valid = await bcrypt.compare(password || '', hash);
-  if (!valid) {
-    return res.status(401).json({ error: 'Incorrect password.' });
-  }
-  const token = jwt.sign({ role: 'admin' }, JWT_SECRET, { expiresIn: ADMIN_TOKEN_TTL });
-  res.json({ token });
 });
 
-// ── POST /api/refresh — admin only: swap a still-valid token for a fresh one ──
-// The pages call this on load / when the tab becomes visible, so an admin who
+// ── POST /api/refresh — logged-in users: swap a still-valid token for a fresh one ──
+// The pages call this on load / when the tab becomes visible, so someone who
 // keeps using the site never hits an expired token (sliding session).
-app.post('/api/refresh', authenticate, (_req, res) => {
-  res.json({ token: jwt.sign({ role: 'admin' }, JWT_SECRET, { expiresIn: ADMIN_TOKEN_TTL }) });
+app.post('/api/refresh', authenticate, (req, res) => {
+  res.json({ token: signToken(req.user), role: req.user.role, name: req.user.name });
+});
+
+// ── Team accounts (super admin only) ─────────────────────────────────────────
+const USERNAME_RE = /^[a-z0-9._-]{3,30}$/;
+const ROLES = new Set(['superadmin', 'editor']);
+
+app.get('/api/users', authenticate, requireSuper, async (_req, res) => {
+  try {
+    const rows = (await pool.query(
+      `SELECT u.id, u.username, u.role, u.active, u.created_at,
+              (SELECT COUNT(*)::int FROM photos p WHERE p.added_by = u.username) AS photos_added
+         FROM users u ORDER BY u.created_at`)).rows;
+    res.json(rows);
+  } catch (err) {
+    console.error('List users error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/users', authenticate, requireSuper, async (req, res) => {
+  const username = String(req.body?.username || '').trim().toLowerCase();
+  const password = String(req.body?.password || '');
+  const role     = req.body?.role || 'editor';
+  if (!USERNAME_RE.test(username)) return res.status(400).json({ error: 'Username must be 3–30 characters: letters, numbers, dots, dashes or underscores.' });
+  if (username === 'admin')        return res.status(400).json({ error: '"admin" is reserved for the main admin login.' });
+  if (password.length < 8)         return res.status(400).json({ error: 'Password must be at least 8 characters.' });
+  if (!ROLES.has(role))            return res.status(400).json({ error: 'Role must be superadmin or editor.' });
+  try {
+    const hash = await bcrypt.hash(password, 10);
+    const r = await pool.query(
+      'INSERT INTO users (username, password_hash, role) VALUES ($1,$2,$3) RETURNING id, username, role, active, created_at',
+      [username, hash, role]);
+    res.status(201).json(r.rows[0]);
+  } catch (err) {
+    if (err.code === '23505') return res.status(409).json({ error: 'That username is already taken.' });
+    console.error('Create user error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Change role, deactivate/reactivate, or reset the password. You can't change your own role or status.
+app.patch('/api/users/:id', authenticate, requireSuper, async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  const { role, active, password } = req.body || {};
+  if (!Number.isInteger(id)) return res.status(400).json({ error: 'Invalid user.' });
+  if (req.user.id === id && (role !== undefined || active !== undefined)) {
+    return res.status(400).json({ error: "You can't change your own role or status." });
+  }
+  if (role !== undefined && !ROLES.has(role)) return res.status(400).json({ error: 'Role must be superadmin or editor.' });
+  if (password !== undefined && String(password).length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters.' });
+  try {
+    const hash = password !== undefined ? await bcrypt.hash(String(password), 10) : null;
+    const r = await pool.query(
+      `UPDATE users SET
+         role          = COALESCE($1, role),
+         active        = COALESCE($2::boolean, active),
+         password_hash = COALESCE($3, password_hash)
+       WHERE id = $4 RETURNING id, username, role, active`,
+      [role ?? null, typeof active === 'boolean' ? active : null, hash, id]);
+    if (!r.rowCount) return res.status(404).json({ error: 'User not found.' });
+    res.json(r.rows[0]);
+  } catch (err) {
+    console.error('Update user error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // ── POST /api/photos/:id/like — public: add a like ───────────────────────────
@@ -713,19 +842,24 @@ app.get('/health', (_req, res) => res.json({ ok: true }));
 // Metadata only: image bytes are NOT included (they made this response >150 MB).
 // Images load separately from GET /api/photos/:id/thumb, which browsers cache.
 // has_image / has_small / img_v let the client build cache-busting image URLs.
-app.get('/api/photos', async (_req, res) => {
+app.get('/api/photos', async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT id, name, painting_name, artist, location, country, style, medium, period,
               confidence, description, artist_hint, manually_edited, location_source,
               gps_lat, gps_lng, ai_model, likes, pinned, user_submitted, rating,
               elo_score, tier, created_at, verified, verified_at, prompt_version,
+              added_by, edited_by, edited_at, verified_by,
               (thumbnail IS NOT NULL AND thumbnail <> '') AS has_image,
               (thumb_small IS NOT NULL)                   AS has_small,
               COALESCE(length(thumbnail), 0)              AS img_v
          FROM photos
         ORDER BY created_at DESC`
     );
+    // Who added/edited/verified a photo is only shown to logged-in team members
+    if (!hasValidToken(req)) {
+      for (const r of result.rows) { delete r.added_by; delete r.edited_by; delete r.edited_at; delete r.verified_by; }
+    }
     res.json(result.rows);
   } catch (err) {
     console.error('Load photos error:', err.message);
@@ -790,8 +924,8 @@ app.post('/api/photos', authenticate, async (req, res) => {
          (id, name, thumbnail, painting_name, artist, location, country,
           style, medium, period, confidence, description, artist_hint,
           manually_edited, location_source, gps_lat, gps_lng, ai_model,
-          ai_original, prompt_version)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
+          ai_original, prompt_version, added_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)
        ON CONFLICT (id) DO UPDATE SET
          painting_name   = EXCLUDED.painting_name,
          artist          = EXCLUDED.artist,
@@ -808,7 +942,8 @@ app.post('/api/photos', authenticate, async (req, res) => {
          gps_lat         = EXCLUDED.gps_lat,
          gps_lng         = EXCLUDED.gps_lng,
          ai_original     = COALESCE(photos.ai_original, EXCLUDED.ai_original),
-         prompt_version  = COALESCE(photos.prompt_version, EXCLUDED.prompt_version)`,
+         prompt_version  = COALESCE(photos.prompt_version, EXCLUDED.prompt_version),
+         added_by        = COALESCE(photos.added_by, EXCLUDED.added_by)`,
       [
         id, name, thumbnail,
         d.paintingName || '', d.artist    || '',
@@ -823,7 +958,8 @@ app.post('/api/photos', authenticate, async (req, res) => {
         d.model || null,
         // Snapshot of what the AI said, before any human edits (used to measure accuracy)
         JSON.stringify(snapshotFields(d)),
-        typeof promptVersion === 'string' ? promptVersion.slice(0, 40) : null
+        typeof promptVersion === 'string' ? promptVersion.slice(0, 40) : null,
+        req.user.name
       ]
     );
     // Optional compact gallery thumbnail sent by the uploader
@@ -875,7 +1011,11 @@ app.put('/api/photos/:id', authenticate, async (req, res) => {
          ai_original     = COALESCE(ai_original, $13::jsonb),
          verified        = COALESCE($14::boolean, verified),
          verified_at     = CASE WHEN $14::boolean IS TRUE THEN NOW()
-                                WHEN $14::boolean IS FALSE THEN NULL ELSE verified_at END
+                                WHEN $14::boolean IS FALSE THEN NULL ELSE verified_at END,
+         verified_by     = CASE WHEN $14::boolean IS TRUE THEN $15
+                                WHEN $14::boolean IS FALSE THEN NULL ELSE verified_by END,
+         edited_by       = CASE WHEN $16::boolean THEN $15 ELSE edited_by END,
+         edited_at       = CASE WHEN $16::boolean THEN NOW() ELSE edited_at END
        WHERE id = $12`,
       [
         d.paintingName || '', d.artist   || '', d.location  || '',
@@ -884,15 +1024,17 @@ app.put('/api/photos/:id', authenticate, async (req, res) => {
         d.artistHint   || '', d.manuallyEdited || false,
         req.params.id,
         baseline ? JSON.stringify(snapshotFields(baseline)) : null,
-        typeof verified === 'boolean' ? verified : null
+        typeof verified === 'boolean' ? verified : null,
+        req.user.name,
+        rows.length > 0 || source === 'edit'          // a real edit (not just a verify click)
       ]
     );
     const src = ['edit', 'normalize', 'verify'].includes(source) ? source : 'edit';
     for (const r of rows) {
       await pool.query(
-        `INSERT INTO corrections (photo_id, field, ai_value, human_value, model, prompt_version, source)
-         VALUES ($1,$2,$3,$4,$5,$6,$7)`,
-        [req.params.id, r.field, r.ai, r.human, cur.ai_model || null, cur.prompt_version || null, src]
+        `INSERT INTO corrections (photo_id, field, ai_value, human_value, model, prompt_version, source, user_name)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+        [req.params.id, r.field, r.ai, r.human, cur.ai_model || null, cur.prompt_version || null, src, req.user.name]
       );
     }
     res.json({ ok: true, corrections: rows.length });
@@ -987,7 +1129,7 @@ app.get('/api/quality', authenticate, async (_req, res) => {
 });
 
 // ── DELETE /api/photos/:id — admin only ──────────────────────────────────────
-app.delete('/api/photos/:id', authenticate, async (req, res) => {
+app.delete('/api/photos/:id', authenticate, requireSuper, async (req, res) => {
   try {
     await pool.query('DELETE FROM photos WHERE id = $1', [req.params.id]);
     res.json({ ok: true });
@@ -998,7 +1140,7 @@ app.delete('/api/photos/:id', authenticate, async (req, res) => {
 });
 
 // ── DELETE /api/photos — admin only ──────────────────────────────────────────
-app.delete('/api/photos', authenticate, async (_req, res) => {
+app.delete('/api/photos', authenticate, requireSuper, async (_req, res) => {
   try {
     await pool.query('DELETE FROM photos');
     res.json({ ok: true });
@@ -1097,7 +1239,7 @@ app.put('/api/posts/:id', authenticate, async (req, res) => {
 });
 
 // ── DELETE /api/posts/:id — admin only ───────────────────────────────────────
-app.delete('/api/posts/:id', authenticate, async (req, res) => {
+app.delete('/api/posts/:id', authenticate, requireSuper, async (req, res) => {
   try {
     await pool.query('DELETE FROM posts WHERE id = $1', [req.params.id]);
     res.json({ ok: true });

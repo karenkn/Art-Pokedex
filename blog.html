@@ -325,6 +325,7 @@
     <a href="top-works.html">Top Works</a>
     <a href="blog.html" class="active">Design & Process</a>
     <a href="model-quality.html">Model Quality</a>
+    <a href="team.html" class="super-only" style="display:none">Team</a>
     <a href="submit.html">Submit a Photo</a>
     <button class="admin-btn" id="adminBtn" onclick="toggleAdminLogin()">🔒 Admin</button>
   </nav>
@@ -335,6 +336,7 @@
   <a href="top-works.html">Top Works</a>
   <a href="blog.html" class="active">Design & Process</a>
   <a href="model-quality.html">Model Quality</a>
+  <a href="team.html" class="super-only" style="display:none">Team</a>
   <a href="submit.html">Submit a Photo</a>
   <button onclick="toggleAdminLogin(); document.getElementById('headerMobileMenu').classList.remove('open')">🔒 Admin Login</button>
 </div>
@@ -345,6 +347,8 @@
     <h2>Admin Login</h2>
     <p>Enter your admin password to write and edit posts.</p>
     <div class="login-error" id="loginError"></div>
+    <input type="text" id="adminUsernameInput" placeholder="Username (leave blank for main admin)" autocomplete="username"
+           onkeydown="if(event.key==='Enter') document.getElementById('adminUsernameInput').focus()" />
     <input type="password" id="adminPasswordInput" placeholder="Admin password"
            onkeydown="if(event.key==='Enter') submitLogin()" />
     <div class="login-modal-actions">
@@ -490,9 +494,9 @@ function toggleAdminLogin() {
     updateAdminUI();
   } else {
     document.getElementById('loginModalBg').classList.add('open');
-    document.getElementById('adminPasswordInput').value = '';
+    document.getElementById('adminPasswordInput').value = ''; document.getElementById('adminUsernameInput').value = '';
     document.getElementById('loginError').style.display = 'none';
-    setTimeout(() => document.getElementById('adminPasswordInput').focus(), 50);
+    setTimeout(() => document.getElementById('adminUsernameInput').focus(), 50);
   }
 }
 
@@ -507,7 +511,7 @@ async function submitLogin() {
   try {
     const res  = await fetch(`${serverUrl}/api/login`, {
       method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ password })
+      body: JSON.stringify({ username: document.getElementById('adminUsernameInput').value.trim(), password })
     });
     const data = await res.json();
     if (!res.ok) { errEl.textContent = data.error || 'Login failed.'; errEl.style.display = 'block'; return; }
@@ -524,8 +528,9 @@ async function submitLogin() {
 function updateAdminUI() {
   const isAdmin = !!adminToken;
   const btn = document.getElementById('adminBtn');
-  btn.textContent = isAdmin ? '🔓 Logged In (Logout)' : '🔒 Admin Login';
+  btn.textContent = isAdmin ? ('🔓 ' + Auth.name() + ' (Logout)') : '🔒 Admin Login';
   btn.classList.toggle('logged-in', isAdmin);
+  Auth.apply();
   document.getElementById('adminToolbar').classList.toggle('visible', isAdmin);
   renderPostList();
 }
@@ -560,7 +565,7 @@ function renderPostList() {
     return `<div class="post-card${isDraft ? ' draft' : ''}" onclick="openPost('${post.id}')">
       ${adminToken ? `<div class="post-admin-actions visible">
         <button class="post-edit-btn"   onclick="event.stopPropagation();openEditor('${post.id}')">✏️ Edit</button>
-        <button class="post-delete-btn" onclick="event.stopPropagation();deletePost('${post.id}')">🗑 Delete</button>
+        ${Auth.isSuper() ? `<button class="post-delete-btn" onclick="event.stopPropagation();deletePost('${post.id}')">🗑 Delete</button>` : ''}
       </div>` : ''}
       <div class="post-card-date">${date}</div>
       <div class="post-card-title">${escHtml(post.title) || 'Untitled'}${isDraft ? '<span class="draft-badge">Draft</span>' : ''}</div>
@@ -871,6 +876,7 @@ document.addEventListener('click', e => {
   }
 });
 </script>
+<script src="auth-ui.js"></script>
 <script src="mobile-ux.js"></script>
 </body>
 </html>

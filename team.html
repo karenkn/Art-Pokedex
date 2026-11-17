@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Team, Art Pokédex</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    .tm-wrap { max-width: 860px; margin: 0 auto; padding: 28px 20px 60px; }
+    .tm-wrap h1 { font-family: 'Playfair Display', serif; font-weight: 600; font-size: 30px; margin: 0 0 4px; }
+    .tm-lead { color: #666; font-size: 14px; margin: 0 0 22px; max-width: 640px; line-height: 1.5; }
+    .tm-card { border: 1px solid #ece8e2; border-radius: 12px; background: #fff; padding: 18px 20px; margin-bottom: 18px; }
+    .tm-card h2 { margin: 0 0 12px; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: #777; }
+    .tm-row { display: grid; grid-template-columns: minmax(110px, 1.2fr) 130px 90px 80px auto; gap: 10px; align-items: center; padding: 11px 0; border-bottom: 1px solid #f3f0eb; font-size: 14px; }
+    .tm-row:last-child { border-bottom: none; }
+    .tm-head { font-size: 10px; text-transform: uppercase; letter-spacing: .05em; color: #999; padding-top: 0; }
+    .tm-name { font-weight: 600; word-break: break-all; }
+    .tm-you { font-size: 11px; color: #999; font-weight: 400; margin-left: 6px; }
+    .tm-pill { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+    .tm-pill.on  { color: #1b6e3c; background: #e8f5ec; }
+    .tm-pill.off { color: #888; background: #eee; }
+    .tm-actions { display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap; }
+    .tm-btn { padding: 6px 11px; border: 1px solid #c8c2b8; background: #fff; border-radius: 6px; font: inherit; font-size: 12px; cursor: pointer; }
+    .tm-btn:hover { border-color: #1a1a1a; }
+    .tm-btn.primary { background: #1a1a1a; border-color: #1a1a1a; color: #fff; }
+    .tm-btn.danger:hover { border-color: #c0392b; color: #c0392b; }
+    .tm-btn:disabled { opacity: .5; cursor: default; }
+    .tm-form { display: grid; grid-template-columns: 1fr 1fr 1.2fr auto; gap: 10px; align-items: end; }
+    .tm-form label { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: #888; margin-bottom: 4px; }
+    .tm-form input, .tm-form select, .tm-row select { width: 100%; box-sizing: border-box; padding: 9px 10px; border: 1px solid #c8c2b8; border-radius: 6px; font: inherit; font-size: 13px; background: #fff; }
+    .tm-msg { margin: 12px 0 0; font-size: 13px; }
+    .tm-msg.ok { color: #1b6e3c; } .tm-msg.err { color: #c0392b; }
+    .tm-roles { font-size: 12px; color: #777; line-height: 1.6; margin-top: 12px; }
+    .tm-gate { border: 1px solid #ece8e2; border-radius: 12px; padding: 40px 24px; text-align: center; background: #fff; }
+    @media (max-width: 720px) {
+      .tm-head { display: none; }
+      .tm-row { grid-template-columns: 1fr 1fr; row-gap: 8px; }
+      .tm-actions { grid-column: 1 / -1; justify-content: flex-start; }
+      .tm-form { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <a href="index.html" class="header-logo" style="text-decoration:none;color:inherit">
+    <img src="pokedex_pixel_art_palette_repositioned.svg" style="width:30px" alt="">
+    <span>
+      <span class="logo-text">Art Pokédex</span>
+      <span class="logo-sub" style="display:block">✦ An Inventory of Art in the Wild</span>
+    </span>
+  </a>
+  <nav class="header-nav">
+    <a href="index.html">Collection</a>
+    <a href="top-works.html">Top Works</a>
+    <a href="blog.html">Design &amp; Process</a>
+    <a href="model-quality.html">Model Quality</a>
+    <a href="team.html" class="super-only active" style="display:none">Team</a>
+    <a href="submit.html">Submit a Photo</a>
+    <button class="admin-btn" id="adminBtn" onclick="toggleAdminLogin()">🔒 Admin</button>
+  </nav>
+  <button class="header-hamburger" onclick="document.getElementById('headerMobileMenu').classList.toggle('open')" aria-label="Menu">☰</button>
+</header>
+<div class="header-mobile-menu" id="headerMobileMenu">
+  <a href="index.html">Collection</a>
+  <a href="top-works.html">Top Works</a>
+  <a href="blog.html">Design &amp; Process</a>
+  <a href="model-quality.html">Model Quality</a>
+  <a href="team.html" class="super-only active" style="display:none">Team</a>
+  <a href="submit.html">Submit a Photo</a>
+  <button onclick="toggleAdminLogin(); document.getElementById('headerMobileMenu').classList.remove('open')">🔒 Admin Login</button>
+</div>
+
+<!-- Login Modal -->
+<div class="login-modal-bg" id="loginModalBg">
+  <div class="login-modal">
+    <h2>Admin Login</h2>
+    <p>Log in as a super admin to manage the team.</p>
+    <div class="login-error" id="loginError"></div>
+    <input type="text" id="adminUsernameInput" placeholder="Username (leave blank for main admin)" autocomplete="username"
+           onkeydown="if(event.key==='Enter') document.getElementById('adminPasswordInput').focus()" />
+    <input type="password" id="adminPasswordInput" placeholder="Password"
+           onkeydown="if(event.key==='Enter') submitLogin()" />
+    <div class="login-modal-actions">
+      <button class="login-submit-btn" onclick="submitLogin()">Log In</button>
+      <button class="login-cancel-btn" onclick="closeLoginModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<main class="tm-wrap">
+  <h1>Team</h1>
+  <p class="tm-lead">Create logins for people who help with the collection. Every photo, edit and verification is recorded under the person who made it.</p>
+  <div id="tmRoot"></div>
+</main>
+
+<script src="auth-ui.js"></script>
+<script src="mobile-ux.js"></script>
+<script>
+const serverUrl = 'https://art-pokedex-production.up.railway.app';
+let adminToken = null;
+let users = [];
+
+function isTokenExpired(token) {
+  try {
+    const p = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+    return !p.exp || p.exp * 1000 <= Date.now() + 30000;
+  } catch (_) { return true; }
+}
+const authHeaders = () => ({ 'content-type': 'application/json', Authorization: `Bearer ${adminToken}` });
+function escHtml(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+const ROLE_LABELS = { superadmin: 'Super admin', editor: 'Editor' };
+
+// ── Login ───────────────────────────────────────────────────────────────────
+function updateAdminUI() {
+  const on = !!adminToken;
+  const btn = document.getElementById('adminBtn');
+  btn.textContent = on ? ('🔓 ' + Auth.name() + ' (Logout)') : '🔒 Admin Login';
+  btn.classList.toggle('logged-in', on);
+  const mob = document.querySelector('#headerMobileMenu button');
+  if (mob) mob.textContent = on ? '🔓 Logout' : '🔒 Admin Login';
+  Auth.apply();
+  if (!on) showGate('Super admin only', 'Log in as a super admin to manage the team.', true);
+  else if (!Auth.isSuper()) showGate('Super admin only', 'Your account is an editor, so it can add and edit photos but can’t manage logins.', false);
+  else loadUsers();
+}
+function toggleAdminLogin() {
+  if (adminToken) {
+    adminToken = null;
+    try { localStorage.removeItem('adminToken'); } catch (_) {}
+    updateAdminUI();
+  } else {
+    document.getElementById('loginModalBg').classList.add('open');
+    MobileUX.lockScroll('login');
+    document.getElementById('adminPasswordInput').value = '';
+    document.getElementById('adminUsernameInput').value = '';
+    document.getElementById('loginError').style.display = 'none';
+    setTimeout(() => document.getElementById('adminUsernameInput').focus(), 50);
+  }
+}
+function closeLoginModal() {
+  document.getElementById('loginModalBg').classList.remove('open');
+  MobileUX.unlockScroll('login');
+}
+async function submitLogin() {
+  const password = document.getElementById('adminPasswordInput').value;
+  const username = document.getElementById('adminUsernameInput').value.trim();
+  const errEl = document.getElementById('loginError');
+  errEl.style.display = 'none';
+  try {
+    const res = await fetch(`${serverUrl}/api/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username, password }) });
+    const data = await res.json();
+    if (!res.ok) { errEl.textContent = data.error || 'Login failed.'; errEl.style.display = 'block'; return; }
+    adminToken = data.token;
+    try { localStorage.setItem('adminToken', adminToken); } catch (_) {}
+    closeLoginModal();
+    updateAdminUI();
+  } catch (_) { errEl.textContent = 'Could not reach server.'; errEl.style.display = 'block'; }
+}
+async function refreshAdminToken() {
+  if (!adminToken) return;
+  try {
+    const res = await fetch(`${serverUrl}/api/refresh`, { method: 'POST', headers: authHeaders() });
+    if (res.status === 401) { adminToken = null; try { localStorage.removeItem('adminToken'); } catch (_) {} return; }
+    if (!res.ok) return;
+    const data = await res.json();
+    if (data.token) { adminToken = data.token; try { localStorage.setItem('adminToken', adminToken); } catch (_) {} }
+  } catch (_) {}
+}
+
+// ── Page ────────────────────────────────────────────────────────────────────
+function showGate(title, text, showLogin) {
+  document.getElementById('tmRoot').innerHTML = `<div class="tm-gate">
+    <h2 style="margin:0 0 6px;font-family:'Playfair Display',serif;font-size:22px;text-transform:none;letter-spacing:0;color:#1a1a1a">${escHtml(title)}</h2>
+    <p style="color:#666;font-size:14px;margin:0">${escHtml(text)}</p>
+    ${showLogin ? '<p style="margin-top:14px"><button class="tm-btn primary" onclick="toggleAdminLogin()">Log in</button></p>' : ''}</div>`;
+}
+
+async function api(path, opts = {}) {
+  const res = await fetch(`${serverUrl}${path}`, { ...opts, headers: authHeaders() });
+  const data = await res.json().catch(() => ({}));
+  if (res.status === 401) { adminToken = null; try { localStorage.removeItem('adminToken'); } catch (_) {} updateAdminUI(); throw new Error('Please log in again.'); }
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  return data;
+}
+
+async function loadUsers() {
+  document.getElementById('tmRoot').innerHTML = '<p style="color:#888;font-size:13px">Loading…</p>';
+  try { users = await api('/api/users'); render(); }
+  catch (err) { document.getElementById('tmRoot').innerHTML = `<div class="tm-gate"><p style="color:#c0392b">${escHtml(err.message)}</p><button class="tm-btn" onclick="loadUsers()">Try again</button></div>`; }
+}
+
+function say(msg, ok = true) {
+  const el = document.getElementById('tmMsg');
+  if (el) { el.textContent = msg; el.className = 'tm-msg ' + (ok ? 'ok' : 'err'); }
+}
+
+function render() {
+  const rows = users.map(u => `
+    <div class="tm-row">
+      <span class="tm-name">${escHtml(u.username)}</span>
+      <span>${escHtml(ROLE_LABELS[u.role] || u.role)}</span>
+      <span><span class="tm-pill ${u.active ? 'on' : 'off'}">${u.active ? 'Active' : 'Disabled'}</span></span>
+      <span>${u.photos_added} photo${u.photos_added === 1 ? '' : 's'}</span>
+      <span class="tm-actions">
+        <button class="tm-btn" onclick="resetPassword(${u.id}, '${escHtml(u.username)}')">Reset password</button>
+        <button class="tm-btn" onclick="toggleRole(${u.id})">Make ${u.role === 'editor' ? 'super admin' : 'editor'}</button>
+        <button class="tm-btn danger" onclick="toggleActive(${u.id})">${u.active ? 'Disable' : 'Enable'}</button>
+      </span>
+    </div>`).join('');
+
+  document.getElementById('tmRoot').innerHTML = `
+    <div class="tm-card">
+      <h2>Add a person</h2>
+      <div class="tm-form">
+        <div><label>Username</label><input id="nuName" autocomplete="off" placeholder="e.g. sam" /></div>
+        <div><label>Role</label><select id="nuRole"><option value="editor">Editor</option><option value="superadmin">Super admin</option></select></div>
+        <div><label>Password (8+ characters)</label><input id="nuPass" type="text" autocomplete="off" placeholder="Choose or generate" /></div>
+        <button class="tm-btn primary" id="nuBtn" onclick="addUser()">Create</button>
+      </div>
+      <button class="tm-btn" style="margin-top:10px" onclick="document.getElementById('nuPass').value = makePassword()">Generate a password</button>
+      <p class="tm-msg" id="tmMsg"></p>
+      <div class="tm-roles">
+        <b>Editor</b> — add photos, edit details, verify, rank, write blog posts. Can’t manage logins or delete anything.<br>
+        <b>Super admin</b> — everything an editor can do, plus manage logins and delete photos and posts.<br>
+        Share the password with the person directly; you can reset it here at any time. The main admin password (log in with no username) always works as a backup.
+      </div>
+    </div>
+    <div class="tm-card">
+      <h2>People (${users.length})</h2>
+      ${users.length ? `<div class="tm-row tm-head"><span>Username</span><span>Role</span><span>Status</span><span>Added</span><span></span></div>${rows}`
+                     : '<p style="color:#888;font-size:13px;margin:0">No team accounts yet — add the first one above.</p>'}
+    </div>`;
+}
+
+function makePassword() {
+  const chars = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const buf = new Uint32Array(12); crypto.getRandomValues(buf);
+  return Array.from(buf, n => chars[n % chars.length]).join('');
+}
+
+async function addUser() {
+  const username = document.getElementById('nuName').value.trim();
+  const password = document.getElementById('nuPass').value;
+  const role = document.getElementById('nuRole').value;
+  document.getElementById('nuBtn').disabled = true;
+  try {
+    await api('/api/users', { method: 'POST', body: JSON.stringify({ username, password, role }) });
+    users = await api('/api/users'); render();
+    say(`Created “${username.toLowerCase()}”. Share their password with them — it can’t be shown again.`);
+  } catch (err) { say(err.message, false); document.getElementById('nuBtn').disabled = false; }
+}
+async function patchUser(id, body, okMsg) {
+  try { await api(`/api/users/${id}`, { method: 'PATCH', body: JSON.stringify(body) }); users = await api('/api/users'); render(); say(okMsg); }
+  catch (err) { say(err.message, false); }
+}
+function resetPassword(id, name) {
+  const pw = prompt(`New password for “${name}” (8+ characters):`, makePassword());
+  if (pw === null) return;
+  patchUser(id, { password: pw }, `Password for “${name}” updated.`);
+}
+function toggleRole(id) { const u = users.find(x => x.id === id); patchUser(id, { role: u.role === 'editor' ? 'superadmin' : 'editor' }, `“${u.username}” is now ${u.role === 'editor' ? 'a super admin' : 'an editor'}.`); }
+function toggleActive(id) { const u = users.find(x => x.id === id); patchUser(id, { active: !u.active }, `“${u.username}” ${u.active ? 'disabled — they can no longer log in' : 'enabled'}.`); }
+
+// ── Boot ────────────────────────────────────────────────────────────────────
+try {
+  const saved = localStorage.getItem('adminToken');
+  if (saved && !isTokenExpired(saved)) adminToken = saved;
+  else if (saved) localStorage.removeItem('adminToken');
+} catch (_) {}
+refreshAdminToken().finally(updateAdminUI);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') refreshAdminToken(); });
+</script>
+</body>
+</html>

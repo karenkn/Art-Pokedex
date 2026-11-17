@@ -25,6 +25,7 @@
     <a href="top-works.html">Top Works</a>
     <a href="blog.html">Design & Process</a>
     <a href="model-quality.html">Model Quality</a>
+    <a href="team.html" class="super-only" style="display:none">Team</a>
     <a href="submit.html">Submit a Photo</a>
     <button class="admin-btn" id="adminBtn" onclick="toggleAdminLogin()">🔒 Admin</button>
   </nav>
@@ -35,6 +36,7 @@
   <a href="top-works.html">Top Works</a>
   <a href="blog.html">Design & Process</a>
   <a href="model-quality.html">Model Quality</a>
+  <a href="team.html" class="super-only" style="display:none">Team</a>
   <a href="submit.html">Submit a Photo</a>
   <button onclick="toggleAdminLogin(); document.getElementById('headerMobileMenu').classList.remove('open')">🔒 Admin Login</button>
 </div>
@@ -45,6 +47,8 @@
     <h2>Admin Login</h2>
     <p>Enter your admin password to upload, edit, and delete photos.</p>
     <div class="login-error" id="loginError"></div>
+    <input type="text" id="adminUsernameInput" placeholder="Username (leave blank for main admin)" autocomplete="username"
+           onkeydown="if(event.key==='Enter') document.getElementById('adminUsernameInput').focus()" />
     <input type="password" id="adminPasswordInput" placeholder="Admin password"
            onkeydown="if(event.key==='Enter') submitLogin()" />
     <div class="login-modal-actions">
@@ -65,7 +69,7 @@
   <!-- On phones these collapse behind a single "Admin tools" button -->
   <button class="clear-btn admin-only admin-tools-toggle" id="adminToolsToggle" type="button" aria-expanded="false" aria-controls="adminTools" onclick="toggleAdminTools()" style="display:none">⚙ Admin tools</button>
   <div class="admin-tools" id="adminTools">
-    <button class="clear-btn admin-only" onclick="clearAll()" style="display:none">🗑 Clear All</button>
+    <button class="clear-btn admin-only super-only" onclick="clearAll()" style="display:none">🗑 Clear All</button>
     <button class="clear-btn admin-only" id="normalizeBtn" onclick="normalizeAllLocations()" style="display:none">🔧 Normalize Locations</button>
     <button class="clear-btn admin-only review-btn" id="reviewBtn" onclick="startReview()" style="display:none">✅ Review AI results</button>
     <button class="clear-btn admin-only normalize-artists-btn" onclick="normalizeArtists()" style="display:none">👤 Normalize Artists</button>
@@ -366,6 +370,7 @@
   </div>
 </div>
 
+<script src="auth-ui.js"></script>
 <script src="mobile-ux.js"></script>
 <script src="prompts.js"></script>
 <script src="script.js"></script>

@@ -60,8 +60,9 @@ function toggleAdminLogin() {
     document.getElementById('loginModalBg').classList.add('open');
     MobileUX.lockScroll('login');
     document.getElementById('adminPasswordInput').value = '';
+    document.getElementById('adminUsernameInput').value = '';
     document.getElementById('loginError').style.display = 'none';
-    setTimeout(() => document.getElementById('adminPasswordInput').focus(), 50);
+    setTimeout(() => document.getElementById('adminUsernameInput').focus(), 50);
   }
 }
 
@@ -78,7 +79,7 @@ async function submitLogin() {
     const res  = await fetch(`${serverUrl}/api/login`, {
       method:  'POST',
       headers: { 'content-type': 'application/json' },
-      body:    JSON.stringify({ password })
+      body:    JSON.stringify({ username: document.getElementById('adminUsernameInput').value.trim(), password })
     });
     const data = await res.json();
     if (!res.ok) {
@@ -106,7 +107,7 @@ function toggleAdminTools() {
 function updateAdminUI() {
   const isAdmin = !!adminToken;
   const btn = document.getElementById('adminBtn');
-  btn.textContent = isAdmin ? '🔓 Logged In (Logout)' : '🔒 Admin Login';
+  btn.textContent = isAdmin ? ('🔓 ' + Auth.name() + ' (Logout)') : '🔒 Admin Login';
   btn.classList.toggle('logged-in', isAdmin);
 
   // Show / hide admin-only controls
@@ -129,6 +130,7 @@ function updateAdminUI() {
     const locBanner = document.getElementById('locationBanner');
     if (locBanner) locBanner.style.display = 'none';
   }
+  Auth.apply();   // after the .admin-only pass above: hides super-admin-only controls from editors
   render();
 }
 
@@ -734,6 +736,9 @@ async function loadSavedPhotos() {
         eloScore:       row.elo_score ?? 1500,
         userSubmitted:  row.user_submitted || false,
         verified:       !!row.verified,
+        addedBy:        row.added_by || null,
+        editedBy:       row.edited_by || null,
+        verifiedBy:     row.verified_by || null,
         promptVersion:  row.prompt_version || null,
         aiData: {
           paintingName:   row.painting_name  || '',
@@ -1237,6 +1242,7 @@ async function analysePhoto(photo) {
       locationSource: photo.locationSource || 'ai'
     };
     photo.promptVersion = ArtPrompts.PROMPT_VERSION;
+    photo.addedBy = Auth.name();
     photo.status = 'done';
     recentlyAddedIds.add(photo.id); // spotlight it at the top of the gallery
     savePhotoToDB(photo); // persist asynchronously — don't block the UI
@@ -2104,7 +2110,7 @@ function photoCard(p, featured = false) {
   const pinnedClass    = p.pinned  ? ' pinned'   : '';
   const selectedClass  = (selectMode && selectedPhotoIds.has(p.id)) ? ' selected' : '';
   return `<div class="photo-card ${p.status}${featuredClass}${pinnedClass}${selectedClass}" data-id="${p.id}" ${clickable ? `onclick="handleCardClick('${p.id}')"` : ''}>
-    ${adminToken ? `<button type="button" class="delete-btn" title="Remove photo" onclick="event.stopPropagation(); deletePhoto('${p.id}')">✕</button>` : ''}
+    ${(adminToken && Auth.isSuper()) ? `<button type="button" class="delete-btn" title="Remove photo" onclick="event.stopPropagation(); deletePhoto('${p.id}')">✕</button>` : ''}
     ${adminToken ? `<div class="select-checkbox${selectedPhotoIds.has(p.id) ? ' checked' : ''}" onclick="event.stopPropagation(); toggleCardSelection('${p.id}')">✓</div>` : ''}
     <div class="card-img-wrap">
       <img src="${p.thumbUrl || p.url}" alt="${escHtml(p.name)}" loading="lazy" decoding="async" />
@@ -2234,7 +2240,13 @@ function refreshModalView(p) {
   const noteText = d.manuallyEdited
     ? `Originally analyzed by ${d.model || 'Claude'} · edited · ${locSource}`
     : `Analyzed by ${d.model || 'Claude'} · ${locSource}`;
-  document.getElementById('modalNote').textContent = noteText;
+  // Who added / last edited / verified it — shown to logged-in team members only
+  const who = !adminToken ? '' : [
+    p.addedBy    ? `Added by ${p.addedBy}` : '',
+    p.editedBy   ? `edited by ${p.editedBy}` : '',
+    p.verifiedBy ? `verified by ${p.verifiedBy}` : ''
+  ].filter(Boolean).join(' · ');
+  document.getElementById('modalNote').textContent = noteText + (who ? `\n${who}` : '');
 
   // ── Rating section ────────────────────────────────────────────────────────
   // Plain text value — score is set via ELO comparisons on the Top Works page.
@@ -2269,7 +2281,7 @@ function refreshModalView(p) {
     ${adminToken ? `<span class="spacer"></span>
     <button class="modal-action-btn${p.verified ? ' verified' : ' verify'}" onclick="toggleVerify('${p.id}')">${p.verified ? '✓ Verified' : '✓ Verify'}</button>
     <button class="modal-action-btn" onclick="startEdit()">✏️ Edit</button>
-    <button class="modal-action-btn danger" onclick="deleteFromModal()">🗑 Delete</button>` : ''}`;
+    ${Auth.isSuper() ? `<button class="modal-action-btn danger" onclick="deleteFromModal()">🗑 Delete</button>` : ''}` : ''}`;
   }
 }
 
@@ -2296,6 +2308,7 @@ async function setVerified(p, value, source = 'verify') {
   p.verified = value;
   const ok = await updatePhotoDB(p, { verified: value, source });
   if (!ok) { p.verified = prev; MobileUX.toast('Could not save — try again'); return false; }
+  p.verifiedBy = value ? Auth.name() : null;
   updateReviewBtn();
   return true;
 }
@@ -2444,6 +2457,7 @@ function saveEdit() {
   // Saving an edit means the admin has reviewed this photo, so it counts as verified.
   // Set this BEFORE refreshing the view so the ✓ badge and Verified button show immediately.
   p.verified = true;
+  p.editedBy = p.verifiedBy = Auth.name();
 
   // Return to view mode and refresh
   document.getElementById('viewMode').style.display = '';

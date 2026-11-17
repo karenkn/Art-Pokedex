@@ -1380,3 +1380,5 @@ body.select-mode .photo-card.selected {
 @media (max-width: 640px) { .q-grid { grid-template-columns: 1fr; } }
 
 @media (min-width: 768px) and (max-width: 1100px) { .header-nav { gap: 14px; } .logo-sub { display: none !important; } } /* room for the extra nav link */
+
+.modal-note { white-space: pre-line; }

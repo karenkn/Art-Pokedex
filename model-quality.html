@@ -69,6 +69,7 @@
     <a href="top-works.html">Top Works</a>
     <a href="blog.html">Design &amp; Process</a>
     <a href="model-quality.html" class="active">Model Quality</a>
+    <a href="team.html" class="super-only" style="display:none">Team</a>
     <a href="submit.html">Submit a Photo</a>
     <button class="admin-btn" id="adminBtn" onclick="toggleAdminLogin()">🔒 Admin</button>
   </nav>
@@ -79,6 +80,7 @@
   <a href="top-works.html">Top Works</a>
   <a href="blog.html">Design &amp; Process</a>
   <a href="model-quality.html" class="active">Model Quality</a>
+  <a href="team.html" class="super-only" style="display:none">Team</a>
   <a href="submit.html">Submit a Photo</a>
   <button onclick="toggleAdminLogin(); document.getElementById('headerMobileMenu').classList.remove('open')">🔒 Admin Login</button>
 </div>
@@ -89,6 +91,8 @@
     <h2>Admin Login</h2>
     <p>Enter your admin password to view model quality.</p>
     <div class="login-error" id="loginError"></div>
+    <input type="text" id="adminUsernameInput" placeholder="Username (leave blank for main admin)" autocomplete="username"
+           onkeydown="if(event.key==='Enter') document.getElementById('adminUsernameInput').focus()" />
     <input type="password" id="adminPasswordInput" placeholder="Admin password"
            onkeydown="if(event.key==='Enter') submitLogin()" />
     <div class="login-modal-actions">
@@ -104,6 +108,7 @@
   <div id="mqRoot"></div>
 </main>
 
+<script src="auth-ui.js"></script>
 <script src="mobile-ux.js"></script>
 <script>
 const serverUrl = 'https://art-pokedex-production.up.railway.app';
@@ -122,8 +127,9 @@ function escHtml(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&
 function updateAdminUI() {
   const on = !!adminToken;
   const btn = document.getElementById('adminBtn');
-  btn.textContent = on ? '🔓 Logged In (Logout)' : '🔒 Admin Login';
+  btn.textContent = on ? ('🔓 ' + Auth.name() + ' (Logout)') : '🔒 Admin Login';
   btn.classList.toggle('logged-in', on);
+  Auth.apply();
   const mob = document.querySelector('#headerMobileMenu button');
   if (mob) mob.textContent = on ? '🔓 Logout' : '🔒 Admin Login';
   if (on) loadDashboard(); else showGate();
@@ -136,9 +142,9 @@ function toggleAdminLogin() {
   } else {
     document.getElementById('loginModalBg').classList.add('open');
     MobileUX.lockScroll('login');
-    document.getElementById('adminPasswordInput').value = '';
+    document.getElementById('adminPasswordInput').value = ''; document.getElementById('adminUsernameInput').value = '';
     document.getElementById('loginError').style.display = 'none';
-    setTimeout(() => document.getElementById('adminPasswordInput').focus(), 50);
+    setTimeout(() => document.getElementById('adminUsernameInput').focus(), 50);
   }
 }
 function closeLoginModal() {
@@ -150,7 +156,7 @@ async function submitLogin() {
   const errEl = document.getElementById('loginError');
   errEl.style.display = 'none';
   try {
-    const res = await fetch(`${serverUrl}/api/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ password }) });
+    const res = await fetch(`${serverUrl}/api/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username: document.getElementById('adminUsernameInput').value.trim(), password }) });
     const data = await res.json();
     if (!res.ok) { errEl.textContent = data.error || 'Login failed.'; errEl.style.display = 'block'; return; }
     adminToken = data.token;
