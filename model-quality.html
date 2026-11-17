@@ -330,15 +330,19 @@ function layout(cards) {
 function render(q) {
   const measurable = q.measurable || 0;
   const unscored = Math.max(0, q.verified - measurable);
-  const changesPerPhoto = q.verified ? (q.correctionTotal / q.verified) : null;
 
+  // Everything here is counted in photos, so  Verified = Unchanged + Corrected.
+  // (Individual field edits are a different unit — they appear in the per-field tables below.)
+  const reviewers = (q.byUser || []).filter(p => p.key !== '__normalize');
+  const sum = k => reviewers.reduce((a, p) => a + (p[k] || 0), 0);
+  const unchangedTotal = sum('unchanged'), correctedTotal = sum('corrected'), verifiedTotal = sum('verified');
   const kpis = `<div class="mq-kpis">
     ${kpi(q.total, 'Photos')}
-    ${kpi(q.verified, 'Verified')}
-    ${kpi(q.total ? pct(q.verified / q.total) : '—', 'Reviewed')}
-    ${kpi(measurable ? pct(q.fullyRight / measurable) : '—', 'AI right first time')}
-    ${kpi(q.correctionTotal, 'Changes made')}
-    ${kpi(changesPerPhoto == null ? '—' : changesPerPhoto.toFixed(1), 'Changes per verified photo')}
+    ${kpi(verifiedTotal, 'Verified')}
+    ${kpi(q.total ? pct(verifiedTotal / q.total) : '—', 'Reviewed')}
+    ${kpi(unchangedTotal, 'Unchanged')}
+    ${kpi(correctedTotal, 'Corrected')}
+    ${kpi(verifiedTotal ? pct(unchangedTotal / verifiedTotal) : '—', '% Accuracy')}
   </div>`;
 
   const cards = [];

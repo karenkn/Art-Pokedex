@@ -1074,7 +1074,7 @@ app.get('/api/quality', authenticate, async (_req, res) => {
     // Accuracy: compare the AI's original answer to the final (verified) value
     const rows = (await pool.query(
       `SELECT ai_original, painting_name, artist, style, period, location, confidence, prompt_version, verified_by
-         FROM photos WHERE verified AND ai_original IS NOT NULL`)).rows;
+         FROM photos WHERE verified AND ai_original IS NOT NULL AND NOT COALESCE(user_submitted, FALSE)`)).rows;
     const col = { paintingName: 'painting_name', artist: 'artist', style: 'style', period: 'period', location: 'location' };
     const fields = {}, ver = {};
     const conf = { low: { n: 0, ok: 0 }, mid: { n: 0, ok: 0 }, high: { n: 0, ok: 0 } };
@@ -1131,7 +1131,7 @@ app.get('/api/quality', authenticate, async (_req, res) => {
 
     // Verified photos with no saved AI original were edited before tracking began, so they count as corrected
     const unscored = (await pool.query(
-      `SELECT COALESCE(verified_by, '__earlier') AS k, COUNT(*)::int AS n FROM photos WHERE verified AND ai_original IS NULL GROUP BY 1`)).rows;
+      `SELECT COALESCE(verified_by, '__earlier') AS k, COUNT(*)::int AS n FROM photos WHERE verified AND ai_original IS NULL AND NOT COALESCE(user_submitted, FALSE) GROUP BY 1`)).rows;
     for (const u of unscored) { const p = person(u.k); p.verified += u.n; p.corrected += u.n; }
     // Photos changed by the Normalize tools
     const norm = (await pool.query(
