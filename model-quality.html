@@ -48,7 +48,7 @@
     .mq-pp-row .num { font-variant-numeric: tabular-nums; font-weight: 600; }
     .mq-pp-row .num.zero { color: #bbb; font-weight: 400; }
     .mq-pp-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .mq-pp .quality-bar { height: 10px; }
+    .mq-pp .mq-stack { height: 12px; }
     .mq-foot { margin-top: 22px; font-size: 12px; color: #888; line-height: 1.6; }
     .mq-foot code { background: #f3f3f3; padding: 1px 5px; border-radius: 4px; }
     @media (max-width: 700px) {
@@ -265,26 +265,37 @@ async function loadDashboard() {
 }
 
 
-// ── Who made the changes: one row per person, plus "Before accounts" and the Normalize tools ──
+// ── Who made the changes: one row per person, plus the Normalize tools ──
 function peopleRows(list) {
   const rows = list.map(p => {
-    if (p.key === '__normalize') return { order: 3, label: 'Normalize tools', sub: 'automatic', verified: null, changes: p.corrections, accuracy: null };
-    if (p.key === '__earlier')   return { order: 2, label: 'Before accounts', sub: 'no username recorded', verified: p.verified, changes: p.corrections, accuracy: p.accuracy };
+    const base = { checked: p.checked || 0, matched: p.matched || 0, changes: p.corrections, accuracy: p.accuracy };
+    if (p.key === '__normalize') return { ...base, order: 3, label: 'Normalize tools', sub: 'automatic', verified: null, checked: 0, matched: 0 };
     const role = p.role === 'superadmin' ? 'super admin' : p.role === 'editor' ? 'editor' : '';
-    return { order: p.role === 'superadmin' ? 0 : 1, label: p.key, sub: role, verified: p.verified, changes: p.corrections, accuracy: p.accuracy };
+    return { ...base, order: p.role === 'superadmin' ? 0 : 1, label: p.key, sub: role, verified: p.verified };
   }).filter(r => r.changes || r.verified);
   return rows.sort((a, b) => a.order - b.order || (b.verified || 0) - (a.verified || 0) || b.changes - a.changes);
 }
+// Stacked bar per person: dark green = AI answers kept (correct), orange = answers they changed.
+// Bars share one scale, so a longer bar means more answers reviewed.
 function peopleChart(rows) {
-  const max = Math.max(1, ...rows.map(r => r.changes));
+  const max = Math.max(1, ...rows.map(r => r.checked));
   const head = `<div class="mq-pp-head mq-pp-row"><span>Person</span><span></span><span>Verified</span><span>Changes</span><span>% Accuracy</span></div>`;
-  const body = rows.map(r => `<div class="mq-pp-row">
+  const body = rows.map(r => {
+    const wrong = Math.max(0, r.checked - r.matched);
+    const bar = r.checked
+      ? `<div class="mq-stack" title="${r.matched} correct of ${r.checked} answers checked">
+           <div style="width:${r.matched / max * 100}%;background:${KEEP_COLOR}"></div>
+           <div style="width:${wrong / max * 100}%;background:${CHANGE_COLOR}"></div></div>`
+      : '<div class="mq-stack"></div>';
+    return `<div class="mq-pp-row">
       <span class="mq-pp-name" title="${escHtml(r.label)}">${escHtml(r.label)}${r.sub ? `<span class="mq-ft-sub">${escHtml(r.sub)}</span>` : ''}</span>
-      <div class="quality-bar"><div style="width:${Math.round(r.changes / max * 100)}%;background:${r.order === 3 ? '#7a7a7a' : '#d98324'}"></div></div>
+      ${bar}
       <span class="num${r.verified ? '' : ' zero'}">${r.verified == null ? '—' : r.verified}</span>
       <span class="num${r.changes ? '' : ' zero'}">${r.changes}</span>
-      <span class="num">${pct(r.accuracy)}</span></div>`).join('');
-  return `<div class="mq-pp">${head}${body}</div>`;
+      <span class="num">${pct(r.accuracy)}</span></div>`;
+  }).join('');
+  const legend = `<div class="mq-legend-inline"><span><i style="background:${KEEP_COLOR}"></i>Correct (kept as-is)</span><span><i style="background:${CHANGE_COLOR}"></i>Changed</span></div>`;
+  return `<div class="mq-pp">${head}${body}</div>${legend}`;
 }
 
 // Layout: overview cards, then a 2×2 block of correction/confidence/version charts, then the wide per-field tables.
@@ -359,7 +370,7 @@ function render(q) {
 
   const people = peopleRows(q.byUser || []);
   cards.push(card('Where changes came from', people.length ? peopleChart(people) : empty,
-    people.length ? 'Changes = edits made. % accuracy = AI answers left unchanged ÷ answers checked, on the photos each person verified' : ''));
+    people.length ? 'Green = AI answers kept, orange = answers changed, across the photos each person verified. % accuracy = correct ÷ answers checked' : ''));
 
   cards.push(card('Correction type by field', hasFieldData ? fieldTable(fieldRows, [
       { label: 'Verified', key: 'verified' },
