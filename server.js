@@ -1073,20 +1073,26 @@ app.get('/api/quality', authenticate, async (_req, res) => {
 
     // Accuracy: compare the AI's original answer to the final (verified) value
     const rows = (await pool.query(
-      `SELECT ai_original, painting_name, artist, style, period, location, confidence, prompt_version
+      `SELECT ai_original, painting_name, artist, style, period, location, confidence, prompt_version, verified_by
          FROM photos WHERE verified AND ai_original IS NOT NULL`)).rows;
     const col = { paintingName: 'painting_name', artist: 'artist', style: 'style', period: 'period', location: 'location' };
     const fields = {}, ver = {};
     const conf = { low: { n: 0, ok: 0 }, mid: { n: 0, ok: 0 }, high: { n: 0, ok: 0 } };
     let fullyRight = 0;
+    // Per person: photos they verified, plus how many AI answers survived on those photos.
+    // '__earlier' = work done before accounts existed; '__normalize' = the Normalize tools.
+    const people = {};
+    const person = k => (people[k] = people[k] || { key: k, verified: 0, corrections: 0, checked: 0, matched: 0 });
     for (const f of QUALITY_FIELDS) fields[f] = { checked: 0, matched: 0, rate: null };
     for (const r of rows) {
       let all = true;
+      const pk = person(r.verified_by || '__earlier');
       for (const f of QUALITY_FIELDS) {
         const a = (r.ai_original || {})[f];
         if (a === undefined) continue;
         const ok = normCompare(a) === normCompare(r[col[f]]);
         fields[f].checked++; if (ok) fields[f].matched++;
+        pk.checked++; if (ok) pk.matched++;
         if (!ok && CORE_FIELDS.includes(f)) all = false;
       }
       if (all) fullyRight++;
@@ -1103,23 +1109,34 @@ app.get('/api/quality', authenticate, async (_req, res) => {
 
     // Corrections: aggregated by field, type, source and week
     const cor = (await pool.query(
-      `SELECT field, ai_value, human_value, source
+      `SELECT field, ai_value, human_value, source, user_name
          FROM corrections
         WHERE source IN ('edit','normalize') AND field = ANY($1) AND ai_value IS DISTINCT FROM human_value`,
       [QUALITY_FIELDS])).rows;
-    const byField = {}, byType = { format: 0, filled: 0, different: 0 }, bySource = { edit: 0, normalize: 0 }, typeByField = {};
+    const byField = {}, byType = { format: 0, filled: 0, different: 0 }, typeByField = {};
     for (const c of cor) {
       const t = classifyCorrection(c.field, c.ai_value, c.human_value);
       byField[c.field] = (byField[c.field] || 0) + 1;
       byType[t]++;
-      bySource[c.source]++;
+      person(c.source === 'normalize' ? '__normalize' : (c.user_name || '__earlier')).corrections++;
       typeByField[c.field] = typeByField[c.field] || { format: 0, filled: 0, different: 0 };
       typeByField[c.field][t]++;
     }
 
+    // Total verified per person (includes photos without a saved AI original), and their roles
+    const vcounts = (await pool.query(`SELECT COALESCE(verified_by, '__earlier') AS k, COUNT(*)::int AS n FROM photos WHERE verified GROUP BY 1`)).rows;
+    for (const v of vcounts) person(v.k).verified = v.n;
+    const roles = {};
+    (await pool.query('SELECT username, role FROM users')).rows.forEach(u => { roles[u.username] = u.role; });
+    roles.admin = 'superadmin';                                  // the main admin login
+    const byUser = Object.values(people).map(p => ({
+      ...p, role: roles[p.key] || null,
+      accuracy: p.checked ? p.matched / p.checked : null
+    }));
+
     res.json({
       ...counts, fields, fullyRight,
-      correctionTotal: cor.length, byField, byType, bySource, typeByField, confidence: conf,
+      correctionTotal: cor.length, byField, byType, byUser, typeByField, confidence: conf,
       byVersion: Object.values(ver).sort((x, y) => String(x.version).localeCompare(String(y.version), undefined, { numeric: true }))
     });
   } catch (err) {
