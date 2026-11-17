@@ -1080,9 +1080,13 @@ app.get('/api/quality', authenticate, async (_req, res) => {
     const conf = { low: { n: 0, ok: 0 }, mid: { n: 0, ok: 0 }, high: { n: 0, ok: 0 } };
     let fullyRight = 0;
     // Per person: photos they verified, plus how many AI answers survived on those photos.
-    // '__earlier' = work done before accounts existed; '__normalize' = the Normalize tools.
+    // Work with no username recorded (done before accounts existed) counts as the main admin;
+    // '__normalize' = the Normalize tools.
     const people = {};
-    const person = k => (people[k] = people[k] || { key: k, verified: 0, corrections: 0, checked: 0, matched: 0 });
+    const person = k => {
+      if (k === '__earlier') k = 'admin';
+      return (people[k] = people[k] || { key: k, verified: 0, corrections: 0, checked: 0, matched: 0 });
+    };
     for (const f of QUALITY_FIELDS) fields[f] = { checked: 0, matched: 0, rate: null };
     for (const r of rows) {
       let all = true;
@@ -1125,7 +1129,7 @@ app.get('/api/quality', authenticate, async (_req, res) => {
 
     // Total verified per person (includes photos without a saved AI original), and their roles
     const vcounts = (await pool.query(`SELECT COALESCE(verified_by, '__earlier') AS k, COUNT(*)::int AS n FROM photos WHERE verified GROUP BY 1`)).rows;
-    for (const v of vcounts) person(v.k).verified = v.n;
+    for (const v of vcounts) person(v.k).verified += v.n;      // += because unattributed + 'admin' merge into one row
     const roles = {};
     (await pool.query('SELECT username, role FROM users')).rows.forEach(u => { roles[u.username] = u.role; });
     roles.admin = 'superadmin';                                  // the main admin login

@@ -267,6 +267,14 @@ async function loadDashboard() {
 
 // ── Who made the changes: one row per person, plus the Normalize tools ──
 function peopleRows(list) {
+  // Work with no username recorded counts as the main admin (older servers still send it as "__earlier")
+  const merged = {};
+  for (const p of list) {
+    const k = p.key === '__earlier' ? 'admin' : p.key;
+    const m = merged[k] = merged[k] || { key: k, role: k === 'admin' ? 'superadmin' : p.role, verified: 0, corrections: 0, checked: 0, matched: 0 };
+    m.verified += p.verified || 0; m.corrections += p.corrections || 0; m.checked += p.checked || 0; m.matched += p.matched || 0;
+  }
+  list = Object.values(merged).map(m => ({ ...m, accuracy: m.checked ? m.matched / m.checked : null }));
   const rows = list.map(p => {
     const base = { checked: p.checked || 0, matched: p.matched || 0, changes: p.corrections, accuracy: p.accuracy };
     if (p.key === '__normalize') return { ...base, order: 3, label: 'Normalize tools', sub: 'automatic', verified: null, checked: 0, matched: 0 };
