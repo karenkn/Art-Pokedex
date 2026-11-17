@@ -1079,27 +1079,30 @@ app.get('/api/quality', authenticate, async (_req, res) => {
     const fields = {}, ver = {};
     const conf = { low: { n: 0, ok: 0 }, mid: { n: 0, ok: 0 }, high: { n: 0, ok: 0 } };
     let fullyRight = 0;
-    // Per person: photos they verified, plus how many AI answers survived on those photos.
+    // Per person, counted in PHOTOS so the numbers tie out:  verified = unchanged + corrected.
+    //   unchanged = verified photos where the AI's artist, style, period and location were all kept
+    //   corrected = verified photos where at least one of them was changed
     // Work with no username recorded (done before accounts existed) counts as the main admin;
-    // '__normalize' = the Normalize tools.
+    // '__normalize' = the Normalize tools (photos they changed).
     const people = {};
     const person = k => {
       if (k === '__earlier') k = 'admin';
-      return (people[k] = people[k] || { key: k, verified: 0, corrections: 0, checked: 0, matched: 0 });
+      return (people[k] = people[k] || { key: k, verified: 0, unchanged: 0, corrected: 0 });
     };
     for (const f of QUALITY_FIELDS) fields[f] = { checked: 0, matched: 0, rate: null };
     for (const r of rows) {
       let all = true;
       const pk = person(r.verified_by || '__earlier');
+      pk.verified++;
       for (const f of QUALITY_FIELDS) {
         const a = (r.ai_original || {})[f];
         if (a === undefined) continue;
         const ok = normCompare(a) === normCompare(r[col[f]]);
         fields[f].checked++; if (ok) fields[f].matched++;
-        pk.checked++; if (ok) pk.matched++;
         if (!ok && CORE_FIELDS.includes(f)) all = false;
       }
       if (all) fullyRight++;
+      if (all) pk.unchanged++; else pk.corrected++;
       // Every photo so far was made with the first prompt, so unlabeled ones count as Version 1
       const k = (!r.prompt_version || r.prompt_version === 'unknown') ? 'v1' : r.prompt_version;
       ver[k] = ver[k] || { version: k, photos: 0, fullyRight: 0 };
@@ -1122,20 +1125,25 @@ app.get('/api/quality', authenticate, async (_req, res) => {
       const t = classifyCorrection(c.field, c.ai_value, c.human_value);
       byField[c.field] = (byField[c.field] || 0) + 1;
       byType[t]++;
-      person(c.source === 'normalize' ? '__normalize' : (c.user_name || '__earlier')).corrections++;
       typeByField[c.field] = typeByField[c.field] || { format: 0, filled: 0, different: 0 };
       typeByField[c.field][t]++;
     }
 
-    // Total verified per person (includes photos without a saved AI original), and their roles
-    const vcounts = (await pool.query(`SELECT COALESCE(verified_by, '__earlier') AS k, COUNT(*)::int AS n FROM photos WHERE verified GROUP BY 1`)).rows;
-    for (const v of vcounts) person(v.k).verified += v.n;      // += because unattributed + 'admin' merge into one row
+    // Verified photos with no saved AI original were edited before tracking began, so they count as corrected
+    const unscored = (await pool.query(
+      `SELECT COALESCE(verified_by, '__earlier') AS k, COUNT(*)::int AS n FROM photos WHERE verified AND ai_original IS NULL GROUP BY 1`)).rows;
+    for (const u of unscored) { const p = person(u.k); p.verified += u.n; p.corrected += u.n; }
+    // Photos changed by the Normalize tools
+    const norm = (await pool.query(
+      `SELECT COUNT(DISTINCT photo_id)::int AS n FROM corrections
+        WHERE source = 'normalize' AND field = ANY($1) AND ai_value IS DISTINCT FROM human_value`, [QUALITY_FIELDS])).rows[0];
+    if (norm && norm.n) person('__normalize').corrected = norm.n;
     const roles = {};
     (await pool.query('SELECT username, role FROM users')).rows.forEach(u => { roles[u.username] = u.role; });
     roles.admin = 'superadmin';                                  // the main admin login
     const byUser = Object.values(people).map(p => ({
       ...p, role: roles[p.key] || null,
-      accuracy: p.checked ? p.matched / p.checked : null
+      accuracy: p.verified ? p.unchanged / p.verified : null
     }));
 
     res.json({

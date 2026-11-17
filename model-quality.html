@@ -41,7 +41,7 @@
     .mq-ft-row .num.zero { color: #bbb; font-weight: 400; }
     .mq-ft .mq-stack { height: 16px; border-radius: 8px; }
     .mq-ft-sub { display: block; font-size: 11px; color: #999; font-weight: 400; }
-    .mq-pp-row { display: grid; grid-template-columns: minmax(80px, 1.1fr) minmax(50px, 1fr) 54px 54px 66px; gap: 10px; align-items: center; padding: 9px 0; border-bottom: 1px solid #f3f0eb; font-size: 13px; }
+    .mq-pp-row { display: grid; grid-template-columns: minmax(70px, 1fr) minmax(50px, 1fr) 52px 66px 66px 74px; gap: 10px; align-items: center; padding: 9px 0; border-bottom: 1px solid #f3f0eb; font-size: 13px; }
     .mq-pp-row:last-child { border-bottom: none; }
     .mq-pp-head { font-size: 10px; text-transform: uppercase; letter-spacing: .05em; color: #999; padding: 0 0 6px; border-bottom: 1px solid #ece8e2; }
     .mq-pp-head span:nth-child(n+3), .mq-pp-row .num { text-align: right; }
@@ -266,43 +266,41 @@ async function loadDashboard() {
 
 
 // ── Who made the changes: one row per person, plus the Normalize tools ──
+// Everything is counted in photos:  Verified = Unchanged + Corrected.
 function peopleRows(list) {
   // Work with no username recorded counts as the main admin (older servers still send it as "__earlier")
   const merged = {};
   for (const p of list) {
     const k = p.key === '__earlier' ? 'admin' : p.key;
-    const m = merged[k] = merged[k] || { key: k, role: k === 'admin' ? 'superadmin' : p.role, verified: 0, corrections: 0, checked: 0, matched: 0 };
-    m.verified += p.verified || 0; m.corrections += p.corrections || 0; m.checked += p.checked || 0; m.matched += p.matched || 0;
+    const m = merged[k] = merged[k] || { key: k, role: k === 'admin' ? 'superadmin' : p.role, verified: 0, unchanged: 0, corrected: 0 };
+    m.verified += p.verified || 0; m.unchanged += p.unchanged || 0; m.corrected += p.corrected || 0;
   }
-  list = Object.values(merged).map(m => ({ ...m, accuracy: m.checked ? m.matched / m.checked : null }));
-  const rows = list.map(p => {
-    const base = { checked: p.checked || 0, matched: p.matched || 0, changes: p.corrections, accuracy: p.accuracy };
-    if (p.key === '__normalize') return { ...base, order: 3, label: 'Normalize tools', sub: 'automatic', verified: null, checked: 0, matched: 0 };
+  const rows = Object.values(merged).map(p => {
+    if (p.key === '__normalize') return { order: 3, label: 'Normalize tools', sub: 'automatic', verified: null, unchanged: null, corrected: p.corrected, accuracy: null, tool: true };
     const role = p.role === 'superadmin' ? 'super admin' : p.role === 'editor' ? 'editor' : '';
-    return { ...base, order: p.role === 'superadmin' ? 0 : 1, label: p.key, sub: role, verified: p.verified };
-  }).filter(r => r.changes || r.verified);
-  return rows.sort((a, b) => a.order - b.order || (b.verified || 0) - (a.verified || 0) || b.changes - a.changes);
+    return { order: p.role === 'superadmin' ? 0 : 1, label: p.key, sub: role, verified: p.verified, unchanged: p.unchanged, corrected: p.corrected,
+             accuracy: p.verified ? p.unchanged / p.verified : null };
+  }).filter(r => r.verified || r.corrected);
+  return rows.sort((a, b) => a.order - b.order || (b.verified || 0) - (a.verified || 0));
 }
-// Stacked bar per person: dark green = AI answers kept (correct), orange = answers they changed.
-// Bars share one scale, so a longer bar means more answers reviewed.
+// Stacked bar per person: dark green = verified photos left unchanged, orange = verified photos corrected.
+// All bars share one scale, so bar length = that person's verified count.
 function peopleChart(rows) {
-  const max = Math.max(1, ...rows.map(r => r.checked));
-  const head = `<div class="mq-pp-head mq-pp-row"><span>Person</span><span></span><span>Verified</span><span>Changes</span><span>% Accuracy</span></div>`;
+  const max = Math.max(1, ...rows.map(r => r.tool ? r.corrected : r.verified));
+  const head = `<div class="mq-pp-head mq-pp-row"><span>Person</span><span></span><span>Verified</span><span>Unchanged</span><span>Corrected</span><span>% Accuracy</span></div>`;
   const body = rows.map(r => {
-    const wrong = Math.max(0, r.checked - r.matched);
-    const bar = r.checked
-      ? `<div class="mq-stack" title="${r.matched} correct of ${r.checked} answers checked">
-           <div style="width:${r.matched / max * 100}%;background:${KEEP_COLOR}"></div>
-           <div style="width:${wrong / max * 100}%;background:${CHANGE_COLOR}"></div></div>`
-      : '<div class="mq-stack"></div>';
+    const seg = (n, color, tip) => n ? `<div style="width:${n / max * 100}%;background:${color}" title="${escHtml(tip)}"></div>` : '';
+    const bar = r.tool
+      ? `<div class="mq-stack" title="${r.corrected} photo(s) changed by the Normalize tools">${seg(r.corrected, '#7a7a7a', `${r.corrected} photo(s) changed by the Normalize tools`)}</div>`
+      : `<div class="mq-stack" title="${escHtml(r.label)}: ${r.verified} verified = ${r.unchanged} unchanged + ${r.corrected} corrected">
+           ${seg(r.unchanged, KEEP_COLOR, `${r.unchanged} unchanged (of ${r.verified} verified)`)}${seg(r.corrected, CHANGE_COLOR, `${r.corrected} corrected (of ${r.verified} verified)`)}</div>`;
+    const num = (v, label) => `<span class="num${v ? '' : ' zero'}" data-l="${label}">${v == null ? '—' : v}</span>`;
     return `<div class="mq-pp-row">
       <span class="mq-pp-name" title="${escHtml(r.label)}">${escHtml(r.label)}${r.sub ? `<span class="mq-ft-sub">${escHtml(r.sub)}</span>` : ''}</span>
-      ${bar}
-      <span class="num${r.verified ? '' : ' zero'}">${r.verified == null ? '—' : r.verified}</span>
-      <span class="num${r.changes ? '' : ' zero'}">${r.changes}</span>
+      ${bar}${num(r.verified, 'Verified')}${num(r.unchanged, 'Unchanged')}${num(r.corrected, 'Corrected')}
       <span class="num">${pct(r.accuracy)}</span></div>`;
   }).join('');
-  const legend = `<div class="mq-legend-inline"><span><i style="background:${KEEP_COLOR}"></i>Correct (kept as-is)</span><span><i style="background:${CHANGE_COLOR}"></i>Changed</span></div>`;
+  const legend = `<div class="mq-legend-inline"><span><i style="background:${KEEP_COLOR}"></i>Unchanged</span><span><i style="background:${CHANGE_COLOR}"></i>Corrected</span></div>`;
   return `<div class="mq-pp">${head}${body}</div>${legend}`;
 }
 
@@ -378,7 +376,7 @@ function render(q) {
 
   const people = peopleRows(q.byUser || []);
   cards.push(card('Where changes came from', people.length ? peopleChart(people) : empty,
-    people.length ? 'Green = AI answers kept, orange = answers changed, across the photos each person verified. % accuracy = correct ÷ answers checked' : ''));
+    people.length ? 'Photos each person verified: unchanged (AI’s artist, style, period and location all kept) + corrected (at least one changed) = verified. Photos edited before tracking began count as corrected. Normalize tools shows photos it changed.' : ''));
 
   cards.push(card('Correction type by field', hasFieldData ? fieldTable(fieldRows, [
       { label: 'Verified', key: 'verified' },
