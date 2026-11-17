@@ -1065,10 +1065,13 @@ function classifyCorrection(field, ai, human) {
 }
 app.get('/api/quality', authenticate, async (_req, res) => {
   try {
+    // Verified photos with no saved AI original (edited before tracking began) can't be scored,
+    // so they are left out of every number on the dashboard; `excluded` says how many.
     const counts = (await pool.query(
-      `SELECT COUNT(*)::int AS total,
-              COUNT(*) FILTER (WHERE verified)::int AS verified,
-              COUNT(*) FILTER (WHERE verified AND ai_original IS NOT NULL)::int AS measurable
+      `SELECT COUNT(*) FILTER (WHERE NOT (verified AND ai_original IS NULL))::int AS total,
+              COUNT(*) FILTER (WHERE verified AND ai_original IS NOT NULL)::int AS verified,
+              COUNT(*) FILTER (WHERE verified AND ai_original IS NOT NULL)::int AS measurable,
+              COUNT(*) FILTER (WHERE verified AND ai_original IS NULL)::int AS excluded
          FROM photos WHERE NOT COALESCE(user_submitted, FALSE)`)).rows[0];
 
     // Accuracy: compare the AI's original answer to the final (verified) value
@@ -1082,6 +1085,7 @@ app.get('/api/quality', authenticate, async (_req, res) => {
     // Per person, counted in PHOTOS so the numbers tie out:  verified = unchanged + corrected.
     //   unchanged = verified photos where the AI's artist, style, period and location were all kept
     //   corrected = verified photos where at least one of them was changed
+    // (verified photos with no saved AI original are excluded everywhere)
     // Work with no username recorded (done before accounts existed) counts as the main admin;
     // '__normalize' = the Normalize tools (photos they changed).
     const people = {};
@@ -1129,10 +1133,6 @@ app.get('/api/quality', authenticate, async (_req, res) => {
       typeByField[c.field][t]++;
     }
 
-    // Verified photos with no saved AI original were edited before tracking began, so they count as corrected
-    const unscored = (await pool.query(
-      `SELECT COALESCE(verified_by, '__earlier') AS k, COUNT(*)::int AS n FROM photos WHERE verified AND ai_original IS NULL AND NOT COALESCE(user_submitted, FALSE) GROUP BY 1`)).rows;
-    for (const u of unscored) { const p = person(u.k); p.verified += u.n; p.corrected += u.n; }
     // Photos changed by the Normalize tools
     const norm = (await pool.query(
       `SELECT COUNT(DISTINCT photo_id)::int AS n FROM corrections

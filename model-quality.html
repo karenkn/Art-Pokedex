@@ -329,7 +329,7 @@ function layout(cards) {
 
 function render(q) {
   const measurable = q.measurable || 0;
-  const unscored = Math.max(0, q.verified - measurable);
+  const excluded = q.excluded || 0;
 
   // Everything here is counted in photos, so  Verified = Unchanged + Corrected.
   // (Individual field edits are a different unit — they appear in the per-field tables below.)
@@ -391,7 +391,7 @@ function render(q) {
 
   const people = peopleRows(q.byUser || []);
   cards.push(card('Where changes came from', people.length ? peopleChart(people) : empty,
-    people.length ? 'Photos each person verified: unchanged (AI’s artist, style, period and location all kept) + corrected (at least one changed) = verified. Photos edited before tracking began count as corrected. Normalize tools shows photos it changed.' : ''));
+    people.length ? 'Photos each person verified: unchanged (AI’s artist, style, period and location all kept) + corrected (at least one changed) = verified. Normalize tools shows photos it changed.' : ''));
 
   cards.push(card('Correction type by field', hasFieldData ? fieldTable(fieldRows, [
       { label: 'Verified', key: 'verified' },
@@ -415,7 +415,7 @@ function render(q) {
 
   document.getElementById('mqRoot').innerHTML = `${kpis}
     ${layout(cards)}
-    <p class="mq-foot">Based on <b>${q.verified}</b> verified photos${unscored ? ` — ${unscored} have no saved AI original (for example, photos edited before tracking began) and aren't scored` : ''}.
+    <p class="mq-foot">Based on <b>${q.verified}</b> verified photos${excluded ? `. ${excluded} other verified photo${excluded === 1 ? ' has' : 's have'} no saved AI original (edited before tracking began) and ${excluded === 1 ? 'is' : 'are'} left out of every number here` : ''}.
       Aim for 100+ for reliable numbers. "Fully correct" means artist, style, period and location were all kept; titles are shown separately because unrecognized works get descriptive titles.<br>
       To score a new prompt against your held-out photos, run <code>node eval.js</code>.</p>`;
 }
