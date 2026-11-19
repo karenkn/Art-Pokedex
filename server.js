@@ -93,6 +93,12 @@ pool.query(`
 }).then(() => pool.query(`ALTER TABLE photos ADD COLUMN IF NOT EXISTS verified_at TIMESTAMPTZ`))
   .then(() => pool.query(`ALTER TABLE photos ADD COLUMN IF NOT EXISTS ai_original JSONB`))
   .then(() => pool.query(`ALTER TABLE photos ADD COLUMN IF NOT EXISTS prompt_version TEXT`))
+  // Keep the AI's original confidence inside ai_original. For photos nobody has hand-edited, the live
+  // value is still the original, so it is safe to copy (re-analysis can't have changed it yet).
+  .then(() => pool.query(`
+    UPDATE photos SET ai_original = ai_original || jsonb_build_object('confidence', confidence)
+     WHERE ai_original IS NOT NULL AND NOT (ai_original ? 'confidence')
+       AND confidence IS NOT NULL AND NOT COALESCE(manually_edited, FALSE)`))
   .catch(err => console.error('Database init error:', err.message));
 
 // Team accounts. The original ADMIN_PASSWORD_HASH login (no username) stays as the main super admin.
@@ -818,6 +824,9 @@ const TRACKED_FIELDS = ['paintingName', 'artist', 'location', 'country', 'style'
 function snapshotFields(d) {
   const o = {};
   for (const f of TRACKED_FIELDS) o[f] = (d && typeof d[f] === 'string') ? d[f] : '';
+  // The AI's own confidence at analysis time — kept so it isn't lost when "Re-analyze with AI" or
+  // the confidence slider later overwrites the live value.
+  o.confidence = (d && typeof d.confidence === 'number') ? d.confidence : null;
   return o;
 }
 // Loose equality used for accuracy: ignore case, accents, punctuation and spacing
@@ -983,7 +992,7 @@ app.put('/api/photos/:id', authenticate, async (req, res) => {
   try {
     const cur = (await pool.query(
       `SELECT painting_name, artist, location, country, style, medium, period, description,
-              artist_hint, ai_model, manually_edited, ai_original, prompt_version
+              artist_hint, ai_model, manually_edited, ai_original, prompt_version, confidence
          FROM photos WHERE id = $1`, [req.params.id])).rows[0];
     if (!cur) return res.status(404).json({ error: 'Not found' });
 
@@ -995,11 +1004,15 @@ app.put('/api/photos/:id', authenticate, async (req, res) => {
     const prev = {
       paintingName: cur.painting_name || '', artist: cur.artist || '', location: cur.location || '',
       country: cur.country || '', style: cur.style || '', medium: cur.medium || '',
-      period: cur.period || '', description: cur.description || '', artistHint: cur.artist_hint || ''
+      period: cur.period || '', description: cur.description || '', artistHint: cur.artist_hint || '',
+      confidence: cur.confidence ?? null          // current stored value = the AI's original, until this save
     };
     // First edit of a photo that has no stored original: the pre-edit values ARE the AI's answer
     // (unless it was already hand-edited, in which case the original is unknown).
     const baseline = cur.ai_original || (!cur.manually_edited ? prev : null);
+    // An older snapshot without confidence: fill it in now, but only if the live value is still the original
+    const backfillConf = (cur.ai_original && cur.ai_original.confidence === undefined && !cur.manually_edited && typeof cur.confidence === 'number')
+      ? cur.confidence : null;
     const rows = diffCorrections(baseline || prev, prev, next);
 
     await pool.query(
@@ -1008,7 +1021,10 @@ app.put('/api/photos/:id', authenticate, async (req, res) => {
          country         = $4, style      = $5, medium    = $6,
          period          = $7, confidence = $8, description = $9,
          artist_hint     = $10, manually_edited = $11,
-         ai_original     = COALESCE(ai_original, $13::jsonb),
+         ai_original     = CASE WHEN ai_original IS NULL THEN $13::jsonb
+                                WHEN $17::numeric IS NOT NULL AND NOT (ai_original ? 'confidence')
+                                  THEN ai_original || jsonb_build_object('confidence', $17::numeric)
+                                ELSE ai_original END,
          verified        = COALESCE($14::boolean, verified),
          verified_at     = CASE WHEN $14::boolean IS TRUE THEN NOW()
                                 WHEN $14::boolean IS FALSE THEN NULL ELSE verified_at END,
@@ -1026,7 +1042,8 @@ app.put('/api/photos/:id', authenticate, async (req, res) => {
         baseline ? JSON.stringify(snapshotFields(baseline)) : null,
         typeof verified === 'boolean' ? verified : null,
         req.user.name,
-        rows.length > 0 || source === 'edit'          // a real edit (not just a verify click)
+        rows.length > 0 || source === 'edit',         // a real edit (not just a verify click)
+        backfillConf
       ]
     );
     const src = ['edit', 'normalize', 'verify'].includes(source) ? source : 'edit';
@@ -1081,7 +1098,7 @@ app.get('/api/quality', authenticate, async (_req, res) => {
     const col = { paintingName: 'painting_name', artist: 'artist', style: 'style', period: 'period', location: 'location' };
     const fields = {}, ver = {};
     const conf = { low: { n: 0, ok: 0 }, mid: { n: 0, ok: 0 }, high: { n: 0, ok: 0 } };
-    let fullyRight = 0;
+    let fullyRight = 0, confFallback = 0;
     // Per person, counted in PHOTOS so the numbers tie out:  verified = unchanged + corrected.
     //   unchanged = verified photos where the AI's artist, style, period and location were all kept
     //   corrected = verified photos where at least one of them was changed
@@ -1111,8 +1128,13 @@ app.get('/api/quality', authenticate, async (_req, res) => {
       const k = (!r.prompt_version || r.prompt_version === 'unknown') ? 'v1' : r.prompt_version;
       ver[k] = ver[k] || { version: k, photos: 0, fullyRight: 0 };
       ver[k].photos++; if (all) ver[k].fullyRight++;
-      if (typeof r.confidence === 'number') {
-        const b = r.confidence >= 80 ? conf.high : r.confidence >= 55 ? conf.mid : conf.low;
+      // The AI's confidence when it first analysed the photo (not the value after any re-analysis).
+      // Older photos whose original wasn't recorded fall back to the current value and are counted.
+      const orig = r.ai_original && typeof r.ai_original.confidence === 'number' ? r.ai_original.confidence : null;
+      const cv = orig ?? (typeof r.confidence === 'number' ? r.confidence : null);
+      if (orig == null && cv != null) confFallback++;
+      if (cv != null) {
+        const b = cv >= 80 ? conf.high : cv >= 55 ? conf.mid : conf.low;
         b.n++; if (all) b.ok++;
       }
     }
@@ -1148,7 +1170,7 @@ app.get('/api/quality', authenticate, async (_req, res) => {
 
     res.json({
       ...counts, fields, fullyRight,
-      correctionTotal: cor.length, byField, byType, byUser, typeByField, confidence: conf,
+      correctionTotal: cor.length, byField, byType, byUser, typeByField, confidence: conf, confidenceFallback: confFallback,
       byVersion: Object.values(ver).sort((x, y) => String(x.version).localeCompare(String(y.version), undefined, { numeric: true }))
     });
   } catch (err) {
