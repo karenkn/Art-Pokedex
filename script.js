@@ -739,6 +739,7 @@ async function loadSavedPhotos() {
         addedBy:        row.added_by || null,
         editedBy:       row.edited_by || null,
         verifiedBy:     row.verified_by || null,
+        firstConfidence: row.ai_confidence ?? null,   // the AI's first score; never changed by Re-analyze
         promptVersion:  row.prompt_version || null,
         aiData: {
           paintingName:   row.painting_name  || '',
@@ -1242,6 +1243,7 @@ async function analysePhoto(photo) {
       locationSource: photo.locationSource || 'ai'
     };
     photo.promptVersion = ArtPrompts.PROMPT_VERSION;
+    photo.firstConfidence = photo.aiData.confidence;   // saved once on the server too; Re-analyze never changes it
     photo.addedBy = Auth.name();
     photo.status = 'done';
     recentlyAddedIds.add(photo.id); // spotlight it at the top of the gallery
@@ -2232,7 +2234,8 @@ function refreshModalView(p) {
     <div class="modal-detail"><label>Art Style</label><span>${escHtml(d.style)}</span></div>
     <div class="modal-detail"><label>Medium</label><span>${escHtml(d.medium)}</span></div>
     <div class="modal-detail"><label>Period</label><span>${escHtml(d.period)}</span></div>
-    <div class="modal-detail"><label>Confidence</label><span class="${confClass}">${d.confidence}%</span></div>
+    <div class="modal-detail"><label>First AI Confidence</label><span>${p.firstConfidence != null ? p.firstConfidence + '%' : '—'}</span></div>
+    <div class="modal-detail"><label>Latest AI Confidence</label><span class="${confClass}">${d.confidence}%</span></div>
   `;
   const locSource = p.locationSource === 'gps'
     ? '🛰 Location from GPS metadata'

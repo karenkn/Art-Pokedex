@@ -865,7 +865,7 @@ app.get('/api/photos', async (req, res) => {
               confidence, description, artist_hint, manually_edited, location_source,
               gps_lat, gps_lng, ai_model, likes, pinned, user_submitted, rating,
               elo_score, tier, created_at, verified, verified_at, prompt_version,
-              added_by, edited_by, edited_at, verified_by,
+              added_by, edited_by, edited_at, verified_by, ai_confidence,
               (thumbnail IS NOT NULL AND thumbnail <> '') AS has_image,
               (thumb_small IS NOT NULL)                   AS has_small,
               COALESCE(length(thumbnail), 0)              AS img_v

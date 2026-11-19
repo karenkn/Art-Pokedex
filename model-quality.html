@@ -318,7 +318,7 @@ function peopleChart(rows, firstCol = 'Person') {
 // Layout: overview cards, then a 2×2 block of correction/confidence/version charts, then the wide per-field tables.
 function layout(cards) {
   const pick = title => cards.filter(c => c.includes(`<h4>${title}</h4>`));
-  const grid2 = ['Type of correction', 'Where changes came from', 'Fully correct by AI confidence', 'Fully correct by prompt version'];
+  const grid2 = ['Type of correction', 'Where changes came from', 'Fully correct by first AI confidence score', 'Fully correct by prompt version'];
   const wide = ['Corrections by Location Type', 'Correction type by field'];
   const used = new Set([...grid2, ...wide].flatMap(pick));
   const overview = cards.filter(c => !used.has(c));
@@ -408,8 +408,8 @@ function render(q) {
   const confRows = [['low', 'Low (<55%)'], ['mid', 'Medium (55–79%)'], ['high', 'High (80%+)']]
     .filter(([k]) => c[k] && c[k].n)
     .map(([k, label]) => ({ label, value: c[k].ok / c[k].n, text: `${pct(c[k].ok / c[k].n)} (${c[k].n})` }));
-  cards.push(card('Fully correct by AI confidence', confRows.length ? bars(confRows, { max: 1 }) : empty,
-    confRows.length ? `Grouped by the confidence the AI gave when it first analysed each photo — saved once, so “Re-analyze with AI” never changes it. Photo count in brackets${q.confidenceFallback ? `. ${q.confidenceFallback} photo${q.confidenceFallback === 1 ? '' : 's'} had no saved score and use the current one` : ''}` : ''));
+  cards.push(card('Fully correct by first AI confidence score', confRows.length ? bars(confRows, { max: 1 }) : empty,
+    confRows.length ? `Grouped by the first confidence score the AI gave each photo — saved once, so “Re-analyze with AI” never changes it (the latest score can still change). Photo count in brackets${q.confidenceFallback ? `. ${q.confidenceFallback} photo${q.confidenceFallback === 1 ? '' : 's'} had no saved score and use the current one` : ''}` : ''));
 
   const vr = (q.byVersion || []).map(v => ({ label: `${versionLabel(v.version)} (${v.photos})`, value: v.photos ? v.fullyRight / v.photos : 0, text: pct(v.photos ? v.fullyRight / v.photos : null) }));
   cards.push(card('Fully correct by prompt version', vr.length ? bars(vr, { max: 1 }) : empty, vr.length ? 'Verified photos in brackets' : ''));
