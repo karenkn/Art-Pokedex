@@ -99,6 +99,13 @@ pool.query(`
     UPDATE photos SET ai_original = ai_original || jsonb_build_object('confidence', confidence)
      WHERE ai_original IS NOT NULL AND NOT (ai_original ? 'confidence')
        AND confidence IS NOT NULL AND NOT COALESCE(manually_edited, FALSE)`))
+  // The AI's FIRST confidence score, saved once and never changed by edits or "Re-analyze with AI".
+  .then(() => pool.query(`ALTER TABLE photos ADD COLUMN IF NOT EXISTS ai_confidence INTEGER`))
+  // Baseline: every photo that doesn't have one yet gets its score on file now (the recorded original
+  // if there is one, otherwise the current value). Only ever fills blanks, so it is safe on every start.
+  .then(() => pool.query(`
+    UPDATE photos SET ai_confidence = COALESCE((ai_original->>'confidence')::numeric::int, confidence)
+     WHERE ai_confidence IS NULL AND COALESCE((ai_original->>'confidence')::numeric::int, confidence) IS NOT NULL`))
   .catch(err => console.error('Database init error:', err.message));
 
 // Team accounts. The original ADMIN_PASSWORD_HASH login (no username) stays as the main super admin.
@@ -797,8 +804,8 @@ app.patch('/api/submissions/:id', authenticate, async (req, res) => {
         `INSERT INTO photos
            (id, name, thumbnail, painting_name, artist, location, country,
             style, medium, period, confidence, description, artist_hint,
-            manually_edited, location_source, user_submitted)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,FALSE,'ai',TRUE)
+            manually_edited, location_source, user_submitted, ai_confidence)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,FALSE,'ai',TRUE,$11)
          ON CONFLICT (id) DO NOTHING`,
         [
           s.id, s.name, s.thumbnail,
@@ -933,8 +940,8 @@ app.post('/api/photos', authenticate, async (req, res) => {
          (id, name, thumbnail, painting_name, artist, location, country,
           style, medium, period, confidence, description, artist_hint,
           manually_edited, location_source, gps_lat, gps_lng, ai_model,
-          ai_original, prompt_version, added_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)
+          ai_original, prompt_version, added_by, ai_confidence)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$11)
        ON CONFLICT (id) DO UPDATE SET
          painting_name   = EXCLUDED.painting_name,
          artist          = EXCLUDED.artist,
@@ -952,7 +959,8 @@ app.post('/api/photos', authenticate, async (req, res) => {
          gps_lng         = EXCLUDED.gps_lng,
          ai_original     = COALESCE(photos.ai_original, EXCLUDED.ai_original),
          prompt_version  = COALESCE(photos.prompt_version, EXCLUDED.prompt_version),
-         added_by        = COALESCE(photos.added_by, EXCLUDED.added_by)`,
+         added_by        = COALESCE(photos.added_by, EXCLUDED.added_by),
+         ai_confidence   = COALESCE(photos.ai_confidence, EXCLUDED.ai_confidence)`,
       [
         id, name, thumbnail,
         d.paintingName || '', d.artist    || '',
@@ -1104,7 +1112,7 @@ app.get('/api/quality', authenticate, async (_req, res) => {
 
     // Accuracy: compare the AI's original answer to the final (verified) value
     const rows = (await pool.query(
-      `SELECT ai_original, painting_name, artist, style, period, location, confidence, prompt_version, verified_by
+      `SELECT ai_original, painting_name, artist, style, period, location, confidence, ai_confidence, prompt_version, verified_by
          FROM photos WHERE verified AND ai_original IS NOT NULL AND NOT COALESCE(user_submitted, FALSE)`)).rows;
     const col = { paintingName: 'painting_name', artist: 'artist', style: 'style', period: 'period', location: 'location' };
     const fields = {}, ver = {};
@@ -1142,13 +1150,13 @@ app.get('/api/quality', authenticate, async (_req, res) => {
       ver[k].photos++; if (all) ver[k].fullyRight++;
       const lt = locTypes[classifyLocation(r.location)];      // by the photo's final (verified) location
       lt.verified++; if (all) lt.unchanged++; else lt.corrected++;
-      // The AI's confidence when it first analysed the photo (not the value after any re-analysis).
-      // Older photos whose original wasn't recorded fall back to the current value and are counted.
-      const orig = r.ai_original && typeof r.ai_original.confidence === 'number' ? r.ai_original.confidence : null;
-      const cv = orig ?? (typeof r.confidence === 'number' ? r.confidence : null);
-      if (orig == null && cv != null) confFallback++;
-      if (cv != null) {
-        const b = cv >= 80 ? conf.high : cv >= 55 ? conf.mid : conf.low;
+      // The AI's FIRST confidence score (saved once; edits and "Re-analyze with AI" never change it).
+      // Compared with whether every scored field (artist, style, period, location) was kept.
+      const cv = typeof r.ai_confidence === 'number' ? r.ai_confidence : null;
+      if (cv == null && typeof r.confidence === 'number') confFallback++;      // should be none after the baseline runs
+      const cvUse = cv ?? (typeof r.confidence === 'number' ? r.confidence : null);
+      if (cvUse != null) {
+        const b = cvUse >= 80 ? conf.high : cvUse >= 55 ? conf.mid : conf.low;
         b.n++; if (all) b.ok++;
       }
     }

@@ -409,7 +409,7 @@ function render(q) {
     .filter(([k]) => c[k] && c[k].n)
     .map(([k, label]) => ({ label, value: c[k].ok / c[k].n, text: `${pct(c[k].ok / c[k].n)} (${c[k].n})` }));
   cards.push(card('Fully correct by AI confidence', confRows.length ? bars(confRows, { max: 1 }) : empty,
-    confRows.length ? `Confidence when the AI first analysed the photo (before any “Re-analyze”). Photo count in brackets${q.confidenceFallback ? `. ${q.confidenceFallback} older photo${q.confidenceFallback === 1 ? '' : 's'} didn’t have it recorded and use the current value` : ''}` : ''));
+    confRows.length ? `Grouped by the confidence the AI gave when it first analysed each photo — saved once, so “Re-analyze with AI” never changes it. Photo count in brackets${q.confidenceFallback ? `. ${q.confidenceFallback} photo${q.confidenceFallback === 1 ? '' : 's'} had no saved score and use the current one` : ''}` : ''));
 
   const vr = (q.byVersion || []).map(v => ({ label: `${versionLabel(v.version)} (${v.photos})`, value: v.photos ? v.fullyRight / v.photos : 0, text: pct(v.photos ? v.fullyRight / v.photos : null) }));
   cards.push(card('Fully correct by prompt version', vr.length ? bars(vr, { max: 1 }) : empty, vr.length ? 'Verified photos in brackets' : ''));
