@@ -296,9 +296,9 @@ function peopleRows(list) {
 }
 // Stacked bar per person: dark green = verified photos left unchanged, orange = verified photos corrected.
 // All bars share one scale, so bar length = that person's verified count.
-function peopleChart(rows) {
+function peopleChart(rows, firstCol = 'Person') {
   const max = Math.max(1, ...rows.map(r => r.tool ? r.corrected : r.verified));
-  const head = `<div class="mq-pp-head mq-pp-row"><span>Person</span><span></span><span>Verified</span><span>Unchanged</span><span>Corrected</span><span>% Accuracy</span></div>`;
+  const head = `<div class="mq-pp-head mq-pp-row"><span>${escHtml(firstCol)}</span><span></span><span>Verified</span><span>Unchanged</span><span>Corrected</span><span>% Accuracy</span></div>`;
   const body = rows.map(r => {
     const seg = (n, color, tip) => n ? `<div style="width:${n / max * 100}%;background:${color}" title="${escHtml(tip)}"></div>` : '';
     const bar = r.tool
@@ -319,7 +319,7 @@ function peopleChart(rows) {
 function layout(cards) {
   const pick = title => cards.filter(c => c.includes(`<h4>${title}</h4>`));
   const grid2 = ['Type of correction', 'Where changes came from', 'Fully correct by AI confidence', 'Fully correct by prompt version'];
-  const wide = ['Corrections by field', 'Correction type by field'];
+  const wide = ['Corrections by Location Type', 'Correction type by field'];
   const used = new Set([...grid2, ...wide].flatMap(pick));
   const overview = cards.filter(c => !used.has(c));
   return `<div class="mq-grid">${overview.join('')}</div>
@@ -375,13 +375,14 @@ function render(q) {
   }).sort((a, b) => b.vals.corrections - a.vals.corrections);
   const hasFieldData = fieldRows.some(r => r.vals.corrections || r.vals.unchanged);
 
-  cards.push(card('Corrections by field', hasFieldData ? fieldTable(fieldRows, [
-      { label: 'Verified', key: 'verified' },
-      { label: 'Unchanged', key: 'unchanged', color: KEEP_COLOR },
-      { label: 'Corrected', key: 'corrections', color: CHANGE_COLOR },
-      { label: '% Accuracy', key: 'accuracy', percent: true }
-    ]) : empty,
-    hasFieldData ? `${q.correctionTotal} corrections in total. "Unchanged" = verified photos where the AI's answer for that field was kept; % accuracy = unchanged ÷ verified` : '', 'wide'));
+  // Corrections by location type (photo-level, same definitions as the people chart)
+  const locRows = (q.byLocationType || []).map(r => ({
+    label: r.type, sub: '', verified: r.verified, unchanged: r.unchanged, corrected: r.corrected,
+    accuracy: r.verified ? r.unchanged / r.verified : null
+  }));
+  const hasLoc = locRows.some(r => r.verified);
+  cards.push(card('Corrections by Location Type', hasLoc ? peopleChart(locRows, 'Location type') : empty,
+    hasLoc ? 'Verified photos grouped by where the artwork is: unchanged (AI’s artist, style, period and location all kept) + corrected (at least one changed) = verified. Grouping is based on keywords in the location name.' : '', 'wide'));
 
   const t = q.byType || {};
   cards.push(card('Type of correction', q.correctionTotal ? donut(

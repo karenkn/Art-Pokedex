@@ -1080,6 +1080,17 @@ function classifyCorrection(field, ai, human) {
   }
   return 'different';
 }
+// Group a venue string into Museum / Auction House / Gallery / Public Art / Other (keyword based).
+const LOCATION_TYPES = ['Museum', 'Auction House', 'Gallery', 'Public Art', 'Other'];
+function classifyLocation(loc) {
+  const t = ' ' + String(loc || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9']+/g, ' ').trim() + ' ';
+  const has = re => re.test(t);
+  if (has(/\b(christie'?s|sotheby'?s|bonhams|auction|auctions|auctioneers|heritage auctions|doyle|swann|artcurial|ketterer|phillips (auction|auctioneers))\b/)) return 'Auction House';
+  if (has(/\b(museum|museums|museo|museu|musee|muzeum|museet|pinakothek|pinacoteca|kunstmuseum|kunsthaus|kunsthalle|louvre|uffizi|prado|hermitage|orsay|orangerie|guggenheim|moma|tate|metropolitan|national gallery|art institute|institute of art|art gallery of|gallery of art|center for the arts|centre pompidou|pompidou|getty|whitney|frick|smithsonian|albertina|belvedere|mauritshuis|accademia|galleria nazionale|collection|art center|art centre)\b/)) return 'Museum';
+  if (has(/\b(gallery|galleries|galerie|galleria|galeria|gagosian|zwirner|hauser|perrotin|lisson|white cube|kunstverein)\b/)) return 'Gallery';
+  if (has(/\b(street|st|avenue|ave|boulevard|blvd|road|rd|plaza|square|park|parks|garden|gardens|station|subway|metro|airport|bridge|mural|murals|wall|walls|alley|pier|waterfront|sculpture|outdoor|public|graffiti|memorial|courtyard)\b/)) return 'Public Art';
+  return 'Other';
+}
 app.get('/api/quality', authenticate, async (_req, res) => {
   try {
     // Verified photos with no saved AI original (edited before tracking began) can't be scored,
@@ -1099,6 +1110,7 @@ app.get('/api/quality', authenticate, async (_req, res) => {
     const fields = {}, ver = {};
     const conf = { low: { n: 0, ok: 0 }, mid: { n: 0, ok: 0 }, high: { n: 0, ok: 0 } };
     let fullyRight = 0, confFallback = 0;
+    const locTypes = Object.fromEntries(LOCATION_TYPES.map(k => [k, { type: k, verified: 0, unchanged: 0, corrected: 0 }]));
     // Per person, counted in PHOTOS so the numbers tie out:  verified = unchanged + corrected.
     //   unchanged = verified photos where the AI's artist, style, period and location were all kept
     //   corrected = verified photos where at least one of them was changed
@@ -1128,6 +1140,8 @@ app.get('/api/quality', authenticate, async (_req, res) => {
       const k = (!r.prompt_version || r.prompt_version === 'unknown') ? 'v1' : r.prompt_version;
       ver[k] = ver[k] || { version: k, photos: 0, fullyRight: 0 };
       ver[k].photos++; if (all) ver[k].fullyRight++;
+      const lt = locTypes[classifyLocation(r.location)];      // by the photo's final (verified) location
+      lt.verified++; if (all) lt.unchanged++; else lt.corrected++;
       // The AI's confidence when it first analysed the photo (not the value after any re-analysis).
       // Older photos whose original wasn't recorded fall back to the current value and are counted.
       const orig = r.ai_original && typeof r.ai_original.confidence === 'number' ? r.ai_original.confidence : null;
@@ -1170,7 +1184,7 @@ app.get('/api/quality', authenticate, async (_req, res) => {
 
     res.json({
       ...counts, fields, fullyRight,
-      correctionTotal: cor.length, byField, byType, byUser, typeByField, confidence: conf, confidenceFallback: confFallback,
+      correctionTotal: cor.length, byField, byType, byUser, byLocationType: LOCATION_TYPES.map(k => locTypes[k]), typeByField, confidence: conf, confidenceFallback: confFallback,
       byVersion: Object.values(ver).sort((x, y) => String(x.version).localeCompare(String(y.version), undefined, { numeric: true }))
     });
   } catch (err) {
