@@ -1101,14 +1101,21 @@ function classifyLocation(loc) {
 }
 app.get('/api/quality', authenticate, async (_req, res) => {
   try {
-    // Verified photos with no saved AI original (edited before tracking began) can't be scored,
-    // so they are left out of every number on the dashboard; `excluded` says how many.
-    const counts = (await pool.query(
-      `SELECT COUNT(*) FILTER (WHERE NOT (verified AND ai_original IS NULL))::int AS total,
-              COUNT(*) FILTER (WHERE verified AND ai_original IS NOT NULL)::int AS verified,
-              COUNT(*) FILTER (WHERE verified AND ai_original IS NOT NULL)::int AS measurable,
-              COUNT(*) FILTER (WHERE verified AND ai_original IS NULL)::int AS excluded
-         FROM photos WHERE NOT COALESCE(user_submitted, FALSE)`)).rows[0];
+    // Reconciliation of every photo in the gallery:
+    //   gallery = community + excluded + verified + unverified
+    // `excluded` = verified photos with no saved AI original (edited before tracking began): they can't be
+    // scored, so they are left out of the dashboard. The dashboard's photos (`total`) = verified + unverified.
+    const rc = (await pool.query(
+      `SELECT COUNT(*)::int AS gallery,
+              COUNT(*) FILTER (WHERE COALESCE(user_submitted, FALSE))::int AS community,
+              COUNT(*) FILTER (WHERE NOT COALESCE(user_submitted, FALSE) AND COALESCE(verified, FALSE) AND ai_original IS NULL)::int AS excluded,
+              COUNT(*) FILTER (WHERE NOT COALESCE(user_submitted, FALSE) AND COALESCE(verified, FALSE) AND ai_original IS NOT NULL)::int AS verified,
+              COUNT(*) FILTER (WHERE NOT COALESCE(user_submitted, FALSE) AND NOT COALESCE(verified, FALSE))::int AS unverified,
+              COUNT(*) FILTER (WHERE NOT COALESCE(user_submitted, FALSE) AND NOT COALESCE(verified, FALSE) AND COALESCE(manually_edited, FALSE))::int AS unverified_edited
+         FROM photos`)).rows[0] || {};
+    const counts = { total: (rc.verified || 0) + (rc.unverified || 0), verified: rc.verified || 0, measurable: rc.verified || 0, excluded: rc.excluded || 0 };
+    const recon = { gallery: rc.gallery || 0, community: rc.community || 0, excluded: rc.excluded || 0,
+                    verified: rc.verified || 0, unverified: rc.unverified || 0, unverifiedEdited: rc.unverified_edited || 0 };
 
     // Accuracy: compare the AI's original answer to the final (verified) value
     const rows = (await pool.query(
@@ -1191,7 +1198,7 @@ app.get('/api/quality', authenticate, async (_req, res) => {
     }));
 
     res.json({
-      ...counts, fields, fullyRight,
+      ...counts, recon, fields, fullyRight,
       correctionTotal: cor.length, byField, byType, byUser, byLocationType: LOCATION_TYPES.map(k => locTypes[k]), typeByField, confidence: conf, confidenceFallback: confFallback,
       byVersion: Object.values(ver).sort((x, y) => String(x.version).localeCompare(String(y.version), undefined, { numeric: true }))
     });
