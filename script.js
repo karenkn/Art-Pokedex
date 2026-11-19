@@ -2231,6 +2231,7 @@ function refreshModalView(p) {
     ${d.artist       ? `<div class="modal-detail" style="grid-column:1/-1"><label>Artist</label><span>${escHtml(d.artist)}</span></div>` : ''}
     <div class="modal-detail"><label>Location</label><span>${escHtml(d.location)}</span></div>
     <div class="modal-detail"><label>Country</label><span>${escHtml(d.country)}</span></div>
+    <div class="modal-detail"><label>Location Type</label><span>${escHtml(LocationType.classifyLocation(d.location))}</span></div>
     <div class="modal-detail"><label>Art Style</label><span>${escHtml(d.style)}</span></div>
     <div class="modal-detail"><label>Medium</label><span>${escHtml(d.medium)}</span></div>
     <div class="modal-detail"><label>Period</label><span>${escHtml(d.period)}</span></div>

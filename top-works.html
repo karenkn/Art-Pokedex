@@ -748,6 +748,7 @@
   </div>
 </div>
 
+<script src="location-type.js"></script>
 <script src="auth-ui.js"></script>
 <script src="mobile-ux.js"></script>
 <script>
@@ -980,6 +981,7 @@
       ${d.artist?`<div class="modal-detail" style="grid-column:1/-1"><label>Artist</label><span>${esc(d.artist)}</span></div>`:''}
       <div class="modal-detail"><label>Location</label><span>${esc(d.location)}</span></div>
       <div class="modal-detail"><label>Country</label><span>${esc(d.country)}</span></div>
+      <div class="modal-detail"><label>Location Type</label><span>${esc(LocationType.classifyLocation(d.location))}</span></div>
       <div class="modal-detail"><label>Art Style</label><span>${esc(d.style)}</span></div>
       <div class="modal-detail"><label>Medium</label><span>${esc(d.medium)}</span></div>
       <div class="modal-detail"><label>Period</label><span>${esc(d.period)}</span></div>
