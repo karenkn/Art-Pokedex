@@ -51,7 +51,8 @@
     .hero-sub   { font-size: 14px; color: #888; line-height: 1.6; max-width: 540px; }
 
     /* ── Admin banner ── */
-    .rank-banner { display: none; max-width: 900px; margin: 24px auto 0; padding: 0 clamp(16px,4vw,48px); background: #f7f4f0; border: 1px solid #e8e3de; border-radius: 10px; overflow: hidden; }
+    /* Same width as the rank rows below: the rows sit inside .ranked-wrap (max 900px, side padding clamp(16px,4vw,48px)) */
+    .rank-banner { display: none; width: calc(min(900px, 100%) - 2 * clamp(16px, 4vw, 48px)); margin: 24px auto 0; padding: 0; background: #f7f4f0; border: 1px solid #e8e3de; border-radius: 10px; overflow: hidden; }
     .rank-banner.visible { display: block; }
     .rank-phase { display: flex; align-items: center; gap: 16px; padding: 14px 20px; }
     .rank-phase + .rank-phase { border-top: 1px solid #e4dfd8; }
@@ -477,6 +478,141 @@
     }
   </style>
   <style>@media (min-width: 768px) and (max-width: 1100px) { .header-nav { gap: 14px; } .logo-sub { display: none !important; } } /* room for the extra nav link */</style>
+
+  <style>
+    /* ── Photo modal: edit mode, verify and places styles (same as index.html) ── */
+    .modal-save-btn {
+      margin-top: 14px;
+      padding: 7px 16px;
+      border-radius: 3px;
+      border: none;
+      background: #8f0101;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      letter-spacing: 0.3px;
+      transition: background 0.2s;
+    }
+    .modal-save-btn:hover { background: #700101; }
+    .modal-cancel-btn {
+      margin-top: 14px;
+      margin-left: 8px;
+      padding: 7px 14px;
+      border-radius: 3px;
+      border: 1px solid #c8c2b8;
+      background: #fff;
+      color: #888;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .modal-cancel-btn:hover { border-color: #888; color: #555; }
+    .modal-reanalyze-btn {
+      margin-top: 14px;
+      margin-left: 8px;
+      padding: 7px 14px;
+      border-radius: 3px;
+      border: 1.5px solid #1a6fa6;
+      background: #fff;
+      color: #1a6fa6;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .modal-reanalyze-btn:hover:not(:disabled) { background: #1a6fa6; color: #fff; }
+    .modal-reanalyze-btn:disabled { border-color: #ccc; color: #aaa; cursor: not-allowed; }
+    .reanalyze-spinner {
+      width: 13px; height: 13px;
+      border: 2px solid currentColor;
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      display: inline-block;
+    }
+    .edit-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .edit-field { display: flex; flex-direction: column; gap: 4px; }
+    .edit-field.full { grid-column: 1 / -1; }
+    .edit-field label { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
+    .edit-field input,
+    .edit-field textarea {
+      padding: 8px 10px;
+      border: 1.5px solid #ccc;
+      border-radius: 6px;
+      font-size: 13px;
+      font-family: inherit;
+      color: #2c2c2c;
+      outline: none;
+      transition: border-color 0.2s;
+      background: #fff;
+      width: stretch;
+    }
+    .edit-field input:focus,
+    .edit-field textarea:focus { border-color: #e05c2e; }
+    .edit-field input[list]::-webkit-calendar-picker-indicator { opacity: 0.4; cursor: pointer; }
+    .edit-field textarea { resize: vertical; min-height: 80px; }
+    .edit-confidence {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .edit-confidence input[type=range] { flex: 1; accent-color: #e05c2e; }
+    .edit-confidence span { min-width: 36px; text-align: right; font-weight: 600; font-size: 13px; }
+
+    /* Places autocomplete dropdown */
+    .places-wrap { position: relative; }
+    .places-dropdown {
+      position: absolute; top: 100%; left: 0; right: 0;
+      background: #fff; border: 1px solid #ddd; border-top: none;
+      border-radius: 0 0 6px 6px; z-index: 1000;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      max-height: 220px; overflow-y: auto; display: none;
+    }
+    .places-dropdown.open { display: block; }
+    .places-option {
+      padding: 9px 12px; cursor: pointer; font-size: 13px;
+      border-bottom: 1px solid #f0f0f0; line-height: 1.4;
+    }
+    .places-option:last-child { border-bottom: none; }
+    .places-option:hover, .places-option.active { background: #fff5f2; color: #e05c2e; }
+    .places-option .places-main { font-weight: 600; }
+    .places-option .places-sub  { font-size: 11px; color: #999; }
+
+
+    .edit-field input:focus, .edit-field textarea:focus { border-color: #8f0101; }
+    .edit-confidence input[type=range] { accent-color: #8f0101; }
+    .places-option:hover, .places-option.active { background: #faf5f0; color: #8f0101; }
+
+/* ── Verification & review (admin) ───────────────────────────────────────── */
+.verified-badge {
+  display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 999px;
+  font-size: 10px; font-weight: 600; letter-spacing: .02em; vertical-align: middle;
+  color: #1b6e3c; background: #e8f5ec; border: 1px solid #b9dfc6;
+}
+.modal-action-btn.verify { border-color: #1b6e3c; color: #1b6e3c; }
+.modal-action-btn.verify:hover { background: #e8f5ec; border-color: #1b6e3c; color: #1b6e3c; }
+.modal-action-btn.verified { border-color: #b9dfc6; color: #1b6e3c; background: #e8f5ec; }
+.verify-hint { margin: 0 0 8px; font-size: 12px; color: #1b6e3c; }
+.modal-note { white-space: pre-line; }
+#editMode { display: block; }
+
+@media (max-width: 767px) {
+  .modal-save-btn, .modal-cancel-btn, .modal-reanalyze-btn {
+    display: flex; align-items: center; justify-content: center;
+    width: 100%; min-height: 44px; margin: 10px 0 0; text-align: center;
+  }
+}
+
+  </style>
 </head>
 <body>
 
@@ -574,12 +710,176 @@
         <div id="modalTitleLike"></div>
       </div>
       <div class="modal-tags"  id="modalTags"></div>
-      <div class="modal-action-bar" id="modalActions"></div>
-      <p class="modal-desc"    id="modalDesc"></p>
-      <p class="modal-section-title">Details</p>
-      <div class="modal-detail-grid" id="modalDetails"></div>
-      <div id="modalRating"></div>
-      <p class="modal-note" id="modalNote"></p>
+
+      <!-- View mode -->
+      <div id="viewMode">
+        <div class="modal-action-bar" id="modalActionBar"></div>
+        <p class="modal-desc"    id="modalDesc"></p>
+        <p class="modal-section-title">Details</p>
+        <div class="modal-detail-grid" id="modalDetails"></div>
+        <div id="modalRating"></div>
+        <p class="modal-note" id="modalNote"></p>
+      </div>
+
+      <!-- Edit mode -->
+      <div id="editMode" style="display:none">
+              <datalist id="dl-style">
+                <option value="Abstract Art">
+                <option value="Abstract Expressionism">
+                <option value="Art Deco">
+                <option value="Art Nouveau">
+                <option value="Baroque">
+                <option value="Byzantine">
+                <option value="Classical Antiquity">
+                <option value="Conceptual Art">
+                <option value="Constructivism">
+                <option value="Contemporary Art">
+                <option value="Cubism">
+                <option value="Dutch Golden Age">
+                <option value="Expressionism">
+                <option value="Fauvism">
+                <option value="Flemish Baroque">
+                <option value="Folk Art">
+                <option value="Futurism">
+                <option value="Gothic">
+                <option value="Impressionism">
+                <option value="Installation Art">
+                <option value="Mannerism">
+                <option value="Medieval Art">
+                <option value="Minimalism">
+                <option value="Modern Art">
+                <option value="Neoclassicism">
+                <option value="Neo-Expressionism">
+                <option value="Op Art">
+                <option value="Photo-Realism">
+                <option value="Pop Art">
+                <option value="Post-Impressionism">
+                <option value="Pre-Raphaelite">
+                <option value="Realism">
+                <option value="Renaissance">
+                <option value="Rococo">
+                <option value="Romanticism">
+                <option value="Street Art / Graffiti">
+                <option value="Surrealism">
+                <option value="Symbolism">
+                <option value="Ukiyo-e">
+              </datalist>
+      
+              <datalist id="dl-medium">
+                <option value="Acrylic on Canvas">
+                <option value="Chalk Pastel">
+                <option value="Charcoal on Paper">
+                <option value="Digital Art">
+                <option value="Egg Tempera on Panel">
+                <option value="Encaustic">
+                <option value="Engraving">
+                <option value="Etching">
+                <option value="Fresco">
+                <option value="Gouache on Paper">
+                <option value="Ink on Paper">
+                <option value="Installation / Mixed Media">
+                <option value="Lithograph">
+                <option value="Mosaic">
+                <option value="Oil on Canvas">
+                <option value="Oil on Panel">
+                <option value="Oil on Wood">
+                <option value="Photograph">
+                <option value="Screen Print">
+                <option value="Sculpture — Bronze">
+                <option value="Sculpture — Marble">
+                <option value="Sculpture — Stone">
+                <option value="Sculpture — Wood">
+                <option value="Spray Paint on Wall">
+                <option value="Stained Glass">
+                <option value="Tapestry">
+                <option value="Tempera on Panel">
+                <option value="Terracotta">
+                <option value="Video / Digital Installation">
+                <option value="Watercolor on Paper">
+                <option value="Woodblock Print">
+              </datalist>
+      
+              <datalist id="dl-period">
+                <option value="Ancient (pre-500 AD)">
+                <option value="Medieval (500–1400)">
+                <option value="Early Renaissance (1400–1500)">
+                <option value="High Renaissance (1490–1527)">
+                <option value="Mannerist (1520–1600)">
+                <option value="16th century">
+                <option value="Baroque (1600–1750)">
+                <option value="17th century">
+                <option value="Rococo (1700–1780)">
+                <option value="18th century">
+                <option value="Neoclassical / Romantic (1780–1850)">
+                <option value="19th century">
+                <option value="Impressionist Era (1860–1900)">
+                <option value="Late 19th century">
+                <option value="Early 20th century">
+                <option value="Modern (1900–1960)">
+                <option value="Mid-20th century">
+                <option value="Late 20th century">
+                <option value="Contemporary (1970–present)">
+                <option value="21st century">
+              </datalist>
+      
+              <div class="edit-grid">
+                <div class="edit-field full">
+                  <label>Painting Name</label>
+                  <input type="text" id="editPaintingName" placeholder="e.g. The Night Watch" autocomplete="off" />
+                </div>
+                <div class="edit-field full">
+                  <label>Artist</label>
+                  <input type="text" id="editArtistName" placeholder="e.g. Rembrandt van Rijn" autocomplete="off" />
+                </div>
+                <div class="edit-field">
+                  <label>Location</label>
+                  <div class="places-wrap">
+                    <input type="text" id="editLocation" placeholder="Search museum, gallery, or place…"
+                           autocomplete="off" oninput="onPlacesInput()" onkeydown="onPlacesKeydown(event)" />
+                    <div class="places-dropdown" id="placesDropdown"></div>
+                  </div>
+                </div>
+                <div class="edit-field">
+                  <label>Country</label>
+                  <input type="text" id="editCountry" placeholder="e.g. France" autocomplete="off" />
+                </div>
+                <div class="edit-field">
+                  <label>Art Style</label>
+                  <input type="text" id="editStyle" placeholder="e.g. Impressionism" list="dl-style" autocomplete="off" />
+                </div>
+                <div class="edit-field">
+                  <label>Medium</label>
+                  <input type="text" id="editMedium" placeholder="e.g. Oil on Canvas" list="dl-medium" autocomplete="off" />
+                </div>
+                <div class="edit-field">
+                  <label>Period</label>
+                  <input type="text" id="editPeriod" placeholder="e.g. 17th century" list="dl-period" autocomplete="off" />
+                </div>
+                <div class="edit-field">
+                  <label>Artist Context / School</label>
+                  <input type="text" id="editArtist" placeholder="Optional extra context" />
+                </div>
+                <div class="edit-field full">
+                  <label>Confidence (how sure are you?)</label>
+                  <div class="edit-confidence">
+                    <input type="range" id="editConfidence" min="0" max="100" step="1"
+                      oninput="document.getElementById('editConfidenceVal').textContent = this.value + '%'" />
+                    <span id="editConfidenceVal">75%</span>
+                  </div>
+                </div>
+                <div class="edit-field full">
+                  <label>Description / Notes</label>
+                  <textarea id="editDesc" placeholder="Add notes about this artwork…"></textarea>
+                </div>
+              </div>
+              <p class="verify-hint">Saving also marks this photo as verified.</p>
+              <button class="modal-save-btn" onclick="saveEdit()">💾 Save Changes</button>
+              <button class="modal-cancel-btn" onclick="cancelEdit()">Cancel</button>
+              <button class="modal-reanalyze-btn" id="reanalyzeBtn" onclick="reanalyzeFromEdit()" title="Ask Claude to regenerate the description using the details you've filled in above">
+                🔄 Re-analyze with AI
+              </button>
+              <div id="reanalyzeStatus" style="margin-top:8px;font-size:12px;color:#888;display:none"></div>
+            </div>
     </div>
   </div>
 </div>
@@ -863,6 +1163,8 @@
         rating: r.rating ?? null, eloScore: r.elo_score ?? 1500,
         tier: r.tier || null, likes: r.likes || 0,
         locationSource: r.location_source || 'ai',
+        verified: !!r.verified, firstConfidence: r.ai_confidence ?? null,
+        addedBy: r.added_by || null, editedBy: r.edited_by || null, verifiedBy: r.verified_by || null,
         aiData: {
           paintingName: r.painting_name||'', artist: r.artist||'',
           location: r.location||'', country: r.country||'',
@@ -937,6 +1239,8 @@
   function openModal(id) {
     const p=photos.find(x=>x.id===id); if(!p) return;
     activeId=id; renderModal(p);
+    document.getElementById('viewMode').style.display='';
+    document.getElementById('editMode').style.display='none';
     document.getElementById('modalBg').classList.add('open');
     // Phones: full-page view that scrolls with the page. Larger screens: classic modal.
     if(!MobileUX.photoPage.enter(id)){
@@ -957,11 +1261,13 @@
   function renderModal(p) {
     const d=p.aiData;
     document.getElementById('modalImg').src=p.url;
-    document.getElementById('modalTitle').innerHTML=esc(d.paintingName||p.name)+(d.manuallyEdited?' <span class="manually-edited-badge">✎ edited</span>':'');
+    const displayTitle=d.paintingName||p.name;
+    document.getElementById('modalTitle').innerHTML=esc(displayTitle)+(d.manuallyEdited?' <span class="manually-edited-badge">✎ edited</span>':'')
+      +((p.verified&&adminToken)?' <span class="verified-badge">✓ verified</span>':'');
     document.getElementById('modalTags').innerHTML=`
-      <span class="tag location">📍 ${esc(d.location)}</span>
-      <span class="tag style">🎨 ${esc(d.style)}</span>
-      <span class="tag medium">🖌️ ${esc(d.medium)}</span>`;
+      <span class="tag location" style="font-size:13px">📍 ${esc(d.location)}</span>
+      <span class="tag style"    style="font-size:13px">🎨 ${esc(d.style)}</span>
+      <span class="tag medium"   style="font-size:13px">🖌️ ${esc(d.medium)}</span>`;
     const descEl=document.getElementById('modalDesc');
     descEl.textContent=d.description;
     descEl.parentElement.querySelectorAll('.modal-artist-hint, .modal-artist-header').forEach(el=>el.remove());
@@ -977,7 +1283,7 @@
     }
     const cc=d.confidence>=80?'confidence-high':d.confidence>=55?'confidence-med':'confidence-low';
     document.getElementById('modalDetails').innerHTML=`
-      ${d.paintingName?`<div class="modal-detail" style="grid-column:1/-1"><label>Painting</label><span>${esc(d.paintingName)}</span></div>`:''}
+      ${d.paintingName?`<div class="modal-detail" style="grid-column:1/-1"><label>Painting Name</label><span>${esc(d.paintingName)}</span></div>`:''}
       ${d.artist?`<div class="modal-detail" style="grid-column:1/-1"><label>Artist</label><span>${esc(d.artist)}</span></div>`:''}
       <div class="modal-detail"><label>Location</label><span>${esc(d.location)}</span></div>
       <div class="modal-detail"><label>Country</label><span>${esc(d.country)}</span></div>
@@ -985,7 +1291,16 @@
       <div class="modal-detail"><label>Art Style</label><span>${esc(d.style)}</span></div>
       <div class="modal-detail"><label>Medium</label><span>${esc(d.medium)}</span></div>
       <div class="modal-detail"><label>Period</label><span>${esc(d.period)}</span></div>
-      <div class="modal-detail"><label>Confidence</label><span class="${cc}">${d.confidence}%</span></div>`;
+      <div class="modal-detail"><label>First AI Confidence</label><span>${p.firstConfidence!=null?p.firstConfidence+'%':'—'}</span></div>
+      <div class="modal-detail"><label>Latest AI Confidence</label><span class="${cc}">${d.confidence}%</span></div>`;
+    const locSource=p.locationSource==='gps'?'🛰 Location from GPS metadata':'✦ Location identified by Claude AI';
+    const noteText=d.manuallyEdited?`Originally analyzed by ${d.model||'Claude'} · edited · ${locSource}`:`Analyzed by ${d.model||'Claude'} · ${locSource}`;
+    const who=!adminToken?'':[
+      p.addedBy?`Added by ${p.addedBy}`:'',
+      p.editedBy?`edited by ${p.editedBy}`:'',
+      p.verifiedBy?`verified by ${p.verifiedBy}`:''
+    ].filter(Boolean).join(' · ');
+    document.getElementById('modalNote').textContent=noteText+(who?`\n${who}`:'');
     const r=p.rating;
     const scoreBit=r!=null?`<span class="modal-rating-value">${r.toFixed(1)}</span>`:`<span class="modal-rating-value unrated">Not rated</span>`;
     document.getElementById('modalRating').innerHTML=`
@@ -993,13 +1308,367 @@
         <div class="modal-rating-label">My Rating</div>
         ${scoreBit}
       </div>`;
-    document.getElementById('modalNote').textContent=`${d.manuallyEdited?'Originally analyzed by':'Analyzed by'} ${d.model||'Claude'} · ${p.locationSource==='gps'?'🛰 GPS':'✦ AI'}`;
     const liked=likedIds.has(p.id);
-    document.getElementById('modalTitleLike').innerHTML='';
-    document.getElementById('modalActions').innerHTML=`
+    document.getElementById('modalActionBar').innerHTML=`
       <button class="modal-action-btn${liked?' liked':''}" id="modalLikeBtn" onclick="likePhoto('${p.id}',event)">${liked?'♥':'♡'} ${p.likes||0}</button>
       <button class="modal-action-btn" onclick="sharePhoto('${p.id}')">⤴ Share</button>
-      ${adminToken ? `<span class="spacer"></span><button class="modal-action-btn" onclick="startRerank('${p.id}')">↔ Rate</button>` : ''}`;
+      ${adminToken?`<span class="spacer"></span>
+      <button class="modal-action-btn" onclick="startRerank('${p.id}')">↔ Rate</button>
+      <button class="modal-action-btn${p.verified?' verified':' verify'}" onclick="toggleVerify('${p.id}')">${p.verified?'✓ Verified':'✓ Verify'}</button>
+      <button class="modal-action-btn" onclick="startEdit()">✏️ Edit</button>
+      ${Auth.isSuper()?`<button class="modal-action-btn danger" onclick="deleteFromModal()">🗑 Delete</button>`:''}`:''}`;
+  }
+
+  // ── Verify / edit / delete (same behaviour as index.html) ───────────────────────
+  async function updatePhotoDB(photo, opts={}) {
+    try {
+      const body={ aiData: photo.aiData };
+      if(typeof opts.verified==='boolean') body.verified=opts.verified;
+      if(opts.source) body.source=opts.source;
+      const res=await fetch(`${SERVER_URL}/api/photos/${photo.id}`,{ method:'PUT', headers:authHeaders(), body:JSON.stringify(body) });
+      if(!res.ok) throw new Error(`HTTP ${res.status}`);
+      return true;
+    } catch(err){ console.warn('Could not update photo in DB:',err.message); return false; }
+  }
+
+  async function toggleVerify(id) {
+    const p=photos.find(x=>x.id===id); if(!p||!adminToken) return;
+    const prev=p.verified, next=!prev;
+    p.verified=next; renderModal(p);
+    if(await updatePhotoDB(p,{verified:next,source:'verify'})){
+      p.verifiedBy=next?Auth.name():null; renderModal(p);
+      MobileUX.toast(next?'Marked as verified':'Verification removed');
+    } else { p.verified=prev; renderModal(p); MobileUX.toast('Could not save — try again'); }
+  }
+
+  async function deleteFromModal() {
+    const id=activeId; if(!id||!adminToken||!Auth.isSuper()) return;
+    if(!confirm('Delete this photo? This cannot be undone.')) return;
+    try {
+      const res=await fetch(`${SERVER_URL}/api/photos/${encodeURIComponent(id)}`,{ method:'DELETE', headers:authHeaders() });
+      if(!res.ok) throw new Error(res.status===403?'Only a super admin can delete photos':`HTTP ${res.status}`);
+      closeModal();
+      photos=photos.filter(p=>p.id!==id);
+      renderList();
+    } catch(err){ MobileUX.toast(err.message); }
+  }
+
+  function startEdit() {
+    const p = photos.find(x => x.id === activeId);
+    if (!p) return;
+    const d = p.aiData;
+
+    // Pre-fill edit fields
+    document.getElementById('editPaintingName').value = d.paintingName || '';
+    document.getElementById('editArtistName').value   = d.artist       || '';
+    document.getElementById('editLocation').value     = d.location     || '';
+    document.getElementById('editCountry').value      = d.country      || '';
+    document.getElementById('editStyle').value        = d.style        || '';
+    document.getElementById('editMedium').value       = d.medium       || '';
+    document.getElementById('editPeriod').value       = d.period       || '';
+    document.getElementById('editArtist').value       = d.artistHint   || '';
+    document.getElementById('editDesc').value         = d.description  || '';
+
+    const conf = typeof d.confidence === 'number' ? d.confidence : 75;
+    document.getElementById('editConfidence').value      = conf;
+    document.getElementById('editConfidenceVal').textContent = conf + '%';
+
+    document.getElementById('viewMode').style.display = 'none';
+    document.getElementById('editMode').style.display = '';
+    // Reset re-analyze status from any previous run
+    const reanalyzeStatus = document.getElementById('reanalyzeStatus');
+    if (reanalyzeStatus) { reanalyzeStatus.style.display = 'none'; reanalyzeStatus.textContent = ''; }
+    const reanalyzeBtn = document.getElementById('reanalyzeBtn');
+    if (reanalyzeBtn) { reanalyzeBtn.disabled = false; reanalyzeBtn.innerHTML = '🔄 Re-analyze with AI'; }
+    document.getElementById('editLocation').focus();
+  }
+
+  function saveEdit() {
+    const p=photos.find(x=>x.id===activeId); if(!p) return;
+    const v=id=>document.getElementById(id).value.trim();
+    p.aiData.paintingName = v('editPaintingName') || p.aiData.paintingName;
+    p.aiData.artist       = v('editArtistName')   || p.aiData.artist;
+    p.aiData.location     = v('editLocation')     || p.aiData.location;
+    p.aiData.country      = v('editCountry')      || p.aiData.country;
+    p.aiData.style        = v('editStyle')        || p.aiData.style;
+    p.aiData.medium       = v('editMedium')       || p.aiData.medium;
+    p.aiData.period       = v('editPeriod')       || p.aiData.period;
+    p.aiData.artistHint   = v('editArtist');
+    p.aiData.description  = v('editDesc')         || p.aiData.description;
+    p.aiData.confidence   = parseInt(document.getElementById('editConfidence').value,10);
+    p.aiData.manuallyEdited = true;
+    // Saving an edit means the admin has reviewed this photo, so it counts as verified.
+    p.verified=true; p.editedBy=p.verifiedBy=Auth.name();
+    document.getElementById('viewMode').style.display='';
+    document.getElementById('editMode').style.display='none';
+    renderModal(p);
+    renderList();
+    updatePhotoDB(p,{verified:true,source:'edit'}).then(ok=>{
+      if(!ok){ p.verified=false; if(activeId===p.id) renderModal(p); MobileUX.toast('Could not save — try again'); }
+    });
+  }
+
+  function cancelEdit() {
+    document.getElementById('viewMode').style.display='';
+    document.getElementById('editMode').style.display='none';
+  }
+
+  // ── Places autocomplete (location edit field) ───────────────────────────────────
+  let placesDebounce = null;
+  let placesActiveIdx = -1;
+  let placesSuggestions = [];
+  let placesSessionToken = crypto.randomUUID ? crypto.randomUUID() : String(Math.random());
+
+  function onPlacesInput() {
+    const val = document.getElementById('editLocation').value.trim();
+    clearTimeout(placesDebounce);
+    if (val.length < 2) { closePlacesDropdown(); return; }
+    placesDebounce = setTimeout(() => fetchPlacesSuggestions(val), 300);
+  }
+
+  async function fetchPlacesSuggestions(input) {
+    if (!SERVER_URL) return;
+    try {
+      const res  = await fetch(`${SERVER_URL}/api/places?input=${encodeURIComponent(input)}&sessiontoken=${encodeURIComponent(placesSessionToken)}`);
+      const data = await res.json();
+      placesSuggestions = data.suggestions || [];
+      renderPlacesDropdown();
+    } catch { closePlacesDropdown(); }
+  }
+
+  function renderPlacesDropdown() {
+    const dropdown = document.getElementById('placesDropdown');
+    if (!placesSuggestions.length) { closePlacesDropdown(); return; }
+    dropdown.innerHTML = placesSuggestions.map((s, i) => {
+      const pred  = s.placePrediction || {};
+      const text  = pred.text?.text || '';
+      const parts = text.split(',');
+      const main  = parts[0] || text;
+      const sub   = parts.slice(1).join(',').trim();
+      return `<div class="places-option" data-idx="${i}" onmousedown="selectPlace(${i})">
+        <div class="places-main">${esc(main)}</div>
+        ${sub ? `<div class="places-sub">${esc(sub)}</div>` : ''}
+      </div>`;
+    }).join('');
+    placesActiveIdx = -1;
+    dropdown.classList.add('open');
+  }
+
+  async function selectPlace(idx) {
+    const s    = placesSuggestions[idx];
+    const pred = s?.placePrediction;
+    if (!pred) return;
+
+    const fullText = pred.text?.text || '';
+    document.getElementById('editLocation').value = fullText;
+    closePlacesDropdown();
+
+    // Fetch place details to get country and store coords in geocache
+    if (!pred.placeId) return;
+    try {
+      const res  = await fetch(`${SERVER_URL}/api/place-details?place_id=${encodeURIComponent(pred.placeId)}&sessiontoken=${encodeURIComponent(placesSessionToken)}`);
+      const data = await res.json();
+
+      // Auto-fill country from address components
+      const countryComp = (data.addressComponents || []).find(c => c.types?.includes('country'));
+      if (countryComp) document.getElementById('editCountry').value = countryComp.longText || '';
+
+      // Cache coords so the map can use them without a second geocode call
+      if (data.location) {
+      }
+    } catch { /* non-critical */ }
+
+    // Rotate session token after a complete autocomplete session
+    placesSessionToken = crypto.randomUUID ? crypto.randomUUID() : String(Math.random());
+  }
+
+  function onPlacesKeydown(e) {
+    const dropdown = document.getElementById('placesDropdown');
+    const options  = dropdown.querySelectorAll('.places-option');
+    if (!options.length) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      placesActiveIdx = Math.min(placesActiveIdx + 1, options.length - 1);
+      options.forEach((o, i) => o.classList.toggle('active', i === placesActiveIdx));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      placesActiveIdx = Math.max(placesActiveIdx - 1, 0);
+      options.forEach((o, i) => o.classList.toggle('active', i === placesActiveIdx));
+    } else if (e.key === 'Enter' && placesActiveIdx >= 0) {
+      e.preventDefault();
+      selectPlace(placesActiveIdx);
+    } else if (e.key === 'Escape') {
+      closePlacesDropdown();
+    }
+  }
+
+  function closePlacesDropdown() {
+    document.getElementById('placesDropdown')?.classList.remove('open');
+    placesSuggestions = [];
+    placesActiveIdx   = -1;
+  }
+
+  document.addEventListener('click', e => { if (!e.target.closest('.places-wrap')) closePlacesDropdown(); });
+
+  // ── Re-analyze with AI (edit mode) ──────────────────────────────────────────────
+  function extractJsonObject(text) {
+    const start = text.indexOf('{');
+    if (start === -1) return null;
+    let depth = 0, inStr = false, esc = false;
+    for (let i = start; i < text.length; i++) {
+      const c = text[i];
+      if (inStr) {
+        if (esc) esc = false;
+        else if (c === '\\') esc = true;
+        else if (c === '"') inStr = false;
+      } else if (c === '"') inStr = true;
+      else if (c === '{') depth++;
+      else if (c === '}' && --depth === 0) return text.slice(start, i + 1);
+    }
+    return null; // unbalanced → truncated
+  }
+
+  async function reanalyzeFromEdit() {
+    const p = photos.find(x => x.id === activeId);
+    if (!p || !adminToken) return;
+
+    const btn    = document.getElementById('reanalyzeBtn');
+    const status = document.getElementById('reanalyzeStatus');
+
+    // Read current values from the edit form
+    const paintingName = document.getElementById('editPaintingName').value.trim();
+    const artist       = document.getElementById('editArtistName').value.trim();
+    const location     = document.getElementById('editLocation').value.trim();
+    const style        = document.getElementById('editStyle').value.trim();
+    const medium       = document.getElementById('editMedium').value.trim();
+    const period       = document.getElementById('editPeriod').value.trim();
+
+    // Get image as base64 — prefer original file, fall back to stored thumbnail
+    let base64    = null;
+    let mediaType = 'image/jpeg';
+    if (p.url && p.url.startsWith('data:')) {
+      // Stored thumbnail: data:image/jpeg;base64,<data>
+      const parts = p.url.split(',');
+      base64 = parts[1] || null;
+      const mimeMatch = parts[0].match(/data:([^;]+);/);
+      if (mimeMatch) mediaType = mimeMatch[1];
+    } else if (p.url) {
+      // Saved photo: download the stored image from the server and encode it
+      try {
+        const blob = await (await fetch(p.url)).blob();
+        mediaType = blob.type || 'image/jpeg';
+        base64 = await new Promise((resolve, reject) => {
+          const r = new FileReader();
+          r.onload  = () => resolve(String(r.result).split(',')[1]);
+          r.onerror = reject;
+          r.readAsDataURL(blob);
+        });
+      } catch (_) { base64 = null; }
+    }
+
+    if (!base64) {
+      status.style.display = '';
+      status.textContent   = '⚠ Could not retrieve image data for re-analysis.';
+      return;
+    }
+
+    // Show loading state
+    btn.disabled  = true;
+    btn.innerHTML = `<span class="reanalyze-spinner"></span> Analyzing…`;
+    status.style.display = '';
+    status.textContent   = 'Sending to Claude — this takes a few seconds…';
+
+    // Build confirmed-facts section for the prompt
+    const knownFacts = [
+      paintingName && `Painting Name: ${paintingName}`,
+      artist       && `Artist: ${artist}`,
+      location     && `Location: ${location}`,
+      style        && `Art Style: ${style}`,
+      medium       && `Medium: ${medium}`,
+      period       && `Period: ${period}`,
+    ].filter(Boolean).join('\n');
+
+    const userPrompt = `You are an expert museum curator. The following details about this artwork have been confirmed:
+
+  ${knownFacts || '(no fields confirmed yet — use what you can observe)'}
+
+  Using these confirmed facts together with what you can observe in the image, provide:
+  1. A rich, expert 3–4 sentence description covering: key visual observations, why the style/artist attribution fits, and any notable art-historical significance.
+  2. A revised confidence score (0–100) for the artist/painting identification — given the confirmed details, this should typically be high.
+  3. Expanded artist context: nationality, active period, signature techniques, and where this work fits in their oeuvre.
+  4. Fill in any of the fields below that are currently blank, based on the image and confirmed facts. Do NOT change fields that are already confirmed above.
+
+  Return ONLY a valid JSON object with exactly these keys (raw JSON, no markdown fences):
+  {
+    "description": "...",
+    "confidence": <integer 0–100>,
+    "artistHint": "...",
+    "style": "${style   || ''}",
+    "medium": "${medium || ''}",
+    "period": "${period || ''}"
+  }`;
+
+    try {
+      const res = await fetch(`${SERVER_URL}/api/analyze`, {
+        method:  'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({
+          model:      'claude-opus-5',
+          max_tokens: 2048,
+          messages: [{
+            role: 'user',
+            content: [
+              { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } },
+              { type: 'text',  text: userPrompt }
+            ]
+          }]
+        })
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err?.error?.message || `HTTP ${res.status}`);
+      }
+
+      const data = await res.json();
+      // See note above: skip past any leading "thinking" block to find the actual answer.
+      const text = data.content?.find(b => b.type === 'text')?.text || '';
+      const objText = extractJsonObject(text);
+      if (!objText) {
+        throw new Error(data.stop_reason === 'max_tokens'
+          ? 'AI reply was cut off before finishing — please try again.'
+          : 'AI reply did not contain readable JSON — please try again.');
+      }
+      const parsed = JSON.parse(objText);
+
+      // Update only the regeneratable fields in the edit form
+      // (never overwrite paintingName, artist, location, country — those are confirmed by the curator)
+      if (parsed.description) document.getElementById('editDesc').value        = parsed.description;
+      if (parsed.artistHint)  document.getElementById('editArtist').value      = parsed.artistHint;
+
+      // Only fill style/medium/period if the form field was blank
+      if (!style  && parsed.style)  document.getElementById('editStyle').value  = parsed.style;
+      if (!medium && parsed.medium) document.getElementById('editMedium').value = parsed.medium;
+      if (!period && parsed.period) document.getElementById('editPeriod').value = parsed.period;
+
+      // Update confidence slider
+      if (typeof parsed.confidence === 'number') {
+        const conf = Math.max(0, Math.min(100, parsed.confidence));
+        document.getElementById('editConfidence').value      = conf;
+        document.getElementById('editConfidenceVal').textContent = conf + '%';
+      }
+
+      status.style.color   = '#3a7d44';
+      status.textContent   = '✓ Description and context updated — review and save when ready.';
+
+    } catch (err) {
+      status.style.color = '#c0392b';
+      status.textContent = `⚠ Re-analysis failed: ${err.message}`;
+      console.error('Re-analyze error:', err);
+    }
+
+    btn.disabled  = false;
+    btn.innerHTML = '🔄 Re-analyze with AI';
   }
 
   async function sharePhoto(id) {
