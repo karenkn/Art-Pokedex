@@ -15,15 +15,15 @@
 <body>
 
 <header>
-  <div class="header-logo">
-    <img src="pokedex_pixel_art_palette_repositioned.svg" style="width:30px">
+  <a href="index.html" class="header-logo">
+    <img src="pokedex_pixel_art_palette_repositioned.svg" style="width:30px" alt="">
     <span class="logo-text">Art Pokédex</span>
     <span class="logo-sub">✦ An Inventory of Art in the Wild</span>
-  </div>
+  </a>
   <nav class="header-nav">
     <a href="index.html" class="active">Collection</a>
     <a href="top-works.html">Top Works</a>
-    <a href="blog.html">Design & Process</a>
+    <a href="blog.html">Design &amp; Process</a>
     <a href="model-quality.html">Model Quality</a>
     <a href="team.html" class="super-only" style="display:none">Team</a>
     <a href="submit.html">Submit a Photo</a>
@@ -34,7 +34,7 @@
 <div class="header-mobile-menu" id="headerMobileMenu">
   <a href="index.html" class="active">Collection</a>
   <a href="top-works.html">Top Works</a>
-  <a href="blog.html">Design & Process</a>
+  <a href="blog.html">Design &amp; Process</a>
   <a href="model-quality.html">Model Quality</a>
   <a href="team.html" class="super-only" style="display:none">Team</a>
   <a href="submit.html">Submit a Photo</a>
@@ -70,8 +70,8 @@
   <button class="clear-btn admin-only admin-tools-toggle" id="adminToolsToggle" type="button" aria-expanded="false" aria-controls="adminTools" onclick="toggleAdminTools()" style="display:none">⚙ Admin tools</button>
   <div class="admin-tools" id="adminTools">
     <button class="clear-btn admin-only super-only" onclick="clearAll()" style="display:none">🗑 Clear All</button>
-    <button class="clear-btn admin-only" id="normalizeBtn" onclick="normalizeAllLocations()" style="display:none">🔧 Normalize Locations</button>
     <button class="clear-btn admin-only review-btn" id="reviewBtn" onclick="startReview()" style="display:none">✅ Review AI results</button>
+    <button class="clear-btn admin-only" id="normalizeBtn" onclick="normalizeAllLocations()" style="display:none">🔧 Normalize Locations</button>
     <button class="clear-btn admin-only normalize-artists-btn" onclick="normalizeArtists()" style="display:none">👤 Normalize Artists</button>
     <button class="clear-btn admin-only" id="optimizeImagesBtn" onclick="optimizeImages()" style="display:none">🖼 Optimize Images</button>
     <button class="clear-btn admin-only" id="consolidateStylesBtn" onclick="consolidateStyles()" style="display:none">🎨 Consolidate Styles</button>

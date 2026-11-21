@@ -27,6 +27,7 @@
     .header-mobile-menu { display: none; background: #0d0d0d; border-bottom: 1px solid #1a1a1a; position: sticky; top: 58px; z-index: 199; }
     .header-mobile-menu.open { display: block; }
     .header-mobile-menu a, .header-mobile-menu button { display: block; width: 100%; text-align: left; padding: 13px 24px; color: #777; background: none; border: none; font-size: 12px; letter-spacing: 0.8px; text-transform: uppercase; font-family: inherit; cursor: pointer; border-bottom: 1px solid #191919; }
+    .header-mobile-menu a { text-decoration: none; }
     .header-mobile-menu a.active { color: #fff; }
     @media (max-width: 767px) { .header-nav { display: none; } .header-hamburger { display: flex; align-items: center; } }
 
@@ -476,6 +477,86 @@
       .modal-img-wrap img { max-height: 200px; }
       .rank-thumb { width: 56px; height: 56px; }
     }
+  
+    /* ── Shared black nav bar (identical on every page; copied from styles.css) ── */
+/* ── Headers ── */
+    header {
+      background: #111;
+      color: #fff;
+      padding: 0 clamp(16px, 4vw, 48px);
+      height: 58px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      position: sticky; top: 0; z-index: 200;
+      box-shadow: none;
+    }
+    .header-logo {
+      display: flex; align-items: center; gap: 10px; flex-shrink: 0; text-decoration: none;
+    }
+    .logo-text {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(15px, 2.5vw, 18px);
+      color: #fff; font-weight: 600; letter-spacing: 0.3px;
+    }
+    .logo-sub {
+      font-size: 10px; color: #4a4a4a; letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+    @media (max-width: 639px) { .logo-sub { display: none; } }
+    .header-nav {
+      display: flex; align-items: center; gap: 24px; margin-left: auto;
+    }
+    .header-nav a {
+      color: #666; text-decoration: none; font-size: 11px;
+      letter-spacing: 1px; text-transform: uppercase; font-weight: 500;
+      transition: color 0.2s;
+    }
+    .header-nav a:hover { color: #fff; }
+    .header-nav a.active { color: #fff; }
+    /* hamburger for mobile */
+    .header-hamburger {
+      display: none; background: none; border: none;
+      cursor: pointer; color: #aaa; font-size: 20px; padding: 4px;
+      margin-left: auto; line-height: 1;
+    }
+    .header-mobile-menu {
+      display: none; background: #0d0d0d;
+      border-bottom: 1px solid #1a1a1a;
+      position: sticky; top: 58px; z-index: 199;
+    }
+    .header-mobile-menu.open { display: block; }
+    .header-mobile-menu a, .header-mobile-menu button {
+      display: block; width: 100%; text-align: left;
+      padding: 13px 24px; color: #777; background: none; border: none;
+      font-size: 12px; letter-spacing: 0.8px; text-transform: uppercase;
+      font-family: inherit; cursor: pointer; border-bottom: 1px solid #191919;
+    }
+    .header-mobile-menu a { text-decoration: none; }
+    .header-mobile-menu a.active { color: #fff; }
+    @media (max-width: 767px) {
+      .header-nav { display: none; }
+      .header-hamburger { display: flex; align-items: center; }
+    }
+    
+/* ── Admin login button in header ── */
+    .admin-btn {
+      padding: 5px 13px;
+      border-radius: 3px;
+      border: 1px solid #3a3a3a;
+      background: transparent;
+      color: #777;
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    .admin-btn:hover { border-color: #fff; color: #fff; }
+    .admin-btn.logged-in { border-color: #5ae09a; color: #5ae09a; }
+    @media (min-width: 768px) and (max-width: 1100px) { .header-nav { gap: 14px; } .logo-sub { display: none !important; } }
   </style>
   <style>@media (min-width: 768px) and (max-width: 1100px) { .header-nav { gap: 14px; } .logo-sub { display: none !important; } } /* room for the extra nav link */</style>
 
@@ -651,12 +732,10 @@
 <body>
 
 <header>
-  <a class="header-logo" href="index.html">
+  <a href="index.html" class="header-logo">
     <img src="pokedex_pixel_art_palette_repositioned.svg" style="width:30px" alt="">
-    <span>
-      <span class="logo-text">Art Pokédex</span>
-      <span class="logo-sub" style="display:block">✦ An Inventory of Art in the Wild</span>
-    </span>
+    <span class="logo-text">Art Pokédex</span>
+    <span class="logo-sub">✦ An Inventory of Art in the Wild</span>
   </a>
   <nav class="header-nav">
     <a href="index.html">Collection</a>
