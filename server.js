@@ -1120,25 +1120,25 @@ app.get('/api/corrections.csv', authenticate, async (_req, res) => {
 app.get('/api/quality', authenticate, async (_req, res) => {
   try {
     // Reconciliation of every photo in the gallery:
-    //   gallery = community + excluded + verified + unverified
-    // `excluded` = verified photos with no saved AI original (edited before tracking began): they can't be
-    // scored, so they are left out of the dashboard. The dashboard's photos (`total`) = verified + unverified.
+    //   gallery = community + verified + unverified
+    // Verified photos with no saved AI original (hand-edited before tracking began) are part of `verified`:
+    // they count as "corrected" (the AI's answer was changed). `legacy` says how many there are.
     const rc = (await pool.query(
       `SELECT COUNT(*)::int AS gallery,
               COUNT(*) FILTER (WHERE COALESCE(user_submitted, FALSE))::int AS community,
-              COUNT(*) FILTER (WHERE NOT COALESCE(user_submitted, FALSE) AND COALESCE(verified, FALSE) AND ai_original IS NULL)::int AS excluded,
-              COUNT(*) FILTER (WHERE NOT COALESCE(user_submitted, FALSE) AND COALESCE(verified, FALSE) AND ai_original IS NOT NULL)::int AS verified,
+              COUNT(*) FILTER (WHERE NOT COALESCE(user_submitted, FALSE) AND COALESCE(verified, FALSE) AND ai_original IS NULL)::int AS legacy,
+              COUNT(*) FILTER (WHERE NOT COALESCE(user_submitted, FALSE) AND COALESCE(verified, FALSE))::int AS verified,
               COUNT(*) FILTER (WHERE NOT COALESCE(user_submitted, FALSE) AND NOT COALESCE(verified, FALSE))::int AS unverified,
               COUNT(*) FILTER (WHERE NOT COALESCE(user_submitted, FALSE) AND NOT COALESCE(verified, FALSE) AND COALESCE(manually_edited, FALSE))::int AS unverified_edited
          FROM photos`)).rows[0] || {};
-    const counts = { total: (rc.verified || 0) + (rc.unverified || 0), verified: rc.verified || 0, measurable: rc.verified || 0, excluded: rc.excluded || 0 };
-    const recon = { gallery: rc.gallery || 0, community: rc.community || 0, excluded: rc.excluded || 0,
+    const counts = { total: (rc.verified || 0) + (rc.unverified || 0), verified: rc.verified || 0, measurable: rc.verified || 0, legacy: rc.legacy || 0 };
+    const recon = { gallery: rc.gallery || 0, community: rc.community || 0, legacy: rc.legacy || 0,
                     verified: rc.verified || 0, unverified: rc.unverified || 0, unverifiedEdited: rc.unverified_edited || 0 };
 
     // Accuracy: compare the AI's original answer to the final (verified) value
     const rows = (await pool.query(
-      `SELECT ai_original, painting_name, artist, style, period, location, confidence, ai_confidence, prompt_version, verified_by
-         FROM photos WHERE verified AND ai_original IS NOT NULL AND NOT COALESCE(user_submitted, FALSE)`)).rows;
+      `SELECT ai_original, manually_edited, painting_name, artist, style, period, location, confidence, ai_confidence, prompt_version, verified_by
+         FROM photos WHERE verified AND NOT COALESCE(user_submitted, FALSE)`)).rows;
     const col = { paintingName: 'painting_name', artist: 'artist', style: 'style', period: 'period', location: 'location' };
     const fields = {}, ver = {};
     const conf = { low: { n: 0, ok: 0 }, mid: { n: 0, ok: 0 }, high: { n: 0, ok: 0 } };
@@ -1147,7 +1147,8 @@ app.get('/api/quality', authenticate, async (_req, res) => {
     // Per person, counted in PHOTOS so the numbers tie out:  verified = unchanged + corrected.
     //   unchanged = verified photos where the AI's artist, style, period and location were all kept
     //   corrected = verified photos where at least one of them was changed
-    // (verified photos with no saved AI original are excluded everywhere)
+    // Verified photos with no saved AI original (hand-edited before tracking) have nothing to compare field by
+    // field, so they count as corrected when they were hand-edited; they are left out of the per-field accuracy only.
     // Work with no username recorded (done before accounts existed) counts as the main admin;
     // '__normalize' = the Normalize tools (photos they changed).
     const people = {};
@@ -1157,7 +1158,7 @@ app.get('/api/quality', authenticate, async (_req, res) => {
     };
     for (const f of QUALITY_FIELDS) fields[f] = { checked: 0, matched: 0, rate: null };
     for (const r of rows) {
-      let all = true;
+      let all = r.ai_original ? true : !r.manually_edited;
       const pk = person(r.verified_by || '__earlier');
       pk.verified++;
       for (const f of QUALITY_FIELDS) {
