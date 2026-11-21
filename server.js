@@ -106,6 +106,19 @@ pool.query(`
   .then(() => pool.query(`
     UPDATE photos SET ai_confidence = COALESCE((ai_original->>'confidence')::numeric::int, confidence)
      WHERE ai_confidence IS NULL AND COALESCE((ai_original->>'confidence')::numeric::int, confidence) IS NOT NULL`))
+  // Photos that were hand-edited before tracking began have no saved AI answer. Their CURRENT values become
+  // the baseline ("original") from now on: verifying them unchanged counts as Unchanged, and any later edit
+  // counts as Corrected. `legacyBaseline` marks them so the dashboard can say how many there are.
+  // Only fills blanks, so it is safe on every start.
+  .then(() => pool.query(`
+    UPDATE photos SET ai_original =
+        jsonb_build_object('paintingName', COALESCE(painting_name,''), 'artist', COALESCE(artist,''),
+                           'location', COALESCE(location,''), 'country', COALESCE(country,''),
+                           'style', COALESCE(style,''), 'medium', COALESCE(medium,''), 'period', COALESCE(period,''),
+                           'description', COALESCE(description,''), 'artistHint', COALESCE(artist_hint,''),
+                           'confidence', confidence)
+        || CASE WHEN COALESCE(manually_edited, FALSE) THEN jsonb_build_object('legacyBaseline', TRUE) ELSE '{}'::jsonb END
+     WHERE ai_original IS NULL AND NOT COALESCE(user_submitted, FALSE)`))
   .catch(err => console.error('Database init error:', err.message));
 
 // Team accounts. The original ADMIN_PASSWORD_HASH login (no username) stays as the main super admin.
@@ -834,6 +847,7 @@ function snapshotFields(d) {
   // The AI's own confidence at analysis time — kept so it isn't lost when "Re-analyze with AI" or
   // the confidence slider later overwrites the live value.
   o.confidence = (d && typeof d.confidence === 'number') ? d.confidence : null;
+  if (d && d.legacyBaseline) o.legacyBaseline = true;   // baseline taken from an already hand-edited photo
   return o;
 }
 // Loose equality used for accuracy: ignore case, accents, punctuation and spacing
@@ -1015,13 +1029,14 @@ app.put('/api/photos/:id', authenticate, async (req, res) => {
       period: cur.period || '', description: cur.description || '', artistHint: cur.artist_hint || '',
       confidence: cur.confidence ?? null          // current stored value = the AI's original, until this save
     };
-    // First edit of a photo that has no stored original: the pre-edit values ARE the AI's answer
-    // (unless it was already hand-edited, in which case the original is unknown).
-    const baseline = cur.ai_original || (!cur.manually_edited ? prev : null);
+    // First touch of a photo that has no stored original: its values right now become the baseline.
+    // If it was hand-edited before tracking, the true AI answer is unknown, so the current values stand in
+    // for it (verified unchanged = Unchanged; edited later = Corrected).
+    const baseline = cur.ai_original || (cur.manually_edited ? { ...prev, legacyBaseline: true } : prev);
     // An older snapshot without confidence: fill it in now, but only if the live value is still the original
     const backfillConf = (cur.ai_original && cur.ai_original.confidence === undefined && !cur.manually_edited && typeof cur.confidence === 'number')
       ? cur.confidence : null;
-    const rows = diffCorrections(baseline || prev, prev, next);
+    const rows = diffCorrections(baseline, prev, next);
 
     await pool.query(
       `UPDATE photos SET
@@ -1047,7 +1062,7 @@ app.put('/api/photos/:id', authenticate, async (req, res) => {
         d.period       || '', d.confidence ?? null, d.description || '',
         d.artistHint   || '', d.manuallyEdited || false,
         req.params.id,
-        baseline ? JSON.stringify(snapshotFields(baseline)) : null,
+        JSON.stringify(snapshotFields(baseline)),
         typeof verified === 'boolean' ? verified : null,
         req.user.name,
         rows.length > 0 || source === 'edit',         // a real edit (not just a verify click)
@@ -1121,12 +1136,11 @@ app.get('/api/quality', authenticate, async (_req, res) => {
   try {
     // Reconciliation of every photo in the gallery:
     //   gallery = community + verified + unverified
-    // Verified photos with no saved AI original (hand-edited before tracking began) are part of `verified`:
-    // they count as "corrected" (the AI's answer was changed). `legacy` says how many there are.
+    // `legacy` = verified photos whose baseline is their values when tracking began (they were hand-edited before then).
     const rc = (await pool.query(
       `SELECT COUNT(*)::int AS gallery,
               COUNT(*) FILTER (WHERE COALESCE(user_submitted, FALSE))::int AS community,
-              COUNT(*) FILTER (WHERE NOT COALESCE(user_submitted, FALSE) AND COALESCE(verified, FALSE) AND ai_original IS NULL)::int AS legacy,
+              COUNT(*) FILTER (WHERE NOT COALESCE(user_submitted, FALSE) AND COALESCE(verified, FALSE) AND ai_original->>'legacyBaseline' = 'true')::int AS legacy,
               COUNT(*) FILTER (WHERE NOT COALESCE(user_submitted, FALSE) AND COALESCE(verified, FALSE))::int AS verified,
               COUNT(*) FILTER (WHERE NOT COALESCE(user_submitted, FALSE) AND NOT COALESCE(verified, FALSE))::int AS unverified,
               COUNT(*) FILTER (WHERE NOT COALESCE(user_submitted, FALSE) AND NOT COALESCE(verified, FALSE) AND COALESCE(manually_edited, FALSE))::int AS unverified_edited
@@ -1147,8 +1161,7 @@ app.get('/api/quality', authenticate, async (_req, res) => {
     // Per person, counted in PHOTOS so the numbers tie out:  verified = unchanged + corrected.
     //   unchanged = verified photos where the AI's artist, style, period and location were all kept
     //   corrected = verified photos where at least one of them was changed
-    // Verified photos with no saved AI original (hand-edited before tracking) have nothing to compare field by
-    // field, so they count as corrected when they were hand-edited; they are left out of the per-field accuracy only.
+    // Photos hand-edited before tracking use their values at that time as the baseline (see the startup migration).
     // Work with no username recorded (done before accounts existed) counts as the main admin;
     // '__normalize' = the Normalize tools (photos they changed).
     const people = {};
@@ -1158,7 +1171,7 @@ app.get('/api/quality', authenticate, async (_req, res) => {
     };
     for (const f of QUALITY_FIELDS) fields[f] = { checked: 0, matched: 0, rate: null };
     for (const r of rows) {
-      let all = r.ai_original ? true : !r.manually_edited;
+      let all = true;
       const pk = person(r.verified_by || '__earlier');
       pk.verified++;
       for (const f of QUALITY_FIELDS) {

@@ -387,7 +387,7 @@ function layout(cards) {
 
 function render(q) {
   const measurable = q.measurable || 0;
-  const legacy = q.legacy || 0;   // verified photos edited before tracking: counted as corrected, no field-level detail
+  const legacy = q.legacy || 0;   // verified photos edited before tracking: their values at that time are the baseline
 
   // Everything here is counted in photos, so  Verified = Unchanged + Corrected.
   // (Individual field edits are a different unit — they appear in the per-field tables below.)
@@ -396,7 +396,7 @@ function render(q) {
   const sum = k => reviewers.reduce((a, p) => a + (p[k] || 0), 0);
   const unchangedTotal = sum('unchanged'), correctedTotal = sum('corrected'), verifiedTotal = sum('verified');
   const kpis = `<div class="mq-kpis">
-    ${kpi(q.total, 'Photos', rc.gallery ? `${rc.verified} verified + ${rc.unverifiedEdited} edited + ${Math.max(0, rc.unverified - rc.unverifiedEdited)} to review` : '')}
+    ${kpi(q.total, 'Photos', rc.gallery ? `${rc.verified} verified + ${Math.max(0, q.total - rc.verified)} to review` : '')}
     ${kpi(verifiedTotal, 'Verified')}
     ${kpi(q.total ? pct(verifiedTotal / q.total) : '—', 'Reviewed')}
     ${kpi(unchangedTotal, 'Unchanged')}
@@ -404,27 +404,25 @@ function render(q) {
     ${kpi(verifiedTotal ? pct(unchangedTotal / verifiedTotal) : '—', '% Accuracy')}
   </div>`;
 
-  const toReviewT = Math.max(0, (rc.unverified || 0) - (rc.unverifiedEdited || 0));
+  const toReviewT = Math.max(0, q.total - (rc.verified || 0));   // anything not verified yet, edited or not
   const recon = rc.gallery ? `<div class="mq-recon">
       <b>How the counts tie</b>
       <div>All photos in the gallery <b>${rc.gallery}</b> = community submissions <b>${rc.community}</b> + <b>Photos</b> shown here <b>${q.total}</b></div>
-      <div><b>Photos ${q.total}</b> = verified <b>${rc.verified}</b> + edited, not yet verified <b>${rc.unverifiedEdited}</b> + to review <b>${toReviewT}</b></div>
+      <div><b>Photos ${q.total}</b> = verified <b>${rc.verified}</b> + to review <b>${toReviewT}</b></div>
       <div>Verified <b>${rc.verified}</b> = unchanged <b>${unchangedTotal}</b> + corrected <b>${correctedTotal}</b></div>
-${legacy ? `      <div class="mq-recon-note">${legacy} of the verified photos were edited before tracking began, so the AI’s original answer wasn’t saved. They are counted as corrected (they were hand-edited), which slightly understates accuracy, and they are left out of the per-field charts. Photos you edit or verify from now on keep the AI’s original answer.</div>` : ''}
+${legacy ? `      <div class="mq-recon-note">${legacy} of the verified photos were edited before tracking began, so the AI’s original answer wasn’t saved. Their values when tracking began are treated as the original: they count as Unchanged unless you edit them again, which slightly overstates accuracy. Photos you add from now on keep the AI’s true original answer.</div>` : ''}
     </div>` : '';
 
   const cards = [];
 
-  // Review progress: every reviewable photo is in exactly one of three states, so the slices add up.
-  //   Verified = confirmed or fixed;  Edited = hand-edited but not verified yet;  To review = untouched
-  const editedOnly = Math.min(rc.unverifiedEdited || 0, Math.max(0, q.total - q.verified));
-  const toReview = Math.max(0, q.total - q.verified - editedOnly);
+  // Review progress: every photo is either Verified or still To review (hand-edited photos that
+  // haven't been verified yet count as To review, same as untouched ones).
+  const toReview = Math.max(0, q.total - q.verified);
   cards.push(card('Review progress', donut([
     { label: 'Verified', value: q.verified, color: '#1b6e3c' },
-    { label: 'Edited', value: editedOnly, color: '#d98324' },
     { label: 'To review', value: toReview, color: '#d8d8d8' }
   ], q.total ? pct(q.verified / q.total) : '—', 'verified'),
-    q.total ? `${q.verified} + ${editedOnly} + ${toReview} = ${q.total} photos. “Edited” = hand-edited but not verified yet` : ''));
+    q.total ? `${q.verified} + ${toReview} = ${q.total} photos` : ''));
 
   cards.push(card('AI answers kept as-is', measurable ? donut([
     { label: 'Fully correct', value: q.fullyRight, color: '#1b6e3c' },
@@ -491,7 +489,7 @@ ${legacy ? `      <div class="mq-recon-note">${legacy} of the verified photos we
   document.getElementById('mqRoot').innerHTML = `${kpis}
     ${layout(cards)}
     ${recon}
-    <p class="mq-foot">Based on <b>${q.verified}</b> verified photos${legacy ? `, including ${legacy} edited before tracking began (counted as corrected)` : ''}.
+    <p class="mq-foot">Based on <b>${q.verified}</b> verified photos${legacy ? `, including ${legacy} edited before tracking began (their values then are treated as the original)` : ''}.
       Aim for 100+ for reliable numbers. "Fully correct" means artist, style, period and location were all kept; titles are shown separately because unrecognized works get descriptive titles.<br>
       To score a new prompt against your held-out photos, run <code>node eval.js</code>.</p>`;
 }
