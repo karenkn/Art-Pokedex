@@ -612,6 +612,26 @@
   }
 }
 
+
+/* ── Phone-friendly edit form (iPhone 13 mini 375px and up) ───────────────────────────
+   Inputs are 16px so iOS Safari doesn't zoom the page when a field is focused. */
+@media (max-width: 767px) {
+  .edit-field input, .edit-field textarea, .login-modal input { font-size: 16px !important; min-height: 44px; box-sizing: border-box; }
+  .edit-field textarea { min-height: 120px; line-height: 1.45; }
+  .edit-field label { font-size: 11px; }
+  .edit-confidence { gap: 12px; }
+  .edit-confidence input[type=range] { min-height: 32px; }
+  .edit-confidence span { font-size: 15px; min-width: 44px; }
+  .places-dropdown { max-height: 40vh; -webkit-overflow-scrolling: touch; }
+  .places-option { padding: 12px 14px; font-size: 15px; min-height: 44px; box-sizing: border-box; }
+  .places-option .places-sub { font-size: 12px; }
+  .verify-hint { font-size: 13px; line-height: 1.4; }
+  #editMode { padding-bottom: env(safe-area-inset-bottom, 0px); }
+}
+/* One column on narrow phones so every field is full width and easy to tap */
+@media (max-width: 480px) {
+  .edit-grid { grid-template-columns: 1fr; gap: 12px; }
+}
   </style>
 </head>
 <body>

@@ -17,7 +17,7 @@
     .mq-kpi b { display: block; font-size: 26px; line-height: 1.1; color: #1a1a1a; }
     .mq-kpi small { display: block; margin-top: 4px; font-size: 11px; color: #999; line-height: 1.3; }
     .mq-kpi span { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: #888; }
-    .mq-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
+    .mq-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr)); gap: 14px; }
     .mq-grid .q-card.wide { grid-column: 1 / -1; }
     .mq-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 14px; }
     .mq-grid2 .q-card { min-width: 0; }
@@ -75,6 +75,40 @@
       .mq-ft-row .num { text-align: left; font-size: 12px; font-weight: 500; }
       .mq-ft-row .num::before { content: attr(data-l) ' '; color: #999; font-weight: 400; }
     }
+    /* ── Phones: iPhone 13 mini (375px) and up ── */
+    .mq-wrap { overflow-x: hidden; padding-left: max(20px, env(safe-area-inset-left, 0px)); padding-right: max(20px, env(safe-area-inset-right, 0px)); }
+    .q-fill .quality-row > span:first-child, .q-card .quality-row > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    @media (max-width: 700px) {
+      .mq-pp-head { display: none; }
+      .mq-pp-row { grid-template-columns: repeat(4, 1fr); row-gap: 6px; column-gap: 8px; padding: 12px 0; }
+      .mq-pp-row > .mq-pp-name { grid-column: 1 / -1; white-space: normal; }
+      .mq-pp-row > .mq-stack { grid-column: 1 / -1; }
+      .mq-pp-row .num, .mq-ft-row .num { text-align: left; font-size: 15px; line-height: 1.2; }
+      .mq-pp-row .num::before, .mq-ft-row .num::before { content: attr(data-l); display: block; font-size: 10px; font-weight: 400; color: #999; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 2px; white-space: nowrap; }
+      .mq-ft-row { grid-template-columns: repeat(auto-fit, minmax(64px, 1fr)); row-gap: 8px; column-gap: 8px; padding: 12px 0; }
+      .mq-ft-row > :first-child, .mq-ft-row .mq-stack { grid-column: 1 / -1; }
+      .mq-ft-row .num { font-size: 15px; font-weight: 600; }
+    }
+    @media (max-width: 520px) {
+      .mq-wrap { padding-top: 20px; padding-bottom: calc(48px + env(safe-area-inset-bottom, 0px)); }
+      .mq-wrap h1 { font-size: 25px; }
+      .mq-lead { font-size: 13px; margin-bottom: 16px; }
+      .mq-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+      .mq-kpi { padding: 12px 12px; }
+      .mq-kpi b { font-size: 22px; }
+      .mq-kpi span { font-size: 10px; }
+      .mq-kpi small { font-size: 10px; }
+      .mq-grid, .mq-grid2 { gap: 12px; }
+      .q-card { padding: 14px 12px; }
+      .q-card .q-donut-wrap { gap: 14px; }
+      .q-card .q-donut { width: 150px; height: 150px; }
+      .q-card .q-legend { font-size: 13px; width: 100%; columns: 1; }
+      .q-fill .quality-row { grid-template-columns: 70px 1fr 42px; font-size: 13px; }
+      .mq-legend-inline { font-size: 12px; gap: 6px 12px; }
+      .mq-recon { padding: 12px; font-size: 12.5px; }
+      #mqTools .login-cancel-btn { width: 100%; min-height: 44px; }
+    }
+    @media (max-width: 360px) { .q-card .q-donut { width: 132px; height: 132px; } .q-fill .quality-row { grid-template-columns: 62px 1fr 40px; } }
     .mq-status { font-size: 13px; color: #888; margin: 0 0 12px; }
   </style>
 </head>
@@ -333,7 +367,7 @@ function peopleChart(rows, firstCol = 'Person') {
     return `<div class="mq-pp-row">
       <span class="mq-pp-name" title="${escHtml(r.label)}">${escHtml(r.label)}${r.sub ? `<span class="mq-ft-sub">${escHtml(r.sub)}</span>` : ''}</span>
       ${bar}${num(r.verified, 'Verified')}${num(r.unchanged, 'Unchanged')}${num(r.corrected, 'Corrected')}
-      <span class="num">${pct(r.accuracy)}</span></div>`;
+      <span class="num" data-l="% Accuracy">${pct(r.accuracy)}</span></div>`;
   }).join('');
   const legend = `<div class="mq-legend-inline"><span><i style="background:${KEEP_COLOR}"></i>Unchanged</span><span><i style="background:${CHANGE_COLOR}"></i>Corrected</span></div>`;
   return `<div class="mq-pp">${head}${body}</div>${legend}`;
