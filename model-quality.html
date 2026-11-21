@@ -410,7 +410,8 @@ function render(q) {
       <div>All photos in the gallery <b>${rc.gallery}</b> = community submissions <b>${rc.community}</b> + <b>Photos</b> shown here <b>${q.total}</b></div>
       <div><b>Photos ${q.total}</b> = verified <b>${rc.verified}</b> + to review <b>${toReviewT}</b></div>
       <div>Verified <b>${rc.verified}</b> = unchanged <b>${unchangedTotal}</b> + corrected <b>${correctedTotal}</b></div>
-${legacy ? `      <div class="mq-recon-note">${legacy} of the verified photos were edited before tracking began, so the AI’s original answer wasn’t saved. Their values when tracking began are treated as the original: they count as Unchanged unless you edit them again, which slightly overstates accuracy. Photos you add from now on keep the AI’s true original answer.</div>` : ''}
+      <div class="mq-recon-note"><b>How photos are counted.</b> <i>Verified</i> = you confirmed it, or saved an edit (saving an edit verifies the photo). <i>To review</i> = not verified yet, including photos that were hand-edited but not verified. <i>Unchanged</i> = verified with the artist, style, period and location all kept as the AI first answered. <i>Corrected</i> = verified after at least one of those four was changed. Community submissions are not included.</div>
+      ${legacy ? `<div class="mq-recon-note"><b>Photos edited before tracking began.</b> ${legacy} verified photo${legacy === 1 ? ' was' : 's were'} hand-edited before the AI’s original answer was being saved, so there is nothing to compare against. Their values at the time tracking began are treated as the original: they count as Unchanged unless edited again, and any later edit counts as Corrected. This slightly overstates accuracy. Every photo added from now on keeps the AI’s true original answer.</div>` : ''}
     </div>` : '';
 
   const cards = [];
@@ -489,8 +490,9 @@ ${legacy ? `      <div class="mq-recon-note">${legacy} of the verified photos we
   document.getElementById('mqRoot').innerHTML = `${kpis}
     ${layout(cards)}
     ${recon}
-    <p class="mq-foot">Based on <b>${q.verified}</b> verified photos${legacy ? `, including ${legacy} edited before tracking began (their values then are treated as the original)` : ''}.
-      Aim for 100+ for reliable numbers. "Fully correct" means artist, style, period and location were all kept; titles are shown separately because unrecognized works get descriptive titles.<br>
+    <p class="mq-foot">Based on <b>${q.verified}</b> verified photos${legacy ? `, including ${legacy} edited before tracking began (their values at that point count as the original, so accuracy may read slightly high)` : ''}.
+      Aim for 100+ for reliable numbers. “Fully correct” means artist, style, period and location were all kept; titles are shown separately because unrecognized works get descriptive titles.
+      Confidence charts use the AI’s <b>first</b> confidence score, which “Re-analyze with AI” never changes. Correction counts are individual field changes, so they differ from the photo counts above.<br>
       To score a new prompt against your held-out photos, run <code>node eval.js</code>.</p>`;
 }
 
