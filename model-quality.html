@@ -258,9 +258,9 @@ function donut(segments, big, small) {
       <text x="60" y="73" text-anchor="middle" class="q-small">${escHtml(small || '')}</text>
     </svg><ul class="q-legend">${legend}</ul></div>`;
 }
-function bars(rows, { max, color } = {}) {
+function bars(rows, { max, color, labelW } = {}) {
   const m = max ?? Math.max(1, ...rows.map(r => r.value));
-  return rows.map(r => `<div class="quality-row"><span>${escHtml(r.label)}</span>
+  return rows.map(r => `<div class="quality-row"${labelW ? ` style="grid-template-columns:${labelW}px 1fr auto"` : ''}><span${labelW ? ' style="overflow:visible;text-overflow:clip"' : ''}>${escHtml(r.label)}</span>
     <div class="quality-bar"><div style="width:${Math.round(Math.min(1, r.value / m) * 100)}%;${color ? 'background:' + color : ''}"></div></div>
     <b>${escHtml(r.text ?? String(r.value))}</b></div>`).join('');
 }
@@ -470,18 +470,19 @@ function render(q) {
   cards.push(card('Correction type by field', hasFieldData ? fieldTable(fieldRows, [
       { label: 'Verified', key: 'verified' },
       { label: 'Unchanged', key: 'unchanged', color: KEEP_COLOR },
+      { label: 'Corrections', key: 'corrections' },
       { label: 'Format', key: 'format', color: TYPE_COLORS.format },
       { label: 'Filled in', key: 'filled', color: TYPE_COLORS.filled },
       { label: 'Different', key: 'different', color: TYPE_COLORS.different },
       { label: '% Accuracy', key: 'accuracy', percent: true }
     ]) : empty,
-    hasFieldData ? 'Format = same answer, standardized ("Van Gogh" → "Vincent van Gogh") · Filled in = "Unknown" replaced · Different = a different answer' : '', 'wide'));
+    hasFieldData ? 'Corrections = Format + Filled in + Different · Format = same answer, standardized ("Van Gogh" → "Vincent van Gogh") · Filled in = "Unknown" replaced · Different = a different answer' : '', 'wide'));
 
   const c = q.confidence || {};
   const confRows = [['low', 'Low (<55%)'], ['mid', 'Medium (55–79%)'], ['high', 'High (80%+)']]
     .filter(([k]) => c[k] && c[k].n)
     .map(([k, label]) => ({ label, value: c[k].ok / c[k].n, text: `${pct(c[k].ok / c[k].n)} (${c[k].n})` }));
-  cards.push(card('Fully correct by first AI confidence score', confRows.length ? bars(confRows, { max: 1 }) : empty,
+  cards.push(card('Fully correct by first AI confidence score', confRows.length ? bars(confRows, { max: 1, labelW: 128 }) : empty,
     confRows.length ? `Grouped by the first confidence score the AI gave each photo — saved once, so “Re-analyze with AI” never changes it (the latest score can still change). Photo count in brackets${q.confidenceFallback ? `. ${q.confidenceFallback} photo${q.confidenceFallback === 1 ? '' : 's'} had no saved score and use the current one` : ''}` : ''));
 
   const vr = (q.byVersion || []).map(v => ({ label: `${versionLabel(v.version)} (${v.photos})`, value: v.photos ? v.fullyRight / v.photos : 0, text: pct(v.photos ? v.fullyRight / v.photos : null) }));
