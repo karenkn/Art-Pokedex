@@ -2075,8 +2075,7 @@ function photoCard(p, featured = false) {
   if (p.status === 'done' && p.aiData) {
     const d = p.aiData;
     const confClass = d.confidence >= 80 ? 'confidence-high' : d.confidence >= 55 ? 'confidence-med' : 'confidence-low';
-    const editedBadge = d.manuallyEdited ? `<span class="manually-edited-badge">✎ edited</span>` : '';
-    const verifiedBadge = (p.verified && adminToken) ? `<span class="verified-badge" title="Reviewed and confirmed">✓ verified</span>` : '';
+    const verifiedBadge = p.verified ? `<span class="verified-badge" title="Reviewed and confirmed">✓ verified</span>` : '';
     const artistHtml = d.artist ? `<div class="card-artist">${escHtml(d.artist)}</div>` : '';
     // Movement · medium on one italic line
     const movementHtml = d.style ? `<div class="card-movement">${escHtml(d.style)}${d.medium ? ' · ' + escHtml(d.medium) : ''}</div>` : '';
@@ -2087,7 +2086,7 @@ function photoCard(p, featured = false) {
       ${locationHtml}
       <div class="photo-meta">
         <div class="photo-meta-left">
-          <span>${escHtml(d.period)}${editedBadge}${verifiedBadge}</span>
+          <span>${escHtml(d.period)}${verifiedBadge}</span>
         </div>
         <div class="photo-meta-right">
           <span class="${confClass}">✓ ${d.confidence}%</span>
@@ -2204,7 +2203,7 @@ function refreshModalView(p) {
   const displayTitle = d.paintingName || p.name;
   document.getElementById('modalTitle').innerHTML =
     escHtml(displayTitle) + (d.manuallyEdited ? ' <span class="manually-edited-badge">✎ edited</span>' : '')
-    + ((p.verified && adminToken) ? ' <span class="verified-badge">✓ verified</span>' : '');
+    + (p.verified ? ' <span class="verified-badge">✓ verified</span>' : '');
 
   document.getElementById('modalTags').innerHTML = `
     <span class="tag location" style="font-size:13px">📍 ${escHtml(d.location)}</span>
@@ -2283,6 +2282,7 @@ function refreshModalView(p) {
       onclick="likePhoto('${p.id}', event)">${liked ? '♥' : '♡'} ${p.likes || 0}</button>
     <button class="modal-action-btn" onclick="sharePhoto('${p.id}')">⤴ Share</button>
     ${adminToken ? `<span class="spacer"></span>
+    <button class="modal-action-btn${p.pinned ? ' featured' : ''}" onclick="pinPhoto('${p.id}', ${p.pinned ? 'false' : 'true'})">${p.pinned ? '★ Featured' : '☆ Feature'}</button>
     <button class="modal-action-btn${p.verified ? ' verified' : ' verify'}" onclick="toggleVerify('${p.id}')">${p.verified ? '✓ Verified' : '✓ Verify'}</button>
     <button class="modal-action-btn" onclick="startEdit()">✏️ Edit</button>
     ${Auth.isSuper() ? `<button class="modal-action-btn danger" onclick="deleteFromModal()">🗑 Delete</button>` : ''}` : ''}`;
@@ -2530,6 +2530,7 @@ async function pinPhoto(id, shouldPin) {
   }
   photo.pinned = shouldPin;
   render();
+  if (activeModalId === id) refreshModalView(photo);
 
   // Sync with server
   try {
@@ -2546,11 +2547,13 @@ async function pinPhoto(id, shouldPin) {
     const data = await res.json();
     photo.pinned = !!data.pinned;
     render();
+    if (activeModalId === id) refreshModalView(photo);
   } catch (err) {
     console.warn('Pin sync failed:', err.message);
     // Full rollback — restore every photo to its pre-click pinned state
     photos.forEach(p => { p.pinned = prevStates.get(p.id) ?? false; });
     render();
+    if (activeModalId === id) refreshModalView(photo);
   }
 }
 

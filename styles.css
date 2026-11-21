@@ -1402,3 +1402,4 @@ body.select-mode .photo-card.selected {
 @media (max-width: 480px) {
   .edit-grid { grid-template-columns: 1fr; gap: 12px; }
 }
+.modal-action-btn.featured { border-color: #e0b44c; color: #8a6200; background: #fff6dc; }

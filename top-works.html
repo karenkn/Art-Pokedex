@@ -632,6 +632,7 @@
 @media (max-width: 480px) {
   .edit-grid { grid-template-columns: 1fr; gap: 12px; }
 }
+.modal-action-btn.featured { border-color: #e0b44c; color: #8a6200; background: #fff6dc; }
   </style>
 </head>
 <body>
@@ -1183,7 +1184,7 @@
         rating: r.rating ?? null, eloScore: r.elo_score ?? 1500,
         tier: r.tier || null, likes: r.likes || 0,
         locationSource: r.location_source || 'ai',
-        verified: !!r.verified, firstConfidence: r.ai_confidence ?? null,
+        pinned: !!r.pinned, verified: !!r.verified, firstConfidence: r.ai_confidence ?? null,
         addedBy: r.added_by || null, editedBy: r.edited_by || null, verifiedBy: r.verified_by || null,
         aiData: {
           paintingName: r.painting_name||'', artist: r.artist||'',
@@ -1283,7 +1284,7 @@
     document.getElementById('modalImg').src=p.url;
     const displayTitle=d.paintingName||p.name;
     document.getElementById('modalTitle').innerHTML=esc(displayTitle)+(d.manuallyEdited?' <span class="manually-edited-badge">✎ edited</span>':'')
-      +((p.verified&&adminToken)?' <span class="verified-badge">✓ verified</span>':'');
+      +(p.verified?' <span class="verified-badge">✓ verified</span>':'');
     document.getElementById('modalTags').innerHTML=`
       <span class="tag location" style="font-size:13px">📍 ${esc(d.location)}</span>
       <span class="tag style"    style="font-size:13px">🎨 ${esc(d.style)}</span>
@@ -1334,6 +1335,7 @@
       <button class="modal-action-btn" onclick="sharePhoto('${p.id}')">⤴ Share</button>
       ${adminToken?`<span class="spacer"></span>
       <button class="modal-action-btn" onclick="startRerank('${p.id}')">↔ Rate</button>
+      <button class="modal-action-btn${p.pinned?' featured':''}" onclick="pinPhoto('${p.id}',${p.pinned?'false':'true'})">${p.pinned?'★ Featured':'☆ Feature'}</button>
       <button class="modal-action-btn${p.verified?' verified':' verify'}" onclick="toggleVerify('${p.id}')">${p.verified?'✓ Verified':'✓ Verify'}</button>
       <button class="modal-action-btn" onclick="startEdit()">✏️ Edit</button>
       ${Auth.isSuper()?`<button class="modal-action-btn danger" onclick="deleteFromModal()">🗑 Delete</button>`:''}`:''}`;
@@ -1349,6 +1351,27 @@
       if(!res.ok) throw new Error(`HTTP ${res.status}`);
       return true;
     } catch(err){ console.warn('Could not update photo in DB:',err.message); return false; }
+  }
+
+  // Feature (pin) a photo: it becomes the featured card in its group on the gallery page.
+  // Only one photo per location + style + artist group can be featured at a time.
+  async function pinPhoto(id, shouldPin) {
+    const photo=photos.find(p=>p.id===id); if(!photo||!adminToken) return;
+    const prev=new Map(photos.map(p=>[p.id,!!p.pinned]));
+    if(shouldPin){
+      const key=p=>`${p.aiData?.location}|${p.aiData?.style}|${p.aiData?.artist}`;
+      const g=key(photo); photos.forEach(p=>{ if(key(p)===g) p.pinned=false; });
+    }
+    photo.pinned=shouldPin; renderModal(photo);
+    try {
+      const res=await fetch(`${SERVER_URL}/api/photos/${id}/pin`,{ method:'PATCH', headers:authHeaders(), body:JSON.stringify({pinned:shouldPin}) });
+      if(!res.ok) throw new Error(`HTTP ${res.status}`);
+      photo.pinned=!!(await res.json()).pinned; renderModal(photo);
+      MobileUX.toast(photo.pinned?'Featured in its group':'Removed from featured');
+    } catch(err){
+      photos.forEach(p=>{ p.pinned=prev.get(p.id)??false; });
+      renderModal(photo); MobileUX.toast('Could not save — try again');
+    }
   }
 
   async function toggleVerify(id) {
