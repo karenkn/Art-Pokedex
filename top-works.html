@@ -633,6 +633,19 @@
   .edit-grid { grid-template-columns: 1fr; gap: 12px; }
 }
 .modal-action-btn.featured { border-color: #e0b44c; color: #8a6200; background: #fff6dc; }
+
+/* ── Modal layout clean-up: no sideways scroll, action buttons share each row evenly ── */
+.modal, .modal-bg { max-width: 100%; }
+.modal-body { overflow-x: hidden; min-width: 0; box-sizing: border-box; }
+#viewMode, #editMode, .modal-title-row, .modal-tags, .modal-detail-grid, .modal-rating-row { min-width: 0; max-width: 100%; }
+.modal-title, .modal-desc, .modal-artist-hint, .modal-note, .modal-detail, .modal-detail span { overflow-wrap: anywhere; word-break: break-word; }
+.modal-detail-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.modal-img-wrap img { max-width: 100%; }
+.modal-action-bar { flex-wrap: wrap; gap: 8px; box-sizing: border-box; }
+.modal-action-bar .spacer { display: none; }
+.modal-action-btn { flex: 1 1 calc(33.333% - 8px); min-width: 0; padding: 0 8px; white-space: nowrap; box-sizing: border-box; }
+.modal-action-bar:has(.review-progress) .modal-action-btn { flex-basis: calc(50% - 8px); }
+@media (max-width: 360px) { .modal-action-btn { font-size: 12.5px; padding: 0 6px; } }
   </style>
 </head>
 <body>
