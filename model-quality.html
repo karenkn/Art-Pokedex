@@ -129,6 +129,7 @@
 <main class="mq-wrap">
   <h1>Model Quality</h1>
   <p class="mq-lead">How often the AI's answers hold up once you've reviewed them. Every photo you verify is compared with what the AI originally said, so these numbers get more reliable as you verify more.</p>
+  <div id="mqTools" style="display:none;margin:0 0 14px"><button class="login-cancel-btn" id="mqDownload" onclick="downloadCorrections()">⬇ Download corrections (CSV)</button></div>
   <div id="mqRoot"></div>
 </main>
 
@@ -263,6 +264,21 @@ function showGate() {
     <button class="login-submit-btn" onclick="toggleAdminLogin()">Log in</button></div>`;
 }
 
+async function downloadCorrections() {
+  const btn = document.getElementById('mqDownload');
+  const label = btn.textContent; btn.disabled = true; btn.textContent = 'Preparing…';
+  try {
+    const res = await fetch(`${serverUrl}/api/corrections.csv`, { headers: authHeaders(), cache: 'no-store' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const url = URL.createObjectURL(await res.blob());
+    const a = document.createElement('a');
+    a.href = url; a.download = `corrections-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  } catch (err) { alert('Could not download: ' + err.message); }
+  finally { btn.disabled = false; btn.textContent = label; }
+}
+
 async function loadDashboard() {
   const root = document.getElementById('mqRoot');
   root.innerHTML = '<p class="mq-status">Loading…</p>';
@@ -274,6 +290,7 @@ async function loadDashboard() {
     }
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     render(await res.json());
+    document.getElementById('mqTools').style.display = '';
   } catch (err) {
     root.innerHTML = `<div class="mq-gate"><p class="quality-note">Could not load: ${escHtml(err.message)}</p>
       <button class="login-submit-btn" onclick="loadDashboard()">Try again</button></div>`;

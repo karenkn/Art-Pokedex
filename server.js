@@ -1090,6 +1090,33 @@ function classifyCorrection(field, ai, human) {
 }
 // Location grouping lives in location-type.js (shared with the website).
 const { LOCATION_TYPES, classifyLocation } = require('./location-type.js');
+// ── GET /api/corrections.csv ── admin: every logged correction as a CSV download ───────────────
+function csvCell(v) {
+  if (v === null || v === undefined) return '';
+  let t = String(v);
+  if (/^[=+\-@\t\r]/.test(t)) t = "'" + t;          // stop spreadsheet formula injection
+  return /[",\n\r]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t;
+}
+app.get('/api/corrections.csv', authenticate, async (_req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT c.created_at, c.photo_id, p.painting_name, p.location AS current_location, c.field,
+              c.ai_value, c.human_value, c.source, c.user_name, c.model, c.prompt_version,
+              p.ai_confidence AS first_ai_confidence, COALESCE(p.verified, FALSE) AS photo_verified
+         FROM corrections c LEFT JOIN photos p ON p.id = c.photo_id
+        ORDER BY c.created_at DESC, c.id DESC`);
+    const cols = ['created_at','photo_id','painting_name','current_location','field','ai_value','human_value',
+                  'source','user_name','model','prompt_version','first_ai_confidence','photo_verified'];
+    const csv = [cols.join(',')].concat(rows.map(r => cols.map(k => csvCell(r[k] instanceof Date ? r[k].toISOString() : r[k])).join(','))).join('\r\n');
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="corrections.csv"');
+    res.send('\ufeff' + csv);
+  } catch (err) {
+    console.error('corrections.csv error:', err.message);
+    res.status(500).json({ error: 'Could not export corrections' });
+  }
+});
+
 app.get('/api/quality', authenticate, async (_req, res) => {
   try {
     // Reconciliation of every photo in the gallery:
