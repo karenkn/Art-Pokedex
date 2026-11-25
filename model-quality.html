@@ -145,7 +145,7 @@
 <div class="login-modal-bg" id="loginModalBg">
   <div class="login-modal">
     <h2>Admin Login</h2>
-    <p>Enter your admin password to view model quality.</p>
+    <p>Log in to download the corrections data and see each reviewer’s results.</p>
     <div class="login-error" id="loginError"></div>
     <input type="text" id="adminUsernameInput" placeholder="Username (leave blank for main admin)" autocomplete="username"
            onkeydown="if(event.key==='Enter') document.getElementById('adminUsernameInput').focus()" />
@@ -189,7 +189,7 @@ function updateAdminUI() {
   Auth.apply();
   const mob = document.querySelector('#headerMobileMenu button');
   if (mob) mob.textContent = on ? '🔓 Logout' : '🔒 Admin Login';
-  if (on) loadDashboard(); else showGate();
+  loadDashboard();   // everyone sees the numbers; only admins get the extras (download button, per-person detail)
 }
 function toggleAdminLogin() {
   if (adminToken) {
@@ -289,13 +289,6 @@ const kpi = (value, label, note) => `<div class="mq-kpi"><b>${escHtml(value)}</b
 const versionLabel = v => { const m = /^v(\d+)$/i.exec(String(v || '')); return m ? `Version ${m[1]}` : (!v || v === 'unknown' ? 'Version 1' : String(v)); };
 
 // ── Render ──────────────────────────────────────────────────────────────────
-function showGate() {
-  document.getElementById('mqRoot').innerHTML = `<div class="mq-gate">
-    <h2 style="margin:0 0 6px;font-family:'Playfair Display',serif">Admin only</h2>
-    <p class="quality-note">Log in to see how well the AI's answers hold up.</p>
-    <button class="login-submit-btn" onclick="toggleAdminLogin()">Log in</button></div>`;
-}
-
 async function downloadCorrections() {
   const btn = document.getElementById('mqDownload');
   const label = btn.textContent; btn.disabled = true; btn.textContent = 'Preparing…';
@@ -313,16 +306,21 @@ async function downloadCorrections() {
 
 async function loadDashboard() {
   const root = document.getElementById('mqRoot');
+  const admin = !!adminToken;
   root.innerHTML = '<p class="mq-status">Loading…</p>';
+  document.getElementById('mqTools').style.display = 'none';
   try {
-    const res = await fetch(`${serverUrl}/api/quality`, { headers: authHeaders(), cache: 'no-store' });
-    if (res.status === 401) {
+    // Visitors get the public endpoint (aggregate numbers only); admins get the full one.
+    const res = admin
+      ? await fetch(`${serverUrl}/api/quality`, { headers: authHeaders(), cache: 'no-store' })
+      : await fetch(`${serverUrl}/api/quality/public`);
+    if (res.status === 401 && admin) {
       adminToken = null; try { localStorage.removeItem('adminToken'); } catch (_) {}
       updateAdminUI(); return;
     }
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    render(await res.json());
-    document.getElementById('mqTools').style.display = '';
+    render(await res.json(), { publicView: !admin });
+    document.getElementById('mqTools').style.display = admin ? '' : 'none';
   } catch (err) {
     root.innerHTML = `<div class="mq-gate"><p class="quality-note">Could not load: ${escHtml(err.message)}</p>
       <button class="login-submit-btn" onclick="loadDashboard()">Try again</button></div>`;
@@ -341,6 +339,7 @@ function peopleRows(list) {
     m.verified += p.verified || 0; m.unchanged += p.unchanged || 0; m.corrected += p.corrected || 0;
   }
   const rows = Object.values(merged).map(p => {
+    if (p.key === '__reviewers') return { order: 0, label: 'Reviewers', sub: 'all team members combined', verified: p.verified, unchanged: p.unchanged, corrected: p.corrected, accuracy: p.verified ? p.unchanged / p.verified : null };
     if (p.key === '__normalize') return { order: 3, label: 'Normalize tools', sub: 'automated tools', verified: null, unchanged: null, corrected: p.corrected, accuracy: null, tool: true };
     // What kind of reviewer is this? admin = a person, muse = the research agent; anyone else shows their role.
     const KIND = { admin: 'human review', muse: 'agentic research' };
@@ -383,7 +382,7 @@ function layout(cards) {
     <div class="mq-stack-gap">${wide.flatMap(pick).join('')}</div>`;
 }
 
-function render(q) {
+function render(q, { publicView = false } = {}) {
   const measurable = q.measurable || 0;
   const legacy = q.legacy || 0;   // verified photos edited before tracking: their values at that time are the baseline
 
@@ -463,7 +462,7 @@ function render(q) {
 
   const people = peopleRows(q.byUser || []);
   cards.push(card('Where changes came from', people.length ? peopleChart(people) : empty,
-    people.length ? 'Photos each person verified: unchanged (AI’s artist, style, period and location all kept) + corrected (at least one changed) = verified. Normalize tools shows photos it changed.' : ''));
+    people.length ? (publicView ? 'Photos reviewed: ' : 'Photos each person verified: ') + 'unchanged (AI’s artist, style, period and location all kept) + corrected (at least one changed) = verified. Normalize tools shows photos it changed.' : ''));
 
   cards.push(card('Correction type by field', hasFieldData ? fieldTable(fieldRows, [
       { label: 'Verified', key: 'verified' },
@@ -492,7 +491,7 @@ function render(q) {
     <p class="mq-foot">Based on <b>${q.verified}</b> verified photos${legacy ? `, including ${legacy} edited before tracking began (their values at that point count as the original, so accuracy may read slightly high)` : ''}.
       Aim for 100+ for reliable numbers. “Fully correct” means artist, style, period and location were all kept; titles are shown separately because unrecognized works get descriptive titles.
       Confidence charts use the AI’s <b>first</b> confidence score, which “Re-analyze with AI” never changes. Correction counts are individual field changes, so they differ from the photo counts above.<br>
-      To score a new prompt against your held-out photos, run <code>node eval.js</code>.</p>`;
+      ${publicView ? '' : 'To score a new prompt against your held-out photos, run <code>node eval.js</code>.'}</p>`;
 }
 
 // ── Boot ────────────────────────────────────────────────────────────────────

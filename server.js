@@ -1132,7 +1132,7 @@ app.get('/api/corrections.csv', authenticate, async (_req, res) => {
   }
 });
 
-app.get('/api/quality', authenticate, async (_req, res) => {
+async function buildQuality() {
   try {
     // Reconciliation of every photo in the gallery:
     //   gallery = community + verified + unverified
@@ -1229,14 +1229,58 @@ app.get('/api/quality', authenticate, async (_req, res) => {
       accuracy: p.verified ? p.unchanged / p.verified : null
     }));
 
-    res.json({
+    return ({
       ...counts, recon, fields, fullyRight,
       correctionTotal: cor.length, byField, byType, byUser, byLocationType: LOCATION_TYPES.map(k => locTypes[k]), typeByField, confidence: conf, confidenceFallback: confFallback,
       byVersion: Object.values(ver).sort((x, y) => String(x.version).localeCompare(String(y.version), undefined, { numeric: true }))
     });
   } catch (err) {
     console.error('Quality error:', err.message);
-    res.status(500).json({ error: err.message });
+    throw err;
+  }
+}
+
+// Admin: the full dashboard data (includes each reviewer's username and role)
+app.get('/api/quality', authenticate, async (_req, res) => {
+  try { res.json(await buildQuality()); }
+  catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Public: numbers only. An explicit allow-list of aggregate counts — no usernames, photo ids, titles,
+// artists, locations, images or any row-level data. Everyone who reviewed is combined into one row.
+function publicQuality(q) {
+  const reviewers = (q.byUser || []).filter(p => p.key !== '__normalize');
+  const sum = k => reviewers.reduce((a, p) => a + (p[k] || 0), 0);
+  const verified = sum('verified'), unchanged = sum('unchanged'), corrected = sum('corrected');
+  const byUser = [{ key: '__reviewers', verified, unchanged, corrected, accuracy: verified ? unchanged / verified : null }];
+  const norm = (q.byUser || []).find(p => p.key === '__normalize');
+  if (norm && norm.corrected) byUser.push({ key: '__normalize', corrected: norm.corrected });
+  const num = v => (typeof v === 'number' && isFinite(v) ? v : 0);
+  const r = q.recon || {};
+  return {
+    total: num(q.total), verified: num(q.verified), measurable: num(q.measurable), legacy: num(q.legacy),
+    recon: { gallery: num(r.gallery), community: num(r.community), legacy: num(r.legacy), verified: num(r.verified),
+             unverified: num(r.unverified), unverifiedEdited: num(r.unverifiedEdited) },
+    fields: Object.fromEntries(Object.entries(q.fields || {}).map(([k, v]) => [k, { checked: num(v.checked), matched: num(v.matched), rate: v.rate }])),
+    fullyRight: num(q.fullyRight), correctionTotal: num(q.correctionTotal),
+    byField: q.byField || {}, byType: q.byType || {}, typeByField: q.typeByField || {},
+    byLocationType: (q.byLocationType || []).map(l => ({ type: l.type, verified: num(l.verified), unchanged: num(l.unchanged), corrected: num(l.corrected) })),
+    confidence: q.confidence || {}, confidenceFallback: num(q.confidenceFallback),
+    byVersion: (q.byVersion || []).map(v => ({ version: v.version, photos: num(v.photos), fullyRight: num(v.fullyRight) })),
+    byUser
+  };
+}
+const publicQualityLimit = rateLimit({ windowMs: 60 * 1000, max: 30, standardHeaders: true, legacyHeaders: false, message: { error: 'Too many requests.' } });
+let publicQualityCache = { at: 0, data: null };
+app.get('/api/quality/public', publicQualityLimit, async (_req, res) => {
+  try {
+    if (!publicQualityCache.data || Date.now() - publicQualityCache.at > 5 * 60 * 1000) {      // recompute at most every 5 minutes
+      publicQualityCache = { at: Date.now(), data: publicQuality(await buildQuality()) };
+    }
+    res.set('Cache-Control', 'public, max-age=300');
+    res.json(publicQualityCache.data);
+  } catch (err) {
+    res.status(500).json({ error: 'Could not load model quality.' });
   }
 });
 
