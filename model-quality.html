@@ -339,7 +339,7 @@ function peopleRows(list) {
     m.verified += p.verified || 0; m.unchanged += p.unchanged || 0; m.corrected += p.corrected || 0;
   }
   const rows = Object.values(merged).map(p => {
-    if (p.key === '__reviewers') return { order: 0, label: 'Reviewers', sub: 'all team members combined', verified: p.verified, unchanged: p.unchanged, corrected: p.corrected, accuracy: p.verified ? p.unchanged / p.verified : null };
+    if (p.key === '__others') return { order: 2, label: 'Other editors', sub: 'combined', verified: p.verified, unchanged: p.unchanged, corrected: p.corrected, accuracy: p.verified ? p.unchanged / p.verified : null };
     if (p.key === '__normalize') return { order: 3, label: 'Normalize tools', sub: 'automated tools', verified: null, unchanged: null, corrected: p.corrected, accuracy: null, tool: true };
     // What kind of reviewer is this? admin = a person, muse = the research agent; anyone else shows their role.
     const KIND = { admin: 'human review', muse: 'agentic research' };

@@ -1247,12 +1247,24 @@ app.get('/api/quality', authenticate, async (_req, res) => {
 });
 
 // Public: numbers only. An explicit allow-list of aggregate counts — no usernames, photo ids, titles,
-// artists, locations, images or any row-level data. Everyone who reviewed is combined into one row.
+// artists, locations, images or any row-level data. Only admin and muse are named; other reviewers are combined.
 function publicQuality(q) {
-  const reviewers = (q.byUser || []).filter(p => p.key !== '__normalize');
-  const sum = k => reviewers.reduce((a, p) => a + (p[k] || 0), 0);
-  const verified = sum('verified'), unchanged = sum('unchanged'), corrected = sum('corrected');
-  const byUser = [{ key: '__reviewers', verified, unchanged, corrected, accuracy: verified ? unchanged / verified : null }];
+  // admin and muse stay broken out; every other reviewer is combined so no other usernames are shown
+  const SHOWN = ['admin', 'muse'];
+  const mk = (key, list, role) => {
+    const verified = list.reduce((a, p) => a + (p.verified || 0), 0);
+    const unchanged = list.reduce((a, p) => a + (p.unchanged || 0), 0);
+    const corrected = list.reduce((a, p) => a + (p.corrected || 0), 0);
+    return { key, role, verified, unchanged, corrected, accuracy: verified ? unchanged / verified : null };
+  };
+  const people = (q.byUser || []).filter(p => p.key !== '__normalize');
+  const byUser = [];
+  for (const k of SHOWN) {
+    const p = people.filter(x => x.key === k);
+    if (p.length) byUser.push(mk(k, p, k === 'admin' ? 'superadmin' : (p[0].role || 'editor')));
+  }
+  const others = people.filter(p => !SHOWN.includes(p.key));
+  if (others.some(p => p.verified || p.corrected)) byUser.push(mk('__others', others, null));
   const norm = (q.byUser || []).find(p => p.key === '__normalize');
   if (norm && norm.corrected) byUser.push({ key: '__normalize', corrected: norm.corrected });
   const num = v => (typeof v === 'number' && isFinite(v) ? v : 0);
