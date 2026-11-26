@@ -5,8 +5,10 @@ const jwt         = require('jsonwebtoken');
 const rateLimit   = require('express-rate-limit');
 const compression = require('compression');
 const { Pool }    = require('pg');
+const ArtPrompts  = require('./prompts.js');   // the same prompts the website uses; the server builds public analysis requests from them
 
 const app = express();
+app.set('trust proxy', 1);   // behind Railway's proxy: rate limits must see each visitor's real IP, not the proxy's
 app.use(compression()); // gzip all responses — cuts JSON payload by ~70%
 
 // ── Middleware ────────────────────────────────────────────────────────────────
@@ -320,10 +322,20 @@ app.get('/api/config', (_req, res) => {
   res.json({ mapsApiKey: process.env.GOOGLE_MAPS_API_KEY || '' });
 });
 
+// Public Google / geocoding endpoints: throttled per visitor and capped per day (team members are exempt).
+const googleLimit = (max) => rateLimit({ windowMs: 60 * 1000, max, standardHeaders: true, legacyHeaders: false, message: { error: 'Too many requests. Please slow down.' } });
+const placesAutoLimit    = googleLimit(40);   // typing in the location box
+const placeDetailsLimit  = googleLimit(20);
+const nearbyLimit        = googleLimit(15);
+const geocodeLimit       = googleLimit(15);   // OpenStreetMap's policy is ~1 request/second
+const validCoord = (lat, lng) => { const a = Number(lat), o = Number(lng); return Number.isFinite(a) && Number.isFinite(o) && Math.abs(a) <= 90 && Math.abs(o) <= 180; };
+const validToken = t => t === undefined || (typeof t === 'string' && /^[A-Za-z0-9._-]{1,100}$/.test(t));
+
 // ── GET /api/places?input=<query>&sessiontoken=<token> — Places Autocomplete ──
-app.get('/api/places', async (req, res) => {
+app.get('/api/places', publicGoogleGate(placesAutoLimit), async (req, res) => {
   const { input, sessiontoken } = req.query;
-  if (!input || input.length < 2) return res.json({ suggestions: [] });
+  if (typeof input !== 'string' || input.length < 2) return res.json({ suggestions: [] });
+  if (input.length > 150 || !validToken(sessiontoken)) return res.status(400).json({ error: 'Invalid request.' });
   const key = process.env.GOOGLE_MAPS_API_KEY;
   if (!key) return res.status(500).json({ error: 'GOOGLE_MAPS_API_KEY not set on server.' });
   try {
@@ -332,6 +344,7 @@ app.get('/api/places', async (req, res) => {
       headers: { 'Content-Type': 'application/json', 'X-Goog-Api-Key': key },
       body: JSON.stringify({ input, sessionToken: sessiontoken || undefined })
     });
+    recordUsage('places');
     const data = await response.json();
     res.json(data);
   } catch (err) {
@@ -341,9 +354,10 @@ app.get('/api/places', async (req, res) => {
 });
 
 // ── GET /api/place-details?place_id=<id>&sessiontoken=<token> — Place Details ──
-app.get('/api/place-details', async (req, res) => {
+app.get('/api/place-details', publicGoogleGate(placeDetailsLimit), async (req, res) => {
   const { place_id, sessiontoken } = req.query;
   if (!place_id) return res.status(400).json({ error: 'place_id required' });
+  if (typeof place_id !== 'string' || !/^[A-Za-z0-9_-]{10,300}$/.test(place_id) || !validToken(sessiontoken)) return res.status(400).json({ error: 'Invalid request.' });
   const key = process.env.GOOGLE_MAPS_API_KEY;
   if (!key) return res.status(500).json({ error: 'GOOGLE_MAPS_API_KEY not set on server.' });
   try {
@@ -353,6 +367,7 @@ app.get('/api/place-details', async (req, res) => {
     const response = await fetch(url, {
       headers: { 'X-Goog-Api-Key': key, 'Content-Type': 'application/json' }
     });
+    recordUsage('places');
     const data = await response.json();
     res.json(data);
   } catch (err) {
@@ -362,11 +377,12 @@ app.get('/api/place-details', async (req, res) => {
 });
 
 // ── GET /api/reverse-geocode?lat=<lat>&lng=<lng> — Nominatim proxy ───────────
-app.get('/api/reverse-geocode', async (req, res) => {
+app.get('/api/reverse-geocode', publicGoogleGate(geocodeLimit), async (req, res) => {
   const { lat, lng } = req.query;
   if (!lat || !lng) return res.status(400).json({ error: 'lat and lng required' });
+  if (!validCoord(lat, lng)) return res.status(400).json({ error: 'Invalid coordinates.' });
   try {
-    const url = `https://nominatim.openstreetmap.org/reverse?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lng)}&format=json&accept-language=en`;
+    const url = `https://nominatim.openstreetmap.org/reverse?lat=${encodeURIComponent(Number(lat))}&lon=${encodeURIComponent(Number(lng))}&format=json&accept-language=en`;
     const response = await fetch(url, {
       headers: { 'User-Agent': 'ArtPhotoOrganizer/1.0' }
     });
@@ -382,9 +398,10 @@ app.get('/api/reverse-geocode', async (req, res) => {
 // Uses the Places API (New) Nearby Search to find the closest cultural venue
 // (museum, gallery, concert hall, auction house, etc.) within 100 m.
 // Much more accurate for indoor art venues than Nominatim street-address lookup.
-app.get('/api/reverse-geocode-places', async (req, res) => {
+app.get('/api/reverse-geocode-places', publicGoogleGate(nearbyLimit), async (req, res) => {
   const { lat, lng } = req.query;
   if (!lat || !lng) return res.status(400).json({ error: 'lat and lng required' });
+  if (!validCoord(lat, lng)) return res.status(400).json({ error: 'Invalid coordinates.' });
   const key = process.env.GOOGLE_MAPS_API_KEY;
   if (!key) return res.status(500).json({ error: 'GOOGLE_MAPS_API_KEY not set on server.' });
   try {
@@ -414,6 +431,7 @@ app.get('/api/reverse-geocode-places', async (req, res) => {
         ]
       })
     });
+    recordUsage('places');
     const data = await response.json();
     res.json(data);
   } catch (err) {
@@ -622,10 +640,88 @@ app.patch('/api/photos/:id/rating', authenticate, async (req, res) => {
 });
 
 // ── Claude proxy — public (rate-limited) / admin (unlimited) ─────────────────
-// SECURITY: We reconstruct the Anthropic request from a strict whitelist of
-// fields rather than forwarding req.body directly. This prevents a caller from
-// overriding the model, inflating max_tokens, injecting extra messages, or
-// triggering any other Anthropic API feature.
+// ── Daily usage tracking + spending caps ──────────────────────────────────────
+// Every Anthropic / Google call is counted per UTC day in `api_usage` (survives restarts). Public (logged-out)
+// traffic is capped per day; logged-in team members are never blocked, only counted.
+//   PUBLIC_ANALYZE_DAILY_USD   estimated $ cap for public AI analysis       (default 2)
+//   PUBLIC_ANALYZE_DAILY_CALLS hard call cap for public AI analysis         (default 100)
+//   PUBLIC_ANALYZE_EST_USD     $ assumed per in-flight call while waiting   (default 0.05)
+//   ANALYZE_USD_PER_MTOK_IN / _OUT   price used to estimate cost            (default 5 / 25)
+//   PUBLIC_PLACES_DAILY_CALLS  cap on public Google Places/Geocoding calls  (default 1500)
+//   PUBLIC_ANALYZE_MODEL       model used for public analysis               (default claude-opus-4-6)
+pool.query(`
+  CREATE TABLE IF NOT EXISTS api_usage (
+    day           DATE   NOT NULL,
+    kind          TEXT   NOT NULL,
+    calls         INTEGER NOT NULL DEFAULT 0,
+    input_tokens  BIGINT  NOT NULL DEFAULT 0,
+    output_tokens BIGINT  NOT NULL DEFAULT 0,
+    cost_usd      NUMERIC(12,4) NOT NULL DEFAULT 0,
+    PRIMARY KEY (day, kind)
+  )`).catch(err => console.error('api_usage init error:', err.message));
+const envNum = (name, dflt) => { const n = Number(process.env[name]); return Number.isFinite(n) && n >= 0 ? n : dflt; };
+const CAPS = {
+  analyzeUsd:   envNum('PUBLIC_ANALYZE_DAILY_USD', 2),
+  analyzeCalls: envNum('PUBLIC_ANALYZE_DAILY_CALLS', 100),
+  analyzeEst:   envNum('PUBLIC_ANALYZE_EST_USD', 0.05),
+  placesCalls:  envNum('PUBLIC_PLACES_DAILY_CALLS', 1500)
+};
+const PRICE_IN = envNum('ANALYZE_USD_PER_MTOK_IN', 5), PRICE_OUT = envNum('ANALYZE_USD_PER_MTOK_OUT', 25);
+const PUBLIC_ANALYZE_MODEL = process.env.PUBLIC_ANALYZE_MODEL || 'claude-opus-4-6';
+const utcDay = () => new Date().toISOString().slice(0, 10);
+const usageCache = new Map();         // `${day}|${kind}` -> { calls, cost, inflight }
+async function usageFor(kind) {
+  const day = utcDay(), k = `${day}|${kind}`;
+  for (const key of usageCache.keys()) if (!key.startsWith(day)) usageCache.delete(key);    // drop yesterday
+  if (!usageCache.has(k)) {
+    let row = {};
+    try { row = (await pool.query('SELECT calls, cost_usd FROM api_usage WHERE day = $1 AND kind = $2', [day, kind])).rows[0] || {}; } catch (_) {}
+    if (!usageCache.has(k)) usageCache.set(k, { calls: Number(row.calls) || 0, cost: Number(row.cost_usd) || 0, inflight: 0 });
+  }
+  return usageCache.get(k);
+}
+async function recordUsage(kind, { inTok = 0, outTok = 0, cost = 0 } = {}) {
+  const u = await usageFor(kind); u.calls += 1; u.cost += cost;
+  try {
+    await pool.query(
+      `INSERT INTO api_usage (day, kind, calls, input_tokens, output_tokens, cost_usd) VALUES ($1,$2,1,$3,$4,$5)
+       ON CONFLICT (day, kind) DO UPDATE SET calls = api_usage.calls + 1, input_tokens = api_usage.input_tokens + $3,
+         output_tokens = api_usage.output_tokens + $4, cost_usd = api_usage.cost_usd + $5`,
+      [utcDay(), kind, Math.round(inTok), Math.round(outTok), cost.toFixed(4)]);
+  } catch (err) { console.error('usage write failed:', err.message); }
+}
+const estimateCost = usage => ((usage?.input_tokens || 0) * PRICE_IN + (usage?.output_tokens || 0) * PRICE_OUT) / 1e6;
+
+// Is the caller a logged-in team member? (valid token; team accounts must still be active)
+async function isTeamRequest(req) {
+  try {
+    const h = req.headers['authorization'] || '';
+    if (!JWT_SECRET || !h.startsWith('Bearer ')) return false;
+    const payload = jwt.verify(h.slice(7), JWT_SECRET);
+    if (payload.uid == null) return true;
+    const u = (await pool.query('SELECT active FROM users WHERE id = $1', [payload.uid])).rows[0];
+    return !!(u && u.active);
+  } catch { return false; }
+}
+// Throttle + cap helper for the public Google endpoints. Team members bypass both.
+function publicGoogleGate(limiter) {
+  return async (req, res, next) => {
+    if (await isTeamRequest(req)) return next();
+    limiter(req, res, async () => {
+      const u = await usageFor('places');
+      if (u.calls >= CAPS.placesCalls) return res.status(429).json({ error: 'Daily location-lookup limit reached. Please try again tomorrow.' });
+      next();
+    });
+  };
+}
+
+// ── POST /api/analyze ─────────────────────────────────────────────────────────
+// Two kinds of caller:
+//  • Logged-in team members: the original flexible request (their own prompts, bulk tools). Counted, never capped.
+//  • Everyone else (the public Submit page): they send ONLY { mode, image, gps?, confirmed? }. The server picks the
+//    model and builds every prompt itself from prompts.js, so the endpoint can't be used as a general-purpose
+//    Claude. Exactly one image is required; any client-sent model / system / messages / max_tokens is ignored
+//    (requests in the old format are rejected). A daily spending cap applies to this path.
 const ALLOWED_MODELS = new Set([
   'claude-opus-5',
   'claude-opus-4-6',
@@ -633,16 +729,100 @@ const ALLOWED_MODELS = new Set([
   'claude-haiku-4-5-20251001',
 ]);
 const MAX_TOKENS_CAP = 4096;   // covers per-photo analysis (~800) and bulk-mapping calls like style consolidation, which return one JSON entry per unique tag
+const IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp']);
+const MAX_IMAGE_B64 = 6_900_000;                    // ≈ 5 MB image, Anthropic's per-image limit
+const B64_RE = /^[A-Za-z0-9+/]+={0,2}$/;
+const cleanText = (v, max) => String(v ?? '').replace(/[\u0000-\u001f\u007f]+/g, ' ').trim().slice(0, max);
 
-app.post('/api/analyze', publicRateLimit(analyzeLimit), async (req, res) => {
+const analyzeGate = async (req, res, next) => {
+  req.isTeam = await isTeamRequest(req);
+  if (req.isTeam) return next();
+  return analyzeLimit(req, res, next);               // 20 calls / 15 min / IP for the public
+};
+
+// Validate a public request and build the Anthropic payload. Returns { error } or { payload }.
+function buildPublicAnalyzePayload(body) {
+  const b = body && typeof body === 'object' ? body : {};
+  if (b.messages !== undefined || b.system !== undefined || b.model !== undefined) {
+    return { error: 'This page is out of date. Please refresh and try again.' };
+  }
+  if (b.mode !== 'identify' && b.mode !== 'refine') return { error: "mode must be 'identify' or 'refine'." };
+  const img = b.image;
+  if (!img || typeof img !== 'object' || Array.isArray(img)) return { error: 'Exactly one image is required.' };
+  if (!IMAGE_TYPES.has(img.media_type)) return { error: 'Unsupported image type.' };
+  if (typeof img.data !== 'string' || img.data.length < 100 || img.data.length > MAX_IMAGE_B64 || !B64_RE.test(img.data)) {
+    return { error: 'The image is missing, too large, or not valid base64.' };
+  }
+  let text;
+  if (b.mode === 'identify') {
+    let coords = null, hint = null;
+    if (b.gps) {
+      const lat = Number(b.gps.lat), lng = Number(b.gps.lng);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) return { error: 'Invalid GPS coordinates.' };
+      coords = [lat, lng];
+      hint = b.gps.hint ? cleanText(b.gps.hint, 200) : null;
+    }
+    text = ArtPrompts.buildUserPrompt(coords, hint);
+  } else {
+    const confirmed = {};
+    const src = b.confirmed && typeof b.confirmed === 'object' ? b.confirmed : {};
+    for (const [k] of ArtPrompts.REFINE_FIELDS) {
+      const v = cleanText(src[k], k === 'description' ? 1500 : 200);
+      if (v) confirmed[k] = v;
+    }
+    text = ArtPrompts.buildRefinePrompt(confirmed);
+  }
+  return {
+    payload: {
+      model: PUBLIC_ANALYZE_MODEL,
+      max_tokens: b.mode === 'identify' ? 800 : 900,
+      temperature: 0,
+      ...(b.mode === 'identify' ? { system: ArtPrompts.SYSTEM_PROMPT } : {}),
+      messages: [{ role: 'user', content: [
+        { type: 'image', source: { type: 'base64', media_type: img.media_type, data: img.data } },
+        { type: 'text', text }
+      ] }]
+    }
+  };
+}
+
+app.post('/api/analyze', analyzeGate, async (req, res) => {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     return res.status(500).json({
       error: { message: 'ANTHROPIC_API_KEY is not set on the server.' }
     });
   }
+  const callAnthropic = payload => fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
 
-  // ── Validate and sanitise request ─────────────────────────────────────────
+  // ── Public caller: server-built prompt, one image, daily cap ──────────────
+  if (!req.isTeam) {
+    const built = buildPublicAnalyzePayload(req.body);
+    if (built.error) return res.status(400).json({ error: { message: built.error } });
+    const u = await usageFor('public_analyze');
+    if (u.calls >= CAPS.analyzeCalls || u.cost + u.inflight * CAPS.analyzeEst >= CAPS.analyzeUsd) {
+      return res.status(429).json({ error: { type: 'daily_limit', message: 'The AI has reached its daily limit for public photos. Please try again tomorrow.' } });
+    }
+    u.inflight += 1;
+    try {
+      const r = await callAnthropic(built.payload);
+      const data = await r.json();
+      if (r.ok) await recordUsage('public_analyze', { inTok: data.usage?.input_tokens, outTok: data.usage?.output_tokens, cost: estimateCost(data.usage) });
+      // Return only what the page needs (no request ids / usage details)
+      return res.status(r.status).json(r.ok ? { content: data.content, stop_reason: data.stop_reason, model: data.model } : { error: { message: data.error?.message || 'The AI request failed.' } });
+    } catch (err) {
+      console.error('Public analyze error:', err.message);
+      return res.status(500).json({ error: { message: 'The AI request failed. Please try again.' } });
+    } finally { u.inflight -= 1; }
+  }
+
+  // ── Logged-in team member: original whitelist-validated request ───────────
+  // SECURITY: the Anthropic request is rebuilt from a strict whitelist of fields rather than forwarding
+  // req.body, so a caller can't inflate max_tokens, inject extra messages or use other API features.
   const { model, max_tokens, temperature, system, messages } = req.body;
 
   if (!ALLOWED_MODELS.has(model)) {
@@ -656,59 +836,44 @@ app.post('/api/analyze', publicRateLimit(analyzeLimit), async (req, res) => {
   if (msg.role !== 'user' || !Array.isArray(msg.content)) {
     return res.status(400).json({ error: { message: 'Invalid message structure.' } });
   }
-  // Allow only an image block + a text block (in any order, both optional but
-  // at least one must be present).  Reject any other content block types.
+  // Allow only image + text blocks. Reject any other content block types.
   const allowedTypes = new Set(['image', 'text']);
   for (const block of msg.content) {
     if (!allowedTypes.has(block.type)) {
       return res.status(400).json({ error: { message: `Content block type '${block.type}' is not permitted.` } });
     }
     if (block.type === 'image') {
-      // Only base64-encoded images are permitted (no URL sources that could
-      // cause Anthropic to fetch arbitrary remote URLs on our behalf).
+      // Only base64-encoded images (no URL sources that could make Anthropic fetch remote URLs for us).
       if (!block.source || block.source.type !== 'base64') {
         return res.status(400).json({ error: { message: 'Only base64 image sources are permitted.' } });
       }
-      const allowed_media = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp']);
-      if (!allowed_media.has(block.source.media_type)) {
+      if (!IMAGE_TYPES.has(block.source.media_type)) {
         return res.status(400).json({ error: { message: `Media type '${block.source.media_type}' is not permitted.` } });
       }
     }
   }
 
-  // Build the forwarded payload from validated fields only
   const safePayload = {
     model,
     max_tokens: Math.min(Number(max_tokens) || MAX_TOKENS_CAP, MAX_TOKENS_CAP),
     messages: [{ role: 'user', content: msg.content }],
   };
-  // Some models (e.g. claude-opus-5) reject an explicit `temperature` field outright
-  // ("temperature is deprecated for this model"), so only forward it when the caller
-  // actually supplied one — never default it in.
+  // Some models (e.g. claude-opus-5) reject an explicit `temperature` outright, so only forward it when supplied.
   if (typeof temperature === 'number') {
     safePayload.temperature = Math.max(0, Math.min(1, temperature));
   }
   if (typeof system === 'string' && system.length > 0) {
     safePayload.system = system.slice(0, 4000);  // cap system prompt length
   }
-  // Opus 5 thinks adaptively by default (thinking tokens bill as output). Turn it off to
-  // cut cost/latency; accepted at the default effort. The other allowed models
-  // (opus-4-6, sonnet-4-6, haiku-4-5) already default to no thinking, so nothing to send.
+  // Opus 5 thinks adaptively by default (thinking tokens bill as output). Turn it off to cut cost/latency.
   if (model === 'claude-opus-5') {
     safePayload.thinking = { type: 'disabled' };
   }
 
   try {
-    const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'x-api-key':         apiKey,
-        'anthropic-version': '2023-06-01',
-        'content-type':      'application/json'
-      },
-      body: JSON.stringify(safePayload)
-    });
+    const anthropicRes = await callAnthropic(safePayload);
     const data = await anthropicRes.json();
+    if (anthropicRes.ok) recordUsage('admin_analyze', { inTok: data.usage?.input_tokens, outTok: data.usage?.output_tokens, cost: estimateCost(data.usage) });
     res.status(anthropicRes.status).json(data);
   } catch (err) {
     console.error('Proxy error:', err.message);
