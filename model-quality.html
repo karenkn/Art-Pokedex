@@ -110,6 +110,60 @@
     }
     @media (max-width: 360px) { .q-card .q-donut { width: 132px; height: 132px; } .q-fill .quality-row { grid-template-columns: 62px 1fr 40px; } }
     .mq-status { font-size: 13px; color: #888; margin: 0 0 12px; }
+    .mq-correction-layout { display: flex; flex-direction: column; gap: 18px; }
+    .mq-correction-charts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+    .mq-correction-table { position: relative; min-width: 0; overflow-x: auto; }
+    .mq-correction-table::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 60%;
+      border-left: 1px solid #d8d3cc;
+      pointer-events: none;
+    }
+    .mq-correction-head, .mq-correction-row {
+      display: grid;
+      grid-template-columns: minmax(82px, 1.2fr) repeat(4, minmax(62px, .75fr)) repeat(4, minmax(58px, .7fr));
+      gap: 8px;
+      align-items: center;
+    }
+    .mq-correction-head { min-height: 30px; padding: 0 0 7px; border-bottom: 1px solid #ece8e2; color: #999; font-size: 9px; text-transform: uppercase; letter-spacing: .04em; }
+    .mq-correction-row { min-height: 44px; border-bottom: 1px solid #f3f0eb; font-size: 13px; }
+    .mq-correction-row:last-child { border-bottom: none; }
+    .mq-correction-head span, .mq-correction-row .num { text-align: right; }
+    .mq-correction-row .field-name { font-weight: 600; text-align: left; }
+    .mq-correction-head .edit-divider, .mq-correction-row .edit-divider { padding-left: 10px; }
+    .mq-correction-row .num.zero { color: #bbb; font-weight: 400; }
+    .mq-correction-chart { width: 100%; }
+    .mq-correction-chart-title { margin-bottom: 12px; color: #777; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+    .mq-correction-bar-row { display: grid; grid-template-columns: 68px 1fr 28px; gap: 8px; align-items: center; margin: 9px 0; font-size: 12px; }
+    .mq-correction-bar-row > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .mq-correction-bar-row b { text-align: right; }
+    .mq-correction-bar-track { display: flex; height: 10px; overflow: hidden; border-radius: 5px; background: #eee; }
+    .mq-correction-bar-track div { height: 100%; }
+    .mq-unique-row { display: grid; grid-template-columns: 68px minmax(0, 1fr) 54px 50px; gap: 8px; align-items: center; margin: 9px 0; font-size: 12px; }
+    .mq-unique-row > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .mq-unique-row b, .mq-unique-row strong { text-align: right; }
+    .mq-unique-track { display: flex; height: 10px; overflow: hidden; border-radius: 5px; background: #eee; }
+    .mq-unique-track div { height: 100%; }
+    .mq-unique-track .unchanged { background: #b8b8b8; }
+    .mq-unique-track .corrected { background: #d98324; }
+    .mq-unique-accuracy { color: #777; font-weight: 600; }
+    .mq-unique-head { display: grid; grid-template-columns: 68px minmax(0, 1fr) 54px 50px; gap: 8px; margin-bottom: 6px; color: #999; font-size: 8px; text-align: right; text-transform: uppercase; letter-spacing: .02em; white-space: nowrap; }
+    .mq-unique-head span:first-child { text-align: left; }
+    .mq-edit-head { display: grid; grid-template-columns: 68px minmax(0, 1fr) 28px; gap: 8px; margin-bottom: 6px; color: #999; font-size: 8px; text-align: right; text-transform: uppercase; letter-spacing: .02em; white-space: nowrap; }
+    .mq-edit-head span:first-child { text-align: left; }
+    @media (max-width: 700px) { .mq-correction-charts { grid-template-columns: 1fr; gap: 18px; } }
+    @media (max-width: 700px) {
+      .mq-correction-head { display: none; }
+      .mq-correction-row { grid-template-columns: repeat(4, 1fr); gap: 8px 6px; padding: 10px 0; }
+      .mq-correction-row .field-name { grid-column: 1 / -1; }
+      .mq-correction-row .num { text-align: left; font-size: 15px; }
+      .mq-correction-row .num::before { content: attr(data-l); display: block; color: #999; font-size: 9px; text-transform: uppercase; letter-spacing: .03em; margin-bottom: 2px; }
+      .mq-correction-table::after { display: none; }
+      .mq-correction-head .edit-divider, .mq-correction-row .edit-divider { padding-left: 0; }
+    }
   </style>
 </head>
 <body>
@@ -282,6 +336,74 @@ function fieldTable(rows, cols, { total } = {}) {
   const legend = cols.filter(c => c.color).map(c => `<span><i style="background:${c.color}"></i>${escHtml(c.label)}</span>`).join('');
   return `<div class="mq-ft">${head}${body}</div><div class="mq-legend-inline">${legend}</div>`;
 }
+function correctionFieldSection(rows) {
+  const head = `<div class="mq-correction-head">
+    <span style="text-align:left">Field</span><span>Verified</span><span>Corrected</span><span>Unchanged</span><span>% Accuracy</span>
+    <span class="edit-divider">Total Edits</span><span>Format</span><span>Filled in</span><span>Different</span>
+  </div>`;
+  const body = rows.map(r => {
+    const v = r.vals;
+    const num = (value, label, extra = '') => `<span class="num${value ? '' : ' zero'} ${extra}" data-l="${escHtml(label)}">${value == null ? '—' : value}</span>`;
+    return `<div class="mq-correction-row">
+      <span class="field-name">${escHtml(r.label)}</span>
+      ${num(v.verified, 'Verified')}
+      ${num(v.corrected, 'Corrected')}
+      ${num(v.unchanged, 'Unchanged')}
+      ${num(pct(v.accuracy), '% Accuracy')}
+      ${num(v.edits, 'Total Edits', 'edit-divider')}
+      ${num(v.format, 'Format')}
+      ${num(v.filled, 'Filled in')}
+      ${num(v.different, 'Different')}
+    </div>`;
+  }).join('');
+
+  const maxVerified = Math.max(1, ...rows.map(r => r.vals.verified));
+  const uniqueRows = rows.map(r => {
+    const v = r.vals;
+    return `<div class="mq-unique-row">
+      <span title="${escHtml(r.label)}">${escHtml(r.label)}</span>
+      <div class="mq-unique-track" title="${escHtml(`${v.unchanged} unchanged + ${v.corrected} corrected = ${v.verified} verified photos`)}">
+        <div class="corrected" style="width:${v.corrected / maxVerified * 100}%"></div>
+        <div class="unchanged" style="width:${v.unchanged / maxVerified * 100}%"></div>
+      </div>
+      <b>${v.corrected}</b><strong class="mq-unique-accuracy">${pct(v.accuracy)}</strong>
+    </div>`;
+  }).join('');
+  const uniqueChart = `<div class="mq-correction-chart">
+    <div class="mq-correction-chart-title">Unique corrections &amp; accuracy</div>
+    <div class="mq-unique-head"><span>Field</span><span></span><span>Corrected</span><span>Accuracy</span></div>
+    ${uniqueRows}
+    <div class="mq-legend-inline">
+      <span><i style="background:${CHANGE_COLOR}"></i>Corrected</span>
+      <span><i style="background:#b8b8b8"></i>Unchanged</span>
+    </div>
+  </div>`;
+
+  const max = Math.max(1, ...rows.map(r => r.vals.edits));
+  const chartRows = rows.map(r => {
+    const v = r.vals;
+    const segments = [
+      ['format', v.format, TYPE_COLORS.format],
+      ['filled', v.filled, TYPE_COLORS.filled],
+      ['different', v.different, TYPE_COLORS.different]
+    ];
+    const track = `<div class="mq-correction-bar-track">${segments.map(([, value, color]) =>
+      value ? `<div style="width:${value / max * 100}%;background:${color}" title="${escHtml(r.label)}: ${value}"></div>` : ''
+    ).join('')}</div>`;
+    return `<div class="mq-correction-bar-row"><span title="${escHtml(r.label)}">${escHtml(r.label)}</span>${track}<b>${v.edits}</b></div>`;
+  }).join('');
+  const chart = `<div class="mq-correction-chart">
+    <div class="mq-correction-chart-title">Edits by field</div>
+    <div class="mq-edit-head"><span>Field</span><span></span><span>Edits</span></div>
+    ${chartRows}
+    <div class="mq-legend-inline">
+      <span><i style="background:${TYPE_COLORS.format}"></i>Format</span>
+      <span><i style="background:${TYPE_COLORS.filled}"></i>Filled in</span>
+      <span><i style="background:${TYPE_COLORS.different}"></i>Different</span>
+    </div>
+  </div>`;
+  return `<div class="mq-correction-layout"><div class="mq-correction-charts">${uniqueChart}${chart}</div><div class="mq-correction-table">${head}${body}</div></div>`;
+}
 const card = (title, body, sub, cls = '') => `<section class="q-card ${cls}"><h4>${title}</h4>${sub ? `<p class="q-sub">${sub}</p>` : ''}${body}</section>`;
 const empty = '<p class="quality-note">Not enough data yet.</p>';
 const kpi = (value, label, note) => `<div class="mq-kpi"><b>${escHtml(value)}</b><span>${escHtml(label)}</span>${note ? `<small>${escHtml(note)}</small>` : ''}</div>`;
@@ -428,22 +550,25 @@ function render(q, { publicView = false } = {}) {
   ], pct(q.fullyRight / measurable), 'of photos') : empty,
     measurable ? 'Artist, style, period and location all matched' : ''));
 
-  const acc = Object.entries(q.fields || {}).filter(([, v]) => v.rate != null)
+  const fieldKeys = ['paintingName', 'location', 'artist', 'period', 'style'];
+  const acc = fieldKeys.map(f => [f, (q.fields || {})[f]])
+    .filter(([, v]) => v && v.rate != null)
     .map(([f, v]) => ({ label: FIELD_LABELS[f] || f, value: v.rate, text: pct(v.rate) }));
   cards.push(card('Accuracy by field', acc.length ? `<div class="q-fill">${bars(acc, { max: 1 })}</div>` : empty, acc.length ? 'Share of AI answers kept unchanged' : ''));
 
   // Per-field counts: corrections made, and fields verified and left unchanged
-  const fieldKeys = Object.keys(FIELD_LABELS);
   const fieldRows = fieldKeys.map(f => {
     const fb = (q.fields || {})[f] || {};
     const ty = (q.typeByField || {})[f] || {};
-    const corrections = (q.byField || {})[f] || 0;
+    const edits = (q.byField || {})[f] || 0;
+    const verified = fb.checked || 0;
+    const unchanged = fb.matched || 0;
     return { f, label: FIELD_LABELS[f],
-      vals: { verified: fb.checked || 0, unchanged: fb.matched || 0, corrections,
-              accuracy: fb.checked ? (fb.matched || 0) / fb.checked : null,      // unchanged ÷ verified
+      vals: { verified, unchanged, corrected: fb.corrected ?? Math.max(0, verified - unchanged), edits,
+              accuracy: verified ? unchanged / verified : null,      // unchanged ÷ verified
               format: ty.format || 0, filled: ty.filled || 0, different: ty.different || 0 } };
-  }).sort((a, b) => b.vals.corrections - a.vals.corrections);
-  const hasFieldData = fieldRows.some(r => r.vals.corrections || r.vals.unchanged);
+  });
+  const hasFieldData = fieldRows.some(r => r.vals.edits || r.vals.unchanged);
 
   // Corrections by location type (photo-level, same definitions as the people chart)
   const locRows = (q.byLocationType || []).map(r => ({
@@ -464,16 +589,8 @@ function render(q, { publicView = false } = {}) {
   cards.push(card('Where changes came from', people.length ? peopleChart(people) : empty,
     people.length ? (publicView ? 'Photos reviewed: ' : 'Photos each person verified: ') + 'unchanged (AI’s artist, style, period and location all kept) + corrected (at least one changed) = verified. Normalize tools shows photos it changed.' : ''));
 
-  cards.push(card('Correction type by field', hasFieldData ? fieldTable(fieldRows, [
-      { label: 'Verified', key: 'verified' },
-      { label: 'Unchanged', key: 'unchanged', color: KEEP_COLOR },
-      { label: 'Corrections', key: 'corrections' },
-      { label: 'Format', key: 'format', color: TYPE_COLORS.format },
-      { label: 'Filled in', key: 'filled', color: TYPE_COLORS.filled },
-      { label: 'Different', key: 'different', color: TYPE_COLORS.different },
-      { label: '% Accuracy', key: 'accuracy', percent: true }
-    ]) : empty,
-    hasFieldData ? 'Corrections = Format + Filled in + Different · Format = same answer, standardized ("Van Gogh" → "Vincent van Gogh") · Filled in = "Unknown" replaced · Different = a different answer' : '', 'wide'));
+  cards.push(card('Correction type by field', hasFieldData ? correctionFieldSection(fieldRows) : empty,
+    hasFieldData ? 'Verified, Unchanged and Corrected are unique photo counts. Accuracy = Unchanged ÷ Verified. Total edits break down into Format, Filled in and Different.' : '', 'wide'));
 
   const c = q.confidence || {};
   const confRows = [['low', 'Low (<55%)'], ['mid', 'Medium (55–79%)'], ['high', 'High (80%+)']]

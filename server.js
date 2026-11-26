@@ -1169,7 +1169,7 @@ async function buildQuality() {
       if (k === '__earlier') k = 'admin';
       return (people[k] = people[k] || { key: k, verified: 0, unchanged: 0, corrected: 0 });
     };
-    for (const f of QUALITY_FIELDS) fields[f] = { checked: 0, matched: 0, rate: null };
+    for (const f of QUALITY_FIELDS) fields[f] = { checked: 0, matched: 0, corrected: 0, rate: null };
     for (const r of rows) {
       let all = true;
       const pk = person(r.verified_by || '__earlier');
@@ -1179,6 +1179,7 @@ async function buildQuality() {
         if (a === undefined) continue;
         const ok = normCompare(a) === normCompare(r[col[f]]);
         fields[f].checked++; if (ok) fields[f].matched++;
+        if (!ok) fields[f].corrected++;
         if (!ok && CORE_FIELDS.includes(f)) all = false;
       }
       if (all) fullyRight++;
@@ -1273,7 +1274,7 @@ function publicQuality(q) {
     total: num(q.total), verified: num(q.verified), measurable: num(q.measurable), legacy: num(q.legacy),
     recon: { gallery: num(r.gallery), community: num(r.community), legacy: num(r.legacy), verified: num(r.verified),
              unverified: num(r.unverified), unverifiedEdited: num(r.unverifiedEdited) },
-    fields: Object.fromEntries(Object.entries(q.fields || {}).map(([k, v]) => [k, { checked: num(v.checked), matched: num(v.matched), rate: v.rate }])),
+    fields: Object.fromEntries(Object.entries(q.fields || {}).map(([k, v]) => [k, { checked: num(v.checked), matched: num(v.matched), corrected: num(v.corrected), rate: v.rate }])),
     fullyRight: num(q.fullyRight), correctionTotal: num(q.correctionTotal),
     byField: q.byField || {}, byType: q.byType || {}, typeByField: q.typeByField || {},
     byLocationType: (q.byLocationType || []).map(l => ({ type: l.type, verified: num(l.verified), unchanged: num(l.unchanged), corrected: num(l.corrected) })),
