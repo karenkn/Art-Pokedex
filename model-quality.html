@@ -214,7 +214,7 @@
 
 <main class="mq-wrap">
   <h1>Model Quality</h1>
-  <p class="mq-lead">How often the AI's answers hold up once you've reviewed them. Every photo you verify is compared with what the AI originally said, so these numbers get more reliable as you verify more.</p>
+  <p class="mq-lead">How often the AI’s answers hold up once they have been reviewed. Every verified photo is compared with what the AI first answered, so the numbers get more reliable as more photos are verified. Accuracy is the share of verified photos where the AI’s artist, style, period and location were all kept.</p>
   <div id="mqTools" style="display:none;margin:0 0 14px"><button class="login-cancel-btn" id="mqDownload" onclick="downloadCorrections()">⬇ Download corrections (CSV)</button></div>
   <div id="mqRoot"></div>
 </main>
@@ -370,7 +370,7 @@ function correctionFieldSection(rows) {
     </div>`;
   }).join('');
   const uniqueChart = `<div class="mq-correction-chart">
-    <div class="mq-correction-chart-title">Unique corrections &amp; accuracy</div>
+    <div class="mq-correction-chart-title">Photos corrected &amp; accuracy</div>
     <div class="mq-unique-head"><span>Field</span><span></span><span>Corrected</span><span>Accuracy</span></div>
     ${uniqueRows}
     <div class="mq-legend-inline">
@@ -393,7 +393,7 @@ function correctionFieldSection(rows) {
     return `<div class="mq-correction-bar-row"><span title="${escHtml(r.label)}">${escHtml(r.label)}</span>${track}<b>${v.edits}</b></div>`;
   }).join('');
   const chart = `<div class="mq-correction-chart">
-    <div class="mq-correction-chart-title">Edits by field</div>
+    <div class="mq-correction-chart-title">Total edits by field</div>
     <div class="mq-edit-head"><span>Field</span><span></span><span>Edits</span></div>
     ${chartRows}
     <div class="mq-legend-inline">
@@ -515,12 +515,12 @@ function render(q, { publicView = false } = {}) {
   const sum = k => reviewers.reduce((a, p) => a + (p[k] || 0), 0);
   const unchangedTotal = sum('unchanged'), correctedTotal = sum('corrected'), verifiedTotal = sum('verified');
   const kpis = `<div class="mq-kpis">
-    ${kpi(q.total, 'Photos', rc.gallery ? `${rc.verified} verified + ${Math.max(0, q.total - rc.verified)} to review` : '')}
-    ${kpi(verifiedTotal, 'Verified')}
-    ${kpi(q.total ? pct(verifiedTotal / q.total) : '—', 'Reviewed')}
-    ${kpi(unchangedTotal, 'Unchanged')}
-    ${kpi(correctedTotal, 'Corrected')}
-    ${kpi(verifiedTotal ? pct(unchangedTotal / verifiedTotal) : '—', '% Accuracy')}
+    ${kpi(q.total, 'Photos', rc.gallery ? `${rc.verified} verified + ${Math.max(0, q.total - rc.verified)} to review (community submissions not included)` : '')}
+    ${kpi(verifiedTotal, 'Verified', 'confirmed, or saved after an edit')}
+    ${kpi(q.total ? pct(verifiedTotal / q.total) : '—', '% Reviewed', 'verified ÷ photos')}
+    ${kpi(unchangedTotal, 'Unchanged', 'AI’s answer kept')}
+    ${kpi(correctedTotal, 'Corrected', 'at least one change')}
+    ${kpi(verifiedTotal ? pct(unchangedTotal / verifiedTotal) : '—', '% Accuracy', 'unchanged ÷ verified')}
   </div>`;
 
   const toReviewT = Math.max(0, q.total - (rc.verified || 0));   // anything not verified yet, edited or not
@@ -529,7 +529,7 @@ function render(q, { publicView = false } = {}) {
       <div>All photos in the gallery <b>${rc.gallery}</b> = community submissions <b>${rc.community}</b> + <b>Photos</b> shown here <b>${q.total}</b></div>
       <div><b>Photos ${q.total}</b> = verified <b>${rc.verified}</b> + to review <b>${toReviewT}</b></div>
       <div>Verified <b>${rc.verified}</b> = unchanged <b>${unchangedTotal}</b> + corrected <b>${correctedTotal}</b></div>
-      <div class="mq-recon-note"><b>How photos are counted.</b> <i>Verified</i> = you confirmed it, or saved an edit (saving an edit verifies the photo). <i>To review</i> = not verified yet, including photos that were hand-edited but not verified. <i>Unchanged</i> = verified with the artist, style, period and location all kept as the AI first answered. <i>Corrected</i> = verified after at least one of those four was changed. Community submissions are not included.</div>
+      <div class="mq-recon-note"><b>How photos are counted.</b> <i>Verified</i> = confirmed as correct, or saved after an edit (saving an edit verifies the photo). <i>To review</i> = not verified yet, including photos that were edited but not verified. <i>Unchanged</i> = verified with the AI’s artist, style, period and location all kept as first answered (capitalization, accents and punctuation are ignored). <i>Corrected</i> = verified after at least one of those four was changed. Titles don’t affect these photo counts. Community submissions are not included.</div>
       ${legacy ? `<div class="mq-recon-note"><b>Photos edited before tracking began.</b> ${legacy} verified photo${legacy === 1 ? ' was' : 's were'} hand-edited before the AI’s original answer was being saved, so there is nothing to compare against. Their values at the time tracking began are treated as the original: they count as Unchanged unless edited again, and any later edit counts as Corrected. This slightly overstates accuracy. Every photo added from now on keeps the AI’s true original answer.</div>` : ''}
     </div>` : '';
 
@@ -542,19 +542,19 @@ function render(q, { publicView = false } = {}) {
     { label: 'Verified', value: q.verified, color: '#1b6e3c' },
     { label: 'To review', value: toReview, color: '#d8d8d8' }
   ], q.total ? pct(q.verified / q.total) : '—', 'verified'),
-    q.total ? `${q.verified} + ${toReview} = ${q.total} photos` : ''));
+    q.total ? `${q.verified} verified + ${toReview} to review = ${q.total} photos. “To review” includes photos that were edited but not verified yet` : ''));
 
   cards.push(card('AI answers kept as-is', measurable ? donut([
     { label: 'Fully correct', value: q.fullyRight, color: '#1b6e3c' },
     { label: 'Needed changes', value: measurable - q.fullyRight, color: '#d98324' }
-  ], pct(q.fullyRight / measurable), 'of photos') : empty,
-    measurable ? 'Artist, style, period and location all matched' : ''));
+  ], pct(q.fullyRight / measurable), 'of verified') : empty,
+    measurable ? 'Verified photos where the AI’s artist, style, period and location were all kept. Needed changes = at least one of the four was changed' : ''));
 
   const fieldKeys = ['paintingName', 'location', 'artist', 'period', 'style'];
   const acc = fieldKeys.map(f => [f, (q.fields || {})[f]])
     .filter(([, v]) => v && v.rate != null)
     .map(([f, v]) => ({ label: FIELD_LABELS[f] || f, value: v.rate, text: pct(v.rate) }));
-  cards.push(card('Accuracy by field', acc.length ? `<div class="q-fill">${bars(acc, { max: 1 })}</div>` : empty, acc.length ? 'Share of AI answers kept unchanged' : ''));
+  cards.push(card('Accuracy by field', acc.length ? `<div class="q-fill">${bars(acc, { max: 1 })}</div>` : empty, acc.length ? 'Share of verified photos where the AI’s answer for that field was kept (capitalization, accents and punctuation ignored)' : ''));
 
   // Per-field counts: corrections made, and fields verified and left unchanged
   const fieldRows = fieldKeys.map(f => {
@@ -577,37 +577,38 @@ function render(q, { publicView = false } = {}) {
   }));
   const hasLoc = locRows.some(r => r.verified);
   cards.push(card('Corrections by Location Type', hasLoc ? peopleChart(locRows, 'Location type') : empty,
-    hasLoc ? 'Verified photos grouped by where the artwork is: unchanged (AI’s artist, style, period and location all kept) + corrected (at least one changed) = verified. Grouping is based on keywords in the location name.' : '', 'wide'));
+    hasLoc ? 'Verified photos grouped by the type of venue. Unchanged (AI’s artist, style, period and location all kept) + Corrected (at least one changed) = Verified. The venue type is worked out from keywords in the location name.' : '', 'wide'));
 
   const t = q.byType || {};
   cards.push(card('Type of correction', q.correctionTotal ? donut(
     Object.keys(TYPE_LABELS).map(k => ({ label: TYPE_LABELS[k], value: t[k] || 0, color: TYPE_COLORS[k] })),
-    String(q.correctionTotal), 'changes') : empty,
-    q.correctionTotal ? 'Format changes are things like "Van Gogh" → "Vincent van Gogh"' : ''));
+    String(q.correctionTotal), 'edits') : empty,
+    q.correctionTotal ? 'Every logged edit to a title, artist, style, period or location, by kind. Format = the same answer reworded or standardized (“Van Gogh” → “Vincent van Gogh”) · Filled in = an empty or “Unknown” answer replaced · Different = a different answer' : ''));
 
   const people = peopleRows(q.byUser || []);
   cards.push(card('Where changes came from', people.length ? peopleChart(people) : empty,
-    people.length ? (publicView ? 'Photos reviewed: ' : 'Photos each person verified: ') + 'unchanged (AI’s artist, style, period and location all kept) + corrected (at least one changed) = verified. Normalize tools shows photos it changed.' : ''));
+    people.length ? (publicView ? 'Verified photos by reviewer: ' : 'Verified photos by person: ') + 'Unchanged (AI’s artist, style, period and location all kept) + Corrected (at least one changed) = Verified. The Normalize tools row counts the photos those automated tools changed; they are not part of Verified.' : ''));
 
   cards.push(card('Correction type by field', hasFieldData ? correctionFieldSection(fieldRows) : empty,
-    hasFieldData ? 'Verified, Unchanged and Corrected are unique photo counts. Accuracy = Unchanged ÷ Verified. Total edits break down into Format, Filled in and Different.' : '', 'wide'));
+    hasFieldData ? 'Photo counts: Verified = photos reviewed, Unchanged = the AI’s answer for that field was kept (capitalization, accents and punctuation ignored), Corrected = Verified − Unchanged, Accuracy = Unchanged ÷ Verified. Edit counts: Total Edits = every logged change to the field, including repeat edits, edits to photos not yet verified and changes made by the Normalize tools, so it can be higher than Corrected. Edits are split into Format, Filled in and Different. Title is shown here but does not affect the photo counts above.' : '', 'wide'));
 
   const c = q.confidence || {};
   const confRows = [['low', 'Low (<55%)'], ['mid', 'Medium (55–79%)'], ['high', 'High (80%+)']]
     .filter(([k]) => c[k] && c[k].n)
     .map(([k, label]) => ({ label, value: c[k].ok / c[k].n, text: `${pct(c[k].ok / c[k].n)} (${c[k].n})` }));
   cards.push(card('Fully correct by first AI confidence score', confRows.length ? bars(confRows, { max: 1, labelW: 128 }) : empty,
-    confRows.length ? `Grouped by the first confidence score the AI gave each photo — saved once, so “Re-analyze with AI” never changes it (the latest score can still change). Photo count in brackets${q.confidenceFallback ? `. ${q.confidenceFallback} photo${q.confidenceFallback === 1 ? '' : 's'} had no saved score and use the current one` : ''}` : ''));
+    confRows.length ? `Share of verified photos that were fully correct (artist, style, period and location all kept), grouped by the first confidence score the AI gave each photo. That score is saved once, so “Re-analyze with AI” never changes it. Verified photos in brackets${q.confidenceFallback ? `. ${q.confidenceFallback} photo${q.confidenceFallback === 1 ? '' : 's'} had no saved score and use the current one` : ''}` : ''));
 
   const vr = (q.byVersion || []).map(v => ({ label: `${versionLabel(v.version)} (${v.photos})`, value: v.photos ? v.fullyRight / v.photos : 0, text: pct(v.photos ? v.fullyRight / v.photos : null) }));
-  cards.push(card('Fully correct by prompt version', vr.length ? bars(vr, { max: 1 }) : empty, vr.length ? 'Verified photos in brackets' : ''));
+  cards.push(card('Fully correct by prompt version', vr.length ? bars(vr, { max: 1 }) : empty, vr.length ? 'Share of verified photos that were fully correct (artist, style, period and location all kept), by the prompt version that produced the first answer. Verified photos in brackets' : ''));
 
   document.getElementById('mqRoot').innerHTML = `${kpis}
     ${layout(cards)}
     ${recon}
     <p class="mq-foot">Based on <b>${q.verified}</b> verified photos${legacy ? `, including ${legacy} edited before tracking began (their values at that point count as the original, so accuracy may read slightly high)` : ''}.
-      Aim for 100+ for reliable numbers. “Fully correct” means artist, style, period and location were all kept; titles are shown separately because unrecognized works get descriptive titles.
-      Confidence charts use the AI’s <b>first</b> confidence score, which “Re-analyze with AI” never changes. Correction counts are individual field changes, so they differ from the photo counts above.<br>
+      Aim for 100+ for reliable numbers. “Fully correct” and “Unchanged” mean the AI’s artist, style, period and location were all kept; titles are shown in the per-field table only, because unrecognized works get descriptive titles.
+      Answers are compared ignoring capitalization, accents and punctuation, so a change that only fixes those still counts as an edit but not as a correction.
+      Confidence charts use the AI’s <b>first</b> confidence score, which “Re-analyze with AI” never changes. Edit counts are individual field changes, so they differ from the photo counts above.<br>
       ${publicView ? '' : 'To score a new prompt against your held-out photos, run <code>node eval.js</code>.'}</p>`;
 }
 
