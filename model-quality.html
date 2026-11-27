@@ -389,8 +389,8 @@ function correctionTable(rows) {
 const card = (title, body, sub, cls = '') => `<section class="q-card ${cls}"><h4>${title}</h4>${sub ? `<p class="q-sub">${sub}</p>` : ''}${body}</section>`;
 const empty = '<p class="quality-note">Not enough data yet.</p>';
 const kpi = (value, label, note) => `<div class="mq-kpi"><b>${escHtml(value)}</b><span>${escHtml(label)}</span>${note ? `<small>${escHtml(note)}</small>` : ''}</div>`;
-// "v1" → "Version 1"; anything unlabeled counts as Version 1
-const versionLabel = v => { const m = /^v(\d+)$/i.exec(String(v || '')); return m ? `Version ${m[1]}` : (!v || v === 'unknown' ? 'Version 1' : String(v)); };
+// "v1" and anything unlabeled → V1 and Earlier; later versions read "Version N"
+const versionLabel = v => { const m = /^v(\d+)$/i.exec(String(v || '')); return (!v || v === 'unknown' || (m && +m[1] <= 1)) ? 'V1 and Earlier' : (m ? `Version ${m[1]}` : String(v)); };
 
 // ── Render ──────────────────────────────────────────────────────────────────
 async function downloadCorrections() {
@@ -568,7 +568,7 @@ function render(q, { publicView = false } = {}) {
   const confCard = card('Fully correct by first AI confidence score', confRows.length ? bars(confRows, { max: 1, labelW: 128 }) : empty,
     confRows.length ? `Share of verified photos that were fully correct (artist, style, period and location all kept), grouped by the first confidence score the AI gave each photo. That score is saved once, so “Re-analyze with AI” never changes it. Verified photos in brackets${q.confidenceFallback ? `. ${q.confidenceFallback} photo${q.confidenceFallback === 1 ? '' : 's'} had no saved score and use the current one` : ''}` : '');
   const vr = (q.byVersion || []).map(v => ({ label: `${versionLabel(v.version)} (${v.photos})`, value: v.photos ? v.fullyRight / v.photos : 0, text: pct(v.photos ? v.fullyRight / v.photos : null) }));
-  const verCard = card('Fully correct by prompt version', vr.length ? bars(vr, { max: 1 }) : empty,
+  const verCard = card('Fully correct by prompt version', vr.length ? bars(vr, { max: 1, labelW: 150 }) : empty,
     vr.length ? 'Share of verified photos that were fully correct (artist, style, period and location all kept), by the prompt version that produced the first answer. Verified photos in brackets' : '');
 
   // ── 5. How was this reviewed? ──
