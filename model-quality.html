@@ -109,6 +109,34 @@
       #mqTools .login-cancel-btn { width: 100%; min-height: 44px; }
     }
     @media (max-width: 360px) { .q-card .q-donut { width: 132px; height: 132px; } .q-fill .quality-row { grid-template-columns: 62px 1fr 40px; } }
+    /* ── Story layout: hero + five numbered sections ── */
+    .mq-hero { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 2fr); gap: 20px; align-items: center; background: #fff; border: 1px solid #ece8e2; border-radius: 12px; padding: 18px 20px; margin-bottom: 26px; }
+    .mq-hero .mq-kpis { margin-bottom: 0; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .mq-hero-label { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: #888; }
+    .mq-hero-big { font-family: 'Playfair Display', serif; font-size: 52px; line-height: 1.05; font-weight: 600; color: #1b6e3c; }
+    .mq-hero-sub { font-size: 12.5px; color: #666; line-height: 1.45; margin-top: 4px; }
+    .mq-sec { margin: 0 0 30px; }
+    .mq-sh { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 12px; }
+    .mq-sn { width: 26px; height: 26px; border-radius: 50%; background: #1a1a1a; color: #fff; font-size: 12px; font-weight: 600; display: flex; align-items: center; justify-content: center; flex: none; margin-top: 2px; }
+    .mq-st { font-family: 'Playfair Display', serif; font-size: 21px; font-weight: 600; margin: 0; line-height: 1.25; }
+    .mq-sd { font-size: 13px; color: #777; margin: 2px 0 0; }
+    .mq-grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+    .mq-cardnote { margin: 14px 0 0; padding-top: 10px; border-top: 1px solid #ece8e2; font-size: 12px; color: #777; line-height: 1.55; }
+    .mq-progress-top { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 8px; color: #555; }
+    .mq-progress-top span:first-child { font-weight: 600; color: #1a1a1a; }
+    .mq-progress { height: 14px; border-radius: 7px; background: #eee; overflow: hidden; }
+    .mq-progress > div { height: 100%; background: #1b6e3c; border-radius: 7px; }
+    .mq-edit-layout { display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: 22px; align-items: center; }
+    .mq-edit-donut .q-donut-wrap { flex-direction: column; gap: 10px; }
+    .mq-edit-donut .q-donut { width: 150px; height: 150px; }
+    @media (max-width: 900px) { .mq-edit-layout { grid-template-columns: 1fr; } }
+    @media (max-width: 700px) { .mq-grid2 { grid-template-columns: 1fr; } }
+    @media (max-width: 700px) {
+      .mq-hero { grid-template-columns: 1fr; padding: 16px; gap: 14px; margin-bottom: 22px; }
+      .mq-hero .mq-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .mq-hero-big { font-size: 44px; }
+      .mq-st { font-size: 18px; }
+    }
     .mq-status { font-size: 13px; color: #888; margin: 0 0 12px; }
     .mq-correction-layout { display: flex; flex-direction: column; gap: 18px; }
     .mq-correction-charts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
@@ -336,7 +364,7 @@ function fieldTable(rows, cols, { total } = {}) {
   const legend = cols.filter(c => c.color).map(c => `<span><i style="background:${c.color}"></i>${escHtml(c.label)}</span>`).join('');
   return `<div class="mq-ft">${head}${body}</div><div class="mq-legend-inline">${legend}</div>`;
 }
-function correctionFieldSection(rows) {
+function correctionTable(rows) {
   const head = `<div class="mq-correction-head">
     <span style="text-align:left">Field</span><span>Verified</span><span>Corrected</span><span>Unchanged</span><span>% Accuracy</span>
     <span class="edit-divider">Total Edits</span><span>Format</span><span>Filled in</span><span>Different</span>
@@ -356,53 +384,7 @@ function correctionFieldSection(rows) {
       ${num(v.different, 'Different')}
     </div>`;
   }).join('');
-
-  const maxVerified = Math.max(1, ...rows.map(r => r.vals.verified));
-  const uniqueRows = rows.map(r => {
-    const v = r.vals;
-    return `<div class="mq-unique-row">
-      <span title="${escHtml(r.label)}">${escHtml(r.label)}</span>
-      <div class="mq-unique-track" title="${escHtml(`${v.unchanged} unchanged + ${v.corrected} corrected = ${v.verified} verified photos`)}">
-        <div class="corrected" style="width:${v.corrected / maxVerified * 100}%"></div>
-        <div class="unchanged" style="width:${v.unchanged / maxVerified * 100}%"></div>
-      </div>
-      <b>${v.corrected}</b><strong class="mq-unique-accuracy">${pct(v.accuracy)}</strong>
-    </div>`;
-  }).join('');
-  const uniqueChart = `<div class="mq-correction-chart">
-    <div class="mq-correction-chart-title">Photos corrected &amp; accuracy</div>
-    <div class="mq-unique-head"><span>Field</span><span></span><span>Corrected</span><span>Accuracy</span></div>
-    ${uniqueRows}
-    <div class="mq-legend-inline">
-      <span><i style="background:${CHANGE_COLOR}"></i>Corrected</span>
-      <span><i style="background:#b8b8b8"></i>Unchanged</span>
-    </div>
-  </div>`;
-
-  const max = Math.max(1, ...rows.map(r => r.vals.edits));
-  const chartRows = rows.map(r => {
-    const v = r.vals;
-    const segments = [
-      ['format', v.format, TYPE_COLORS.format],
-      ['filled', v.filled, TYPE_COLORS.filled],
-      ['different', v.different, TYPE_COLORS.different]
-    ];
-    const track = `<div class="mq-correction-bar-track">${segments.map(([, value, color]) =>
-      value ? `<div style="width:${value / max * 100}%;background:${color}" title="${escHtml(r.label)}: ${value}"></div>` : ''
-    ).join('')}</div>`;
-    return `<div class="mq-correction-bar-row"><span title="${escHtml(r.label)}">${escHtml(r.label)}</span>${track}<b>${v.edits}</b></div>`;
-  }).join('');
-  const chart = `<div class="mq-correction-chart">
-    <div class="mq-correction-chart-title">Total edits by field</div>
-    <div class="mq-edit-head"><span>Field</span><span></span><span>Edits</span></div>
-    ${chartRows}
-    <div class="mq-legend-inline">
-      <span><i style="background:${TYPE_COLORS.format}"></i>Format</span>
-      <span><i style="background:${TYPE_COLORS.filled}"></i>Filled in</span>
-      <span><i style="background:${TYPE_COLORS.different}"></i>Different</span>
-    </div>
-  </div>`;
-  return `<div class="mq-correction-layout"><div class="mq-correction-charts">${uniqueChart}${chart}</div><div class="mq-correction-table">${head}${body}</div></div>`;
+  return `<div class="mq-correction-table">${head}${body}</div>`;
 }
 const card = (title, body, sub, cls = '') => `<section class="q-card ${cls}"><h4>${title}</h4>${sub ? `<p class="q-sub">${sub}</p>` : ''}${body}</section>`;
 const empty = '<p class="quality-note">Not enough data yet.</p>';
@@ -492,17 +474,11 @@ function peopleChart(rows, firstCol = 'Person') {
   return `<div class="mq-pp">${head}${body}</div>${legend}`;
 }
 
-// Layout: overview cards, then a 2×2 block of correction/confidence/version charts, then the wide per-field tables.
-function layout(cards) {
-  const pick = title => cards.filter(c => c.includes(`<h4>${title}</h4>`));
-  const grid2 = ['Type of correction', 'Where changes came from', 'Fully correct by first AI confidence score', 'Fully correct by prompt version'];
-  const wide = ['Corrections by Location Type', 'Correction type by field'];
-  const used = new Set([...grid2, ...wide].flatMap(pick));
-  const overview = cards.filter(c => !used.has(c));
-  return `<div class="mq-grid">${overview.join('')}</div>
-    <div class="mq-grid2">${grid2.flatMap(pick).join('')}</div>
-    <div class="mq-stack-gap">${wide.flatMap(pick).join('')}</div>`;
-}
+// A numbered story section: heading + one-line takeaway + its cards
+const section = (n, title, desc, body) => `<section class="mq-sec">
+  <div class="mq-sh"><div class="mq-sn">${n}</div><div><h2 class="mq-st">${title}</h2><p class="mq-sd">${desc}</p></div></div>
+  ${body}
+</section>`;
 
 function render(q, { publicView = false } = {}) {
   const measurable = q.measurable || 0;
@@ -514,13 +490,19 @@ function render(q, { publicView = false } = {}) {
   const reviewers = (q.byUser || []).filter(p => p.key !== '__normalize');
   const sum = k => reviewers.reduce((a, p) => a + (p[k] || 0), 0);
   const unchangedTotal = sum('unchanged'), correctedTotal = sum('corrected'), verifiedTotal = sum('verified');
-  const kpis = `<div class="mq-kpis">
-    ${kpi(q.total, 'Photos', rc.gallery ? `${rc.verified} verified + ${Math.max(0, q.total - rc.verified)} to review (community submissions not included)` : '')}
-    ${kpi(verifiedTotal, 'Verified', 'confirmed, or saved after an edit')}
-    ${kpi(q.total ? pct(verifiedTotal / q.total) : '—', '% Reviewed', 'verified ÷ photos')}
-    ${kpi(unchangedTotal, 'Unchanged', 'AI’s answer kept')}
-    ${kpi(correctedTotal, 'Corrected', 'at least one change')}
-    ${kpi(verifiedTotal ? pct(unchangedTotal / verifiedTotal) : '—', '% Accuracy', 'unchanged ÷ verified')}
+  const accuracyAll = verifiedTotal ? unchangedTotal / verifiedTotal : null;
+  const hero = `<div class="mq-hero">
+    <div>
+      <div class="mq-hero-label">Overall accuracy</div>
+      <div class="mq-hero-big">${pct(accuracyAll)}</div>
+      <div class="mq-hero-sub">${verifiedTotal ? `${unchangedTotal} of ${verifiedTotal} verified photos kept the AI’s artist, style, period and location` : 'No verified photos yet'}</div>
+    </div>
+    <div class="mq-kpis">
+      ${kpi(q.total, 'Photos', 'community submissions not included')}
+      ${kpi(verifiedTotal, 'Verified', 'confirmed, or saved after an edit')}
+      ${kpi(unchangedTotal, 'Unchanged', 'AI’s answer kept')}
+      ${kpi(correctedTotal, 'Corrected', 'at least one change')}
+    </div>
   </div>`;
 
   const toReviewT = Math.max(0, q.total - (rc.verified || 0));   // anything not verified yet, edited or not
@@ -533,30 +515,31 @@ function render(q, { publicView = false } = {}) {
       ${legacy ? `<div class="mq-recon-note"><b>Photos edited before tracking began.</b> ${legacy} verified photo${legacy === 1 ? ' was' : 's were'} hand-edited before the AI’s original answer was being saved, so there is nothing to compare against. Their values at the time tracking began are treated as the original: they count as Unchanged unless edited again, and any later edit counts as Corrected. This slightly overstates accuracy. Every photo added from now on keeps the AI’s true original answer.</div>` : ''}
     </div>` : '';
 
-  const cards = [];
-
-  // Review progress: every photo is either Verified or still To review (hand-edited photos that
-  // haven't been verified yet count as To review, same as untouched ones).
+  // ── 1. How many artworks have been reviewed? ──
   const toReview = Math.max(0, q.total - q.verified);
-  cards.push(card('Review progress', donut([
-    { label: 'Verified', value: q.verified, color: '#1b6e3c' },
-    { label: 'To review', value: toReview, color: '#d8d8d8' }
-  ], q.total ? pct(q.verified / q.total) : '—', 'verified'),
-    q.total ? `${q.verified} verified + ${toReview} to review = ${q.total} photos. “To review” includes photos that were edited but not verified yet` : ''));
+  const reviewedPct = q.total ? q.verified / q.total : 0;
+  const progressCard = card('Review progress', q.total ? `
+      <div class="mq-progress-top"><span>${pct(reviewedPct)} reviewed</span><span>${q.verified} of ${q.total} photos</span></div>
+      <div class="mq-progress"><div style="width:${reviewedPct * 100}%"></div></div>
+      <div class="mq-legend-inline"><span><i style="background:#1b6e3c"></i>Verified ${q.verified}</span><span><i style="background:#d8d8d8"></i>To review ${toReview}</span></div>` : empty,
+    q.total ? `${q.verified} verified + ${toReview} to review = ${q.total} photos. “To review” includes photos that were edited but not verified yet` : '', 'wide');
 
-  cards.push(card('AI answers kept as-is', measurable ? donut([
-    { label: 'Fully correct', value: q.fullyRight, color: '#1b6e3c' },
-    { label: 'Needed changes', value: measurable - q.fullyRight, color: '#d98324' }
-  ], pct(q.fullyRight / measurable), 'of verified') : empty,
-    measurable ? 'Verified photos where the AI’s artist, style, period and location were all kept. Needed changes = at least one of the four was changed' : ''));
-
+  // ── 2. How accurate is the model? ──
   const fieldKeys = ['paintingName', 'location', 'artist', 'period', 'style'];
   const acc = fieldKeys.map(f => [f, (q.fields || {})[f]])
     .filter(([, v]) => v && v.rate != null)
-    .map(([f, v]) => ({ label: FIELD_LABELS[f] || f, value: v.rate, text: pct(v.rate) }));
-  cards.push(card('Accuracy by field', acc.length ? `<div class="q-fill">${bars(acc, { max: 1 })}</div>` : empty, acc.length ? 'Share of verified photos where the AI’s answer for that field was kept (capitalization, accents and punctuation ignored)' : ''));
+    .map(([f, v]) => ({ label: FIELD_LABELS[f] || f, value: v.rate, text: pct(v.rate) }))
+    .sort((a, b) => b.value - a.value);
+  const accField = card('Accuracy by field', acc.length ? `<div class="q-fill">${bars(acc, { max: 1 })}</div>` : empty,
+    acc.length ? 'Share of verified photos where the AI’s answer for that field was kept (capitalization, accents and punctuation ignored)' : '');
 
-  // Per-field counts: corrections made, and fields verified and left unchanged
+  const locRows = (q.byLocationType || []).filter(r => r.verified)
+    .map(r => ({ label: r.type, value: r.unchanged / r.verified, text: `${pct(r.unchanged / r.verified)} (${r.verified})`, n: r.verified }))
+    .sort((a, b) => b.n - a.n);
+  const accLoc = card('Accuracy by location type', locRows.length ? `<div class="q-fill">${bars(locRows, { max: 1, labelW: 104 })}</div>` : empty,
+    locRows.length ? 'Verified photos grouped by venue type, with the number of verified photos in brackets. Accuracy = the AI’s artist, style, period and location were all kept. The venue type is worked out from keywords in the location name' : '');
+
+  // ── 3. What needs to be edited? ──
   const fieldRows = fieldKeys.map(f => {
     const fb = (q.fields || {})[f] || {};
     const ty = (q.typeByField || {})[f] || {};
@@ -567,43 +550,38 @@ function render(q, { publicView = false } = {}) {
       vals: { verified, unchanged, corrected: fb.corrected ?? Math.max(0, verified - unchanged), edits,
               accuracy: verified ? unchanged / verified : null,      // unchanged ÷ verified
               format: ty.format || 0, filled: ty.filled || 0, different: ty.different || 0 } };
-  });
+  }).sort((a, b) => b.vals.corrected - a.vals.corrected);
   const hasFieldData = fieldRows.some(r => r.vals.edits || r.vals.unchanged);
-
-  // Corrections by location type (photo-level, same definitions as the people chart)
-  const locRows = (q.byLocationType || []).map(r => ({
-    label: r.type, sub: '', verified: r.verified, unchanged: r.unchanged, corrected: r.corrected,
-    accuracy: r.verified ? r.unchanged / r.verified : null
-  }));
-  const hasLoc = locRows.some(r => r.verified);
-  cards.push(card('Corrections by Location Type', hasLoc ? peopleChart(locRows, 'Location type') : empty,
-    hasLoc ? 'Verified photos grouped by the type of venue. Unchanged (AI’s artist, style, period and location all kept) + Corrected (at least one changed) = Verified. The venue type is worked out from keywords in the location name.' : '', 'wide'));
-
   const t = q.byType || {};
-  cards.push(card('Type of correction', q.correctionTotal ? donut(
-    Object.keys(TYPE_LABELS).map(k => ({ label: TYPE_LABELS[k], value: t[k] || 0, color: TYPE_COLORS[k] })),
-    String(q.correctionTotal), 'edits') : empty,
-    q.correctionTotal ? 'Every logged edit to a title, artist, style, period or location, by kind. Format = the same answer reworded or standardized (“Van Gogh” → “Vincent van Gogh”) · Filled in = an empty or “Unknown” answer replaced · Different = a different answer' : ''));
+  const editsCard = card('Edits by type and field', (q.correctionTotal || hasFieldData) ? `<div class="mq-edit-layout">
+      <div class="mq-edit-donut">${donut(Object.keys(TYPE_LABELS).map(k => ({ label: TYPE_LABELS[k], value: t[k] || 0, color: TYPE_COLORS[k] })), String(q.correctionTotal || 0), 'edits')}</div>
+      ${correctionTable(fieldRows)}
+    </div>
+    <p class="mq-cardnote"><b>Photo counts:</b> Verified = photos reviewed · Unchanged = the AI’s answer for that field was kept (capitalization, accents and punctuation ignored) · Corrected = Verified − Unchanged · % Accuracy = Unchanged ÷ Verified.<br><b>Edit counts:</b> Total Edits = every logged change to the field, including repeat edits, edits to photos not yet verified and changes made by the Normalize tools, so it can be higher than Corrected. Title is shown here but does not affect the photo counts above.</p>` : empty,
+    (q.correctionTotal || hasFieldData) ? 'Edit types: Format = the same answer reworded or standardized (“Van Gogh” → “Vincent van Gogh”) · Filled in = an empty or “Unknown” answer replaced · Different = a different answer' : '', 'wide');
 
-  const people = peopleRows(q.byUser || []);
-  cards.push(card('Where changes came from', people.length ? peopleChart(people) : empty,
-    people.length ? (publicView ? 'Verified photos by reviewer: ' : 'Verified photos by person: ') + 'Unchanged (AI’s artist, style, period and location all kept) + Corrected (at least one changed) = Verified. The Normalize tools row counts the photos those automated tools changed; they are not part of Verified.' : ''));
-
-  cards.push(card('Correction type by field', hasFieldData ? correctionFieldSection(fieldRows) : empty,
-    hasFieldData ? 'Photo counts: Verified = photos reviewed, Unchanged = the AI’s answer for that field was kept (capitalization, accents and punctuation ignored), Corrected = Verified − Unchanged, Accuracy = Unchanged ÷ Verified. Edit counts: Total Edits = every logged change to the field, including repeat edits, edits to photos not yet verified and changes made by the Normalize tools, so it can be higher than Corrected. Edits are split into Format, Filled in and Different. Title is shown here but does not affect the photo counts above.' : '', 'wide'));
-
+  // ── 4. How can we improve the model? ──
   const c = q.confidence || {};
   const confRows = [['low', 'Low (<55%)'], ['mid', 'Medium (55–79%)'], ['high', 'High (80%+)']]
     .filter(([k]) => c[k] && c[k].n)
     .map(([k, label]) => ({ label, value: c[k].ok / c[k].n, text: `${pct(c[k].ok / c[k].n)} (${c[k].n})` }));
-  cards.push(card('Fully correct by first AI confidence score', confRows.length ? bars(confRows, { max: 1, labelW: 128 }) : empty,
-    confRows.length ? `Share of verified photos that were fully correct (artist, style, period and location all kept), grouped by the first confidence score the AI gave each photo. That score is saved once, so “Re-analyze with AI” never changes it. Verified photos in brackets${q.confidenceFallback ? `. ${q.confidenceFallback} photo${q.confidenceFallback === 1 ? '' : 's'} had no saved score and use the current one` : ''}` : ''));
-
+  const confCard = card('Fully correct by first AI confidence score', confRows.length ? bars(confRows, { max: 1, labelW: 128 }) : empty,
+    confRows.length ? `Share of verified photos that were fully correct (artist, style, period and location all kept), grouped by the first confidence score the AI gave each photo. That score is saved once, so “Re-analyze with AI” never changes it. Verified photos in brackets${q.confidenceFallback ? `. ${q.confidenceFallback} photo${q.confidenceFallback === 1 ? '' : 's'} had no saved score and use the current one` : ''}` : '');
   const vr = (q.byVersion || []).map(v => ({ label: `${versionLabel(v.version)} (${v.photos})`, value: v.photos ? v.fullyRight / v.photos : 0, text: pct(v.photos ? v.fullyRight / v.photos : null) }));
-  cards.push(card('Fully correct by prompt version', vr.length ? bars(vr, { max: 1 }) : empty, vr.length ? 'Share of verified photos that were fully correct (artist, style, period and location all kept), by the prompt version that produced the first answer. Verified photos in brackets' : ''));
+  const verCard = card('Fully correct by prompt version', vr.length ? bars(vr, { max: 1 }) : empty,
+    vr.length ? 'Share of verified photos that were fully correct (artist, style, period and location all kept), by the prompt version that produced the first answer. Verified photos in brackets' : '');
 
-  document.getElementById('mqRoot').innerHTML = `${kpis}
-    ${layout(cards)}
+  // ── 5. How was this reviewed? ──
+  const people = peopleRows(q.byUser || []);
+  const whoCard = card('Verified photos by ' + (publicView ? 'reviewer' : 'person'), people.length ? peopleChart(people) : empty,
+    people.length ? 'Unchanged (AI’s artist, style, period and location all kept) + Corrected (at least one changed) = Verified. The Normalize tools row counts the photos those automated tools changed; they are not part of Verified' : '', 'wide');
+
+  document.getElementById('mqRoot').innerHTML = `${hero}
+    ${section(1, 'How many artworks have been reviewed?', 'Numbers are only as good as the sample behind them', progressCard)}
+    ${section(2, 'How accurate is the model?', 'Share of verified photos where the AI’s answer was kept', `<div class="mq-grid2">${accField}${accLoc}</div>`)}
+    ${section(3, 'What needs to be edited?', 'Which fields get edited, and what kind of edit it is', editsCard)}
+    ${section(4, 'How can we improve the model?', 'Does the AI’s confidence match reality, and did prompt changes help?', `<div class="mq-grid2">${confCard}${verCard}</div>`)}
+    ${section(5, 'How was this reviewed?', 'Who verified the photos, and how often they changed the AI’s answer', whoCard)}
     ${recon}
     <p class="mq-foot">Based on <b>${q.verified}</b> verified photos${legacy ? `, including ${legacy} edited before tracking began (their values at that point count as the original, so accuracy may read slightly high)` : ''}.
       Aim for 100+ for reliable numbers. “Fully correct” and “Unchanged” mean the AI’s artist, style, period and location were all kept; titles are shown in the per-field table only, because unrecognized works get descriptive titles.
