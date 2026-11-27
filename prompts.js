@@ -3,7 +3,19 @@
 // PROMPT_VERSION: every new photo records the version that produced it, and eval.js scores
 // each version against your verified photos so you can see whether a change really helped.
 (function (root) {
-  const PROMPT_VERSION = 'v1';
+  const PROMPT_VERSION = 'v2';
+
+  // Standard style / movement names. The model picks the closest one, so styles stay consistent across photos
+  // and the Consolidate Styles tool has less to clean up. Add a name here to allow a new style.
+  const STYLE_LIST = [
+    'Byzantine', 'Gothic', 'Early Renaissance', 'High Renaissance', 'Mannerism', 'Baroque', 'Dutch Golden Age',
+    'Rococo', 'Neoclassicism', 'Romanticism', 'Realism', 'American Realism', 'Impressionism', 'Post-Impressionism',
+    'Neo-Impressionism', 'Symbolism', 'Art Nouveau', 'Fauvism', 'Expressionism', 'German Expressionism', 'Cubism',
+    'Futurism', 'Constructivism', 'Dada', 'Surrealism', 'Art Deco', 'Modernism', 'Abstract Art', 'Abstract Expressionism',
+    'Color Field', 'Pop Art', 'Minimalism', 'Conceptual Art', 'Op Art', 'Photorealism', 'Neo-Expressionism',
+    'Street Art', 'Naïve Art', 'Contemporary Art'
+  ];
+  const STYLE_RULE = `Use the single closest name from this list: ${STYLE_LIST.join(', ')}. Only if none of them fits, give the standard name of the movement in 1–3 words. Never combine styles with '/', and never add parentheses, qualifiers or explanations.`;
 
   const SYSTEM_PROMPT = `Act as a museum curator interested in identifying art, which can include paintings, sculptures, art installations, murals, and street art. For each artwork fed into the API, try to identify the artist that most closely matches the style of the art, the name of the artwork, and the location where the artwork was taken.
 
@@ -21,11 +33,11 @@ Express genuine uncertainty when the evidence is ambiguous — never fabricate a
 
 Return a JSON object with EXACTLY these fields (no markdown, raw JSON only):
 {
-  "paintingName": "The specific title of the artwork if identifiable, or a descriptive title like 'Unknown portrait' if not",
+  "paintingName": "The artwork's catalog title only, exactly as a museum would list it — e.g. 'The Starry Night'. Use the English title when one is commonly used, and give only one title: no parentheses, no alternate or translated titles, no commentary, no description of what the picture shows. Only give a title you can read on a wall label or caption, or recognize with confidence. Never make up a descriptive title (not 'Portrait of a Young Man with Scepter') and never guess who a portrait's sitter is. If you do not know the title, return exactly 'Untitled'.",
   "artist": "The artist's name in standard 'First Last' form, as commonly cataloged — e.g. 'Vincent van Gogh', 'Yayoi Kusama', 'Pablo Picasso', 'Jean-Michel Basquiat'; use the single name for artists known by one (e.g. 'Banksy', 'Rembrandt'). Include a suffix only when it is part of how the artist is cataloged ('the Elder', 'the Younger', 'Jr.', 'Sr.', e.g. 'Pieter Bruegel the Elder'). If the work is by the circle of a master rather than the master, use one attribution qualifier in front of the name: 'School of', 'Workshop of', 'Studio of', 'Circle of', 'Follower of' or 'After' (e.g. 'School of Caravaggio'). Otherwise no middle names, initials, titles, dates, nationality, parentheses, or any wording about confidence, uncertainty or commentary (no 'possibly', 'likely', 'attributed to', '?'). If you cannot identify a specific artist, return exactly 'Unknown Artist' and put the movement in the style field.",
   "location": "The most specific venue name you can determine — for GPS photos use the coordinates to identify the museum/gallery; for non-GPS photos infer from visual clues. Format: 'Venue Name, City'",
   "country": "Country name",
-  "style": "Art style/movement, e.g. 'Dutch Golden Age', 'Impressionism', 'Baroque'",
+  "style": "${STYLE_RULE}",
   "medium": "Medium used, e.g. 'Oil on Canvas', 'Watercolor', 'Bronze Sculpture'",
   "period": "Time period or century, e.g. '17th century', 'Late 19th c.', 'Contemporary'",
   "confidence": <integer 0-100 for confidence in the artwork/artist identification only>,
@@ -60,9 +72,9 @@ Provide:
 
 Return ONLY a valid JSON object with ALL of these keys (raw JSON, no markdown fences). For confirmed fields, echo back the confirmed value unchanged:
 {
-  "paintingName": "...",
+  "paintingName": "... (the catalog title only: no parentheses or commentary; 'Untitled' if unknown)",
   "artist": "... (name only: 'First Last', optionally with a 'School of'-type qualifier or 'the Elder/Younger'; 'Unknown Artist' if unknown; no commentary)",
-  "style": "...",
+  "style": "... (${STYLE_RULE})",
   "medium": "...",
   "period": "...",
   "location": "...",
@@ -73,7 +85,7 @@ Return ONLY a valid JSON object with ALL of these keys (raw JSON, no markdown fe
 }`;
   }
 
-  const api = { PROMPT_VERSION, SYSTEM_PROMPT, buildUserPrompt, buildRefinePrompt, REFINE_FIELDS };
+  const api = { PROMPT_VERSION, SYSTEM_PROMPT, buildUserPrompt, buildRefinePrompt, REFINE_FIELDS, STYLE_LIST };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.ArtPrompts = api;
 })(typeof window !== 'undefined' ? window : globalThis);

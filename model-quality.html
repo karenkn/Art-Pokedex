@@ -584,7 +584,7 @@ function render(q, { publicView = false } = {}) {
     ${section(5, 'How was this reviewed?', 'Who verified the photos, and how often they changed the AI’s answer', whoCard)}
     ${recon}
     <p class="mq-foot">Based on <b>${q.verified}</b> verified photos${legacy ? `, including ${legacy} edited before tracking began (their values at that point count as the original, so accuracy may read slightly high)` : ''}.
-      Aim for 100+ for reliable numbers. “Fully correct” and “Unchanged” mean the AI’s artist, style, period and location were all kept; titles are shown in the per-field table only, because unrecognized works get descriptive titles.
+      Aim for 100+ for reliable numbers. “Fully correct” and “Unchanged” mean the AI’s artist, style, period and location were all kept; titles are shown in the per-field table only, because many works have no catalog title the AI can recognize.
       Answers are compared ignoring capitalization, accents and punctuation, so a change that only fixes those still counts as an edit but not as a correction.
       Confidence charts use the AI’s <b>first</b> confidence score, which “Re-analyze with AI” never changes. Edit counts are individual field changes, so they differ from the photo counts above.<br>
       ${publicView ? '' : 'To score a new prompt against your held-out photos, run <code>node eval.js</code>.'}</p>`;
